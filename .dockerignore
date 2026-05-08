@@ -1,0 +1,60 @@
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv
+venv/
+env/
+
+# Secrets / environment
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+
+# Claude Code session data
+.claude/
+
+# IDE / editor
+.idea/
+.vscode/
+.cursor/
+*.swp
+*.swo
+
+# Testing artifacts
+.pytest_cache
+.coverage
+htmlcov/
+.tox/
+
+# Type checking / linting caches
+.mypy_cache/
+.ruff_cache/
+
+# Logs
+logs/
+*.log
+
+# Git
+.git
+.gitignore
+
+# Docker meta
+docker-compose*.yml
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SSL certs
+nginx/certs/
+*.pem
+*.key
+*.crt

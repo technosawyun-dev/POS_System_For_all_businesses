@@ -1,0 +1,181 @@
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
+
+import orjson
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, ORJSONResponse
+
+from app.api.v1.router import api_router
+from app.core.config import settings
+from app.core.constants import API_V1_PREFIX
+from app.core.exceptions import AppBaseException
+from app.core.logging import configure_logging, get_logger
+from app.db.redis import close_redis_pool, get_redis_pool
+from app.db.session import engine
+from app.events import handlers as _event_handlers  # noqa: F401 — registers handlers
+from app.middleware.error_handler import ErrorHandlerMiddleware
+from app.middleware.idempotency import IdempotencyMiddleware
+from app.middleware.logging import RequestLoggingMiddleware
+from app.middleware.request_id import RequestIDMiddleware
+
+logger = get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    configure_logging()
+    logger.info("Starting POS SaaS API", version=settings.APP_VERSION, env=settings.APP_ENV)
+
+    await get_redis_pool()
+    logger.info("Redis connected")
+
+    yield
+
+    await close_redis_pool()
+    await engine.dispose()
+    logger.info("POS SaaS API shutdown complete")
+
+
+def create_application() -> FastAPI:
+    configure_logging()
+
+    app = FastAPI(
+        title=settings.APP_NAME,
+        version=settings.APP_VERSION,
+        description="Enterprise Multi-Tenant POS SaaS Backend API",
+        docs_url="/docs" if not settings.is_production else None,
+        redoc_url="/redoc" if not settings.is_production else None,
+        openapi_url="/openapi.json" if not settings.is_production else None,
+        default_response_class=ORJSONResponse,
+        lifespan=lifespan,
+    )
+
+    # Middleware — order matters: outer first
+    app.add_middleware(ErrorHandlerMiddleware)
+    app.add_middleware(IdempotencyMiddleware)
+    app.add_middleware(RequestLoggingMiddleware)
+    app.add_middleware(RequestIDMiddleware)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+        allow_methods=settings.CORS_ALLOW_METHODS,
+        allow_headers=settings.CORS_ALLOW_HEADERS,
+    )
+
+    # Exception handlers
+    @app.exception_handler(AppBaseException)
+    async def app_exception_handler(request: Request, exc: AppBaseException) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "success": False,
+                "error": {
+                    "code": exc.code,
+                    "message": exc.message,
+                    "details": exc.details,
+                },
+            },
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        safe_errors = [
+            {"field": " -> ".join(str(loc) for loc in e["loc"]), "message": e["msg"]}
+            for e in exc.errors()
+        ]
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={
+                "success": False,
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Request validation failed",
+                    "details": {"errors": safe_errors},
+                },
+            },
+        )
+
+    # Routes
+    app.include_router(api_router, prefix=API_V1_PREFIX)
+
+    @app.get("/health", tags=["Health"], include_in_schema=False)
+    async def health_check() -> dict:
+        """Basic liveness probe — returns 200 as long as the process is alive."""
+        return {
+            "status": "healthy",
+            "version": settings.APP_VERSION,
+            "environment": settings.APP_ENV,
+        }
+
+    @app.get("/health/ready", tags=["Health"], include_in_schema=False)
+    async def readiness_check(request: Request) -> JSONResponse:
+        """
+        Readiness probe — verifies all dependencies are reachable.
+        Returns 200 if ready, 503 if any dependency is unavailable.
+        Load balancers should stop sending traffic on 503.
+        """
+        import time
+
+        checks: dict[str, dict] = {}
+        overall_ok = True
+
+        # Database check
+        try:
+            db_start = time.perf_counter()
+            async with engine.connect() as conn:
+                from sqlalchemy import text
+
+                await conn.execute(text("SELECT 1"))
+            checks["database"] = {
+                "status": "ok",
+                "latency_ms": round((time.perf_counter() - db_start) * 1000, 2),
+            }
+        except Exception as exc:
+            overall_ok = False
+            checks["database"] = {"status": "error", "error": str(exc)}
+
+        # Redis check
+        try:
+            from app.db.redis import get_redis_pool
+
+            redis_start = time.perf_counter()
+            redis = await get_redis_pool()
+            await redis.ping()
+            checks["redis"] = {
+                "status": "ok",
+                "latency_ms": round((time.perf_counter() - redis_start) * 1000, 2),
+            }
+        except Exception as exc:
+            overall_ok = False
+            checks["redis"] = {"status": "error", "error": str(exc)}
+
+        http_status = status.HTTP_200_OK if overall_ok else status.HTTP_503_SERVICE_UNAVAILABLE
+        return JSONResponse(
+            status_code=http_status,
+            content={
+                "status": "ready" if overall_ok else "not_ready",
+                "version": settings.APP_VERSION,
+                "checks": checks,
+            },
+        )
+
+    @app.get("/health/live", tags=["Health"], include_in_schema=False)
+    async def liveness_check() -> dict:
+        """Kubernetes liveness probe — minimal check, just confirm process is alive."""
+        return {"status": "alive"}
+
+    @app.get("/", tags=["Root"], include_in_schema=False)
+    async def root() -> dict:
+        return {"name": settings.APP_NAME, "version": settings.APP_VERSION}
+
+    return app
+
+
+app = create_application()
