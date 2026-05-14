@@ -43,12 +43,12 @@ services:
   # FastAPI Application
   api:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
       target: app
     container_name: pos_api
     restart: unless-stopped
-    env_file: .env
+    env_file: ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://${DATABASE_USER:-posuser}:${DATABASE_PASSWORD:-pospassword}@postgres:5432/${DATABASE_NAME:-posdb}
       REDIS_URL: redis://redis:6379/0
@@ -75,12 +75,12 @@ services:
   # Celery Worker
   celery_worker:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
       target: app
     container_name: pos_celery_worker
     restart: unless-stopped
-    env_file: .env
+    env_file: ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://${DATABASE_USER:-posuser}:${DATABASE_PASSWORD:-pospassword}@postgres:5432/${DATABASE_NAME:-posdb}
       REDIS_URL: redis://redis:6379/0
@@ -106,12 +106,12 @@ services:
   # Celery Beat
   celery_beat:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
       target: app
     container_name: pos_celery_beat
     restart: unless-stopped
-    env_file: .env
+    env_file: ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://${DATABASE_USER:-posuser}:${DATABASE_PASSWORD:-pospassword}@postgres:5432/${DATABASE_NAME:-posdb}
       REDIS_URL: redis://redis:6379/0
