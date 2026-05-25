@@ -9,11 +9,13 @@ from app.api.deps import (
     DbSession,
     EffectiveTenantId,
     RequestId,
+    require_cashier_or_above,
     require_inventory_access,
     require_manager_or_above,
     require_tenant_admin,
 )
 from app.schemas.common import PaginatedResponse, SuccessResponse
+from app.subscriptions.gates import validate_product_limit
 from app.schemas.product import (
     PriceHistoryResponse,
     ProductCreateRequest,
@@ -34,7 +36,7 @@ router = APIRouter()
     response_model=ProductResponse,
     status_code=201,
     summary="Create product",
-    dependencies=[Depends(require_inventory_access)],
+    dependencies=[Depends(require_inventory_access), Depends(validate_product_limit)],
 )
 async def create_product(
     payload: ProductCreateRequest,
@@ -57,14 +59,14 @@ async def create_product(
     "",
     response_model=PaginatedResponse[ProductResponse],
     summary="List products",
-    dependencies=[Depends(require_inventory_access)],
+    dependencies=[Depends(require_cashier_or_above)],
 )
 async def list_products(
     db: DbSession,
     current_user: CurrentUser,
     tenant_id: EffectiveTenantId,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
     category_id: uuid.UUID | None = Query(default=None),
     brand_id: uuid.UUID | None = Query(default=None),
     is_active: bool | None = Query(default=None),
@@ -92,7 +94,7 @@ async def list_products(
     "/barcode/{barcode}",
     response_model=ProductDetailResponse,
     summary="Lookup product by barcode",
-    dependencies=[Depends(require_inventory_access)],
+    dependencies=[Depends(require_cashier_or_above)],
 )
 async def get_by_barcode(
     barcode: str,
@@ -109,7 +111,7 @@ async def get_by_barcode(
     "/sku/{sku}",
     response_model=ProductResponse,
     summary="Lookup product by SKU",
-    dependencies=[Depends(require_inventory_access)],
+    dependencies=[Depends(require_cashier_or_above)],
 )
 async def get_by_sku(
     sku: str,
@@ -126,7 +128,7 @@ async def get_by_sku(
     "/{product_id}",
     response_model=ProductDetailResponse,
     summary="Get product with variants",
-    dependencies=[Depends(require_inventory_access)],
+    dependencies=[Depends(require_cashier_or_above)],
 )
 async def get_product(
     product_id: uuid.UUID,
@@ -199,7 +201,7 @@ async def get_price_history(
     current_user: CurrentUser,
     tenant_id: EffectiveTenantId,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> PaginatedResponse[PriceHistoryResponse]:
     service = ProductService(db)
     history, total = await service.get_price_history(

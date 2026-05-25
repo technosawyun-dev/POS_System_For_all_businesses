@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from app.models.user import User
-
 import uuid
-from decimal import Decimal
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Query, status
 
 from app.api.deps import (
     CurrentUser,
@@ -22,6 +19,7 @@ from app.cashiers.schemas import (
 )
 from app.cashiers.services import CashierSessionService
 from app.core.constants import UserRole
+from app.models.user import User
 
 router = APIRouter()
 
@@ -48,14 +46,14 @@ async def open_session(
     data: OpenSessionRequest,
     db: DbSession,
     current_user: User = _cashier_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
-    request_id: str = Depends(RequestId),
+    tenant_id: EffectiveTenantId = None,
+    request_id: RequestId = None,
 ) -> CashierSessionResponse:
     svc = CashierSessionService(db)
     session = await svc.open_session(
         tenant_id=tenant_id,
         branch_id=data.branch_id,
-        cashier_user_id=data.cashier_user_id,
+        cashier_user_id=current_user.id,
         opening_balance=data.opening_balance,
         notes=data.notes,
         actor_user_id=current_user.id,
@@ -74,8 +72,8 @@ async def close_session(
     data: CloseSessionRequest,
     db: DbSession,
     current_user: User = _cashier_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
-    request_id: str = Depends(RequestId),
+    tenant_id: EffectiveTenantId = None,
+    request_id: RequestId = None,
 ) -> CashierSessionResponse:
     svc = CashierSessionService(db)
     session = await svc.close_session(
@@ -98,7 +96,7 @@ async def get_session(
     session_id: uuid.UUID,
     db: DbSession,
     current_user: User = _cashier_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: EffectiveTenantId = None,
 ) -> CashierSessionResponse:
     svc = CashierSessionService(db)
     session = await svc.get_session(session_id, tenant_id)
@@ -113,12 +111,12 @@ async def get_session(
 async def list_sessions(
     db: DbSession,
     current_user: User = _manager_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: EffectiveTenantId = None,
     branch_id: uuid.UUID | None = Query(default=None),
     cashier_user_id: uuid.UUID | None = Query(default=None),
     session_status: str | None = Query(default=None, alias="status"),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> CashierSessionListResponse:
     svc = CashierSessionService(db)
     items, total = await svc.list_sessions(

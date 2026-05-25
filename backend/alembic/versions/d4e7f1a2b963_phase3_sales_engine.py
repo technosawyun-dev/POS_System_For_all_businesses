@@ -1,7 +1,7 @@
 """phase3_sales_engine
 
 Revision ID: d4e7f1a2b963
-Revises: 445699a818db
+Revises: b1e9f3c2a8d4
 Create Date: 2026-05-13 00:00:00.000000
 
 Phase 3 migration: cashier_sessions, branch_counters, carts, cart_items,
@@ -16,7 +16,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "d4e7f1a2b963"
-down_revision: Union[str, None] = "445699a818db"
+down_revision: Union[str, None] = "b1e9f3c2a8d4"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

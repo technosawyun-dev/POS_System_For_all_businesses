@@ -1,11 +1,9 @@
-// ============================================================
 // pos-checkout.jsx — Main POS screen: search, products, cart
-// ============================================================
 
 const { useApp: posUseApp, fmt: posFmt } = window;
 const { useState: posUseState, useMemo: posUseMemo, useEffect: posUseEffect, useRef: posUseRef, useCallback: posUseCallback } = React;
 
-// ─── Category Filter Bar ─────────────────────────────────────
+// Category Filter Bar
 function CategoryFilter() {
   const { state, dispatch } = posUseApp();
   const { categories, activeCategory } = state;
@@ -33,7 +31,7 @@ function CategoryFilter() {
   );
 }
 
-// ─── Product Card ────────────────────────────────────────────
+// Product Card
 function ProductCard({ product, cartQty, onAdd }) {
   const outOfStock = product.stock === 0;
   const lowStock   = product.stock > 0 && product.stock <= 10;
@@ -78,7 +76,7 @@ function ProductCard({ product, cartQty, onAdd }) {
   );
 }
 
-// ─── Product Grid ────────────────────────────────────────────
+// Product Grid
 function ProductGrid({ products, cartItems, onAdd }) {
   if (products.length === 0) {
     return (
@@ -103,7 +101,7 @@ function ProductGrid({ products, cartItems, onAdd }) {
   );
 }
 
-// ─── Cart Item ───────────────────────────────────────────────
+// Cart Item
 function CartItem({ item }) {
   const { dispatch } = posUseApp();
   const lineTotal = item.price * item.qty;
@@ -150,7 +148,7 @@ function CartItem({ item }) {
   );
 }
 
-// ─── Discount Input (inline) ─────────────────────────────────
+// Discount Input (inline)
 function DiscountRow() {
   const { state, dispatch } = posUseApp();
   const [show, setShow] = posUseState(false);
@@ -196,7 +194,7 @@ function DiscountRow() {
   );
 }
 
-// ─── Cart Panel ──────────────────────────────────────────────
+// Cart Panel
 function CartPanel() {
   const { state, dispatch, cartCalc } = posUseApp();
   const { cart, checkoutStep } = state;
@@ -289,7 +287,7 @@ function CartPanel() {
   );
 }
 
-// ─── POS Screen ──────────────────────────────────────────────
+// POS Screen
 function POSScreen() {
   const { state, dispatch, cartCalc } = posUseApp();
   const { products, cart, activeCategory, productSearch, checkoutStep } = state;

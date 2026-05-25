@@ -22,7 +22,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # ── notifications ──────────────────────────────────────────────────────────
+    # notifications
     op.create_table(
         "notifications",
         sa.Column(
@@ -63,7 +63,7 @@ def upgrade() -> None:
     op.create_index("ix_notifications_priority", "notifications", ["priority"])
     op.create_index("ix_notifications_created_at", "notifications", ["created_at"])
 
-    # ── notification_recipients ────────────────────────────────────────────────
+    # notification_recipients
     op.create_table(
         "notification_recipients",
         sa.Column(
@@ -123,7 +123,7 @@ def upgrade() -> None:
         ["is_read"],
     )
 
-    # ── notification_preferences ───────────────────────────────────────────────
+    # notification_preferences
     op.create_table(
         "notification_preferences",
         sa.Column(

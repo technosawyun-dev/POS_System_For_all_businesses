@@ -4,7 +4,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import CurrentUser, DbSession, EffectiveTenantId, RequestId, require_manager_or_above, require_tenant_admin
+from app.api.deps import CurrentUser, DbSession, EffectiveTenantId, RequestId, require_cashier_or_above, require_manager_or_above, require_tenant_admin
 from app.schemas.common import PaginatedResponse, SuccessResponse
 from app.schemas.product import CategoryCreateRequest, CategoryResponse, CategoryUpdateRequest
 from app.services.product_service import CategoryService
@@ -40,14 +40,14 @@ async def create_category(
     "",
     response_model=PaginatedResponse[CategoryResponse],
     summary="List categories",
-    dependencies=[Depends(require_manager_or_above)],
+    dependencies=[Depends(require_cashier_or_above)],
 )
 async def list_categories(
     db: DbSession,
     current_user: CurrentUser,
     tenant_id: EffectiveTenantId,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
     parent_id: uuid.UUID | None = Query(default=None),
 ) -> PaginatedResponse[CategoryResponse]:
     service = CategoryService(db)
@@ -69,7 +69,7 @@ async def list_categories(
     "/{category_id}",
     response_model=CategoryResponse,
     summary="Get category",
-    dependencies=[Depends(require_manager_or_above)],
+    dependencies=[Depends(require_cashier_or_above)],
 )
 async def get_category(
     category_id: uuid.UUID,

@@ -80,7 +80,11 @@ async def validate_user_limit(
     result = await db.execute(
         select(func.count())
         .select_from(User)
-        .where(User.tenant_id == tenant_id, User.status == UserStatus.ACTIVE)
+        .where(
+            User.tenant_id == tenant_id,
+            User.status == UserStatus.ACTIVE,
+            User.is_deleted.is_(False),
+        )
     )
     count = result.scalar_one()
     svc = EntitlementService(db)
@@ -104,6 +108,25 @@ async def validate_product_limit(
     count = result.scalar_one()
     svc = EntitlementService(db)
     await svc.validate_limit(tenant_id, "products", count)
+
+
+async def validate_customer_limit(
+    db: DbSession,
+    current_user: CurrentUser,
+    tenant_id: EffectiveTenantId,
+) -> None:
+    if current_user.role == UserRole.SUPER_ADMIN:
+        return
+    from app.customers.models import Customer
+
+    result = await db.execute(
+        select(func.count())
+        .select_from(Customer)
+        .where(Customer.tenant_id == tenant_id, Customer.is_active.is_(True))
+    )
+    count = result.scalar_one()
+    svc = EntitlementService(db)
+    await svc.validate_limit(tenant_id, "customers", count)
 
 
 async def validate_device_limit(

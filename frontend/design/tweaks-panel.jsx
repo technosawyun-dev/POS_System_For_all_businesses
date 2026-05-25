@@ -44,7 +44,6 @@
 //     );
 //   }
 //
-// ─────────────────────────────────────────────────────────────────────────────
 
 const __TWEAKS_STYLE = `
   .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;
@@ -156,7 +155,7 @@ const __TWEAKS_STYLE = `
     filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
 `;
 
-// ── useTweaks ───────────────────────────────────────────────────────────────
+// useTweaks
 // Single source of truth for tweak values. setTweak persists via the host
 // (__edit_mode_set_keys → host rewrites the EDITMODE block on disk).
 function useTweaks(defaults) {
@@ -176,7 +175,7 @@ function useTweaks(defaults) {
   return [values, setTweak];
 }
 
-// ── TweaksPanel ─────────────────────────────────────────────────────────────
+// TweaksPanel
 // Floating shell. Registers the protocol listener BEFORE announcing
 // availability — if the announce ran first, the host's activate could land
 // before our handler exists and the toolbar toggle would silently no-op.
@@ -310,8 +309,8 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
     </>
   );
 }
+// Layout helpers
 
-// ── Layout helpers ──────────────────────────────────────────────────────────
 
 function TweakSection({ label, children }) {
   return (
@@ -333,8 +332,8 @@ function TweakRow({ label, value, children, inline = false }) {
     </div>
   );
 }
+// Controls
 
-// ── Controls ────────────────────────────────────────────────────────────────
 
 function TweakSlider({ label, value, min = 0, max = 100, step = 1, unit = '', onChange }) {
   return (

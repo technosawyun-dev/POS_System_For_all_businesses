@@ -1,11 +1,11 @@
 import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
 
 export const CURRENCY_SYMBOL = '$'
 export const TAX_RATE = 0.10
-export const STORE_NAME = 'NexusPOS — Main Branch'
 
 export function cn(...inputs: ClassValue[]) {
-  return clsx(inputs)
+  return twMerge(clsx(inputs))
 }
 
 export function fmt(amount: number | string | undefined): string {
@@ -38,4 +38,10 @@ export function timeAgo(date: Date | string): string {
 
 export function genId(prefix = 'id'): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
+
+export function extractApiMsg(err: unknown): string | null {
+  if (typeof err !== 'object' || err === null) return null
+  const e = err as { response?: { data?: { error?: { message?: string }; detail?: string } }; message?: string }
+  return e.response?.data?.error?.message ?? e.response?.data?.detail ?? e.message ?? null
 }

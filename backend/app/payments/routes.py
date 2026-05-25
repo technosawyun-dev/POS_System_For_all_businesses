@@ -11,6 +11,8 @@ from app.api.deps import (
     DbSession,
     EffectiveTenantId,
     RequestId,
+    get_effective_tenant_id,
+    get_request_id,
     require_roles,
 )
 from app.core.constants import UserRole
@@ -62,8 +64,8 @@ async def add_payment(
     data: AddPaymentRequest,
     db: DbSession,
     current_user: User = _payment_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
-    request_id: str = Depends(RequestId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
+    request_id: str = Depends(get_request_id),
 ) -> PaymentResponse:
     svc = PaymentService(db)
     payment = await svc.add_payment(
@@ -87,12 +89,12 @@ async def add_payment(
 async def list_payments(
     db: DbSession,
     current_user: User = _view_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
     order_id: uuid.UUID | None = Query(default=None),
     payment_method: str | None = Query(default=None),
     payment_status: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> PaymentListResponse:
     svc = PaymentService(db)
     items, total = await svc.list_payments(
@@ -120,7 +122,7 @@ async def get_payment(
     payment_id: uuid.UUID,
     db: DbSession,
     current_user: User = _view_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> PaymentResponse:
     svc = PaymentService(db)
     payment = await svc.get_payment(payment_id, tenant_id)
@@ -141,8 +143,8 @@ async def process_refund(
     data: RefundRequest,
     db: DbSession,
     current_user: User = _refund_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
-    request_id: str = Depends(RequestId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
+    request_id: str = Depends(get_request_id),
 ) -> RefundResponse:
     svc = RefundService(db)
     refund_input = RefundInput(
@@ -175,10 +177,10 @@ async def process_refund(
 async def list_refunds(
     db: DbSession,
     current_user: User = _view_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
     order_id: uuid.UUID | None = Query(default=None),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> RefundListResponse:
     svc = RefundService(db)
     items, total = await svc.list_refunds(
@@ -204,7 +206,7 @@ async def get_refund(
     refund_id: uuid.UUID,
     db: DbSession,
     current_user: User = _view_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> RefundResponse:
     svc = RefundService(db)
     refund = await svc.get_refund(refund_id, tenant_id)

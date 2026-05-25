@@ -62,6 +62,17 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_REQUESTS_PER_MINUTE: int = 60
     RATE_LIMIT_BURST: int = 100
+    REGISTRATION_MAX_PER_IP_PER_HOUR: int = 5
+    REGISTRATION_ABUSE_MAX_PER_IP_PER_DAY: int = 10
+
+    # File Uploads
+    UPLOAD_DIR: str = "./uploads"
+    UPLOAD_MAX_FILE_SIZE_MB: int = 10
+    UPLOAD_ALLOWED_CONTENT_TYPES: list[str] = [
+        "image/jpeg",
+        "image/png",
+        "application/pdf",
+    ]
 
     # Logging
     LOG_LEVEL: str = "INFO"

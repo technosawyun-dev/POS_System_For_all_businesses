@@ -39,16 +39,22 @@ class TenantStatusUpdateRequest(BaseSchema):
 
 
 class TenantSettingsUpdateRequest(BaseSchema):
-    features_enabled: dict | None = None
-    business_type: str | None = None
     tax_rate: float | None = Field(default=None, ge=0, le=100)
     tax_inclusive: bool | None = None
     extra_settings: dict | None = None
 
 
+class TenantSettingsResponse(BaseSchema):
+    tenant_id: uuid.UUID
+    tax_rate: float | None
+    tax_inclusive: bool
+    extra_settings: dict
+
+
 class TenantResponse(TimestampedSchema):
     name: str
     slug: str
+    business_code: str
     status: str
     email: str | None
     phone: str | None

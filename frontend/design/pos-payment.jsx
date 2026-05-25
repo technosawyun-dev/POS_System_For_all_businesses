@@ -1,11 +1,9 @@
-// ============================================================
 // pos-payment.jsx — Payment modal, numpad, receipt screen
-// ============================================================
 
 const { useApp: payUseApp, fmt: payFmt, fmtDateTime: payFmtDT } = window;
 const { useState: payUseState, useEffect: payUseEffect, useMemo: payUseMemo, useCallback: payUseCallback } = React;
 
-// ─── Numeric Keypad ──────────────────────────────────────────
+// Numeric Keypad
 function NumPad({ value, onChange }) {
   const keys = ['7','8','9','4','5','6','1','2','3','.','0','⌫'];
 
@@ -42,7 +40,7 @@ function NumPad({ value, onChange }) {
   );
 }
 
-// ─── Quick Bill Buttons ───────────────────────────────────────
+// Quick Bill Buttons
 function QuickBills({ total, onSelect }) {
   const BILLS = [5, 10, 20, 50, 100, 200, 500];
   const minBill = BILLS.find(b => b >= total) || BILLS[BILLS.length - 1];
@@ -67,7 +65,7 @@ function QuickBills({ total, onSelect }) {
   );
 }
 
-// ─── Cash Payment ────────────────────────────────────────────
+// Cash Payment
 function CashPayment({ total, amount, onAmountChange, onProcess }) {
   const tendered = parseFloat(amount) || 0;
   const change = tendered - total;
@@ -115,7 +113,7 @@ function CashPayment({ total, amount, onAmountChange, onProcess }) {
   );
 }
 
-// ─── Card Payment ─────────────────────────────────────────────
+// Card Payment
 function CardPayment({ total, onProcess }) {
   const [processing, setProcessing] = payUseState(false);
 
@@ -167,7 +165,7 @@ function CardPayment({ total, onProcess }) {
   );
 }
 
-// ─── Split Payment ────────────────────────────────────────────
+// Split Payment
 function SplitPayment({ total, splitPayments, onAdd, onRemove, onProcess }) {
   const [method, setMethod] = payUseState('cash');
   const [amount, setAmount]  = payUseState('');
@@ -260,7 +258,7 @@ function SplitPayment({ total, splitPayments, onAdd, onRemove, onProcess }) {
   );
 }
 
-// ─── Processing Screen ────────────────────────────────────────
+// Processing Screen
 function ProcessingScreen() {
   return (
     <div className="fixed inset-0 z-[60] bg-zinc-950/95 backdrop-blur flex flex-col items-center justify-center gap-6">
@@ -277,7 +275,7 @@ function ProcessingScreen() {
   );
 }
 
-// ─── Receipt Screen ───────────────────────────────────────────
+// Receipt Screen
 function ReceiptScreen() {
   const { state, dispatch } = payUseApp();
   const { completedSale } = state;
@@ -352,7 +350,7 @@ function ReceiptScreen() {
   );
 }
 
-// ─── Payment Overlay (wraps all payment steps) ───────────────
+// Payment Overlay (wraps all payment steps)
 function PaymentOverlay() {
   const { state, dispatch, cartCalc } = payUseApp();
   const { checkoutStep, paymentMethod, paymentAmount, splitPayments } = state;

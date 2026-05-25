@@ -346,7 +346,8 @@ class CheckoutService:
         )
 
         # Return order with related data loaded
-        return await self.order_repo.get_with_details(order.id)
+        await self.session.refresh(order, attribute_names=["items", "payments", "refunds"])
+        return order
 
     # Private helpers
 
@@ -653,4 +654,5 @@ class CheckoutService:
             actor_id=actor_user_id,
         ))
 
+        await self.session.refresh(order, attribute_names=["items", "payments", "refunds"])
         return order

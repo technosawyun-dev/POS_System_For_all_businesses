@@ -14,6 +14,7 @@ export default {
       animation: {
         fadeIn: 'fadeIn 0.2s ease-out both',
         slideIn: 'slideIn 0.25s ease-out both',
+        'scan-line': 'scanLine 2s linear infinite',
       },
       keyframes: {
         fadeIn: {
@@ -23,6 +24,11 @@ export default {
         slideIn: {
           from: { transform: 'translateX(100%)' },
           to:   { transform: 'translateX(0)' },
+        },
+        scanLine: {
+          '0%':   { transform: 'translateY(0px)' },
+          '50%':  { transform: 'translateY(142px)' },
+          '100%': { transform: 'translateY(0px)' },
         },
       },
     },

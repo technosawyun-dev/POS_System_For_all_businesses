@@ -68,6 +68,14 @@ class UserService:
         offset = (page - 1) * page_size
         return await self.user_repo.get_by_tenant(tenant_id, offset=offset, limit=page_size)
 
+    async def list_all_users(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[User], int]:
+        offset = (page - 1) * page_size
+        return await self.user_repo.get_all_users(offset=offset, limit=page_size)
+
     async def update_user(
         self,
         user_id: uuid.UUID,
@@ -155,6 +163,31 @@ class UserService:
             request_id=request_id,
         )
         return user
+
+    async def reset_user_password(
+        self,
+        user_id: uuid.UUID,
+        new_password: str,
+        actor_id: uuid.UUID,
+        tenant_id: uuid.UUID | None = None,
+        request_id: str | None = None,
+    ) -> None:
+        user = await self.user_repo.get_by_id_active(user_id)
+        if not user:
+            raise NotFoundError("User", user_id)
+
+        from app.core.security import hash_password as _hash
+        await self.user_repo.update(user, hashed_password=_hash(new_password))
+
+        await self.audit_service.log(
+            action=AuditAction.PASSWORD_CHANGED,
+            actor_user_id=actor_id,
+            tenant_id=tenant_id,
+            entity_type=EntityType.USER,
+            entity_id=user_id,
+            after_state={"password_reset_by_admin": str(actor_id)},
+            request_id=request_id,
+        )
 
     async def soft_delete_user(
         self,

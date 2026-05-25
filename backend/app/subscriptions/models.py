@@ -29,6 +29,8 @@ class SubscriptionPlan(Base):
     currency: Mapped[str] = mapped_column(String(10), nullable=False, default="USD")
     trial_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_trial: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     entitlements: Mapped[list[PlanEntitlement]] = relationship(

@@ -533,7 +533,8 @@ class ProductService:
                 )
         if not product:
             raise NotFoundError("Product", f"barcode={barcode}")
-        return product
+        loaded = await self.product_repo.get_with_variants(product.id)
+        return loaded if loaded else product
 
     async def get_by_sku(self, tenant_id: uuid.UUID, sku: str) -> Product:
         product = await self.product_repo.get_by_sku(tenant_id, sku)

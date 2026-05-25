@@ -337,6 +337,10 @@ class AuditAction(str, Enum):
     # Reseller management
     RESELLER_ASSIGNED = "RESELLER_ASSIGNED"
     RESELLER_ACCESS_REVOKED = "RESELLER_ACCESS_REVOKED"
+    RESELLER_ASSIGNMENT_UPDATED = "RESELLER_ASSIGNMENT_UPDATED"
+    RESELLER_PERMISSIONS_CHANGED = "RESELLER_PERMISSIONS_CHANGED"
+    RESELLER_BRANCH_VISIBILITY_CHANGED = "RESELLER_BRANCH_VISIBILITY_CHANGED"
+    RESELLER_ACCESS_DENIED = "RESELLER_ACCESS_DENIED"
 
     # Product management
     PRODUCT_CREATED = "PRODUCT_CREATED"
@@ -643,11 +647,41 @@ class Permission(str, Enum):
 ROLE_DEFAULT_PERMISSIONS: dict[str, list[str]] = {
     UserRole.SUPER_ADMIN: [p.value for p in Permission],  # All permissions
     UserRole.RESELLER: [
+        # Tenant / Branch (read-only)
         Permission.TENANT_VIEW,
         Permission.BRANCH_VIEW,
+        # Staff visibility / management
         Permission.USER_VIEW,
+        Permission.USER_CREATE,
+        Permission.USER_UPDATE,
+        # Inventory
         Permission.INVENTORY_VIEW,
+        Permission.INVENTORY_ADJUST,
+        Permission.INVENTORY_TRANSFER,
+        Permission.INVENTORY_MOVEMENT_VIEW,
+        # Customers
+        Permission.CUSTOMER_VIEW,
+        Permission.CUSTOMER_PAYMENT,
+        # Sales (read-only)
+        Permission.SALES_VIEW,
+        # Procurement
+        Permission.PROCUREMENT_VIEW,
+        Permission.PROCUREMENT_CREATE,
+        Permission.PROCUREMENT_APPROVE,
+        Permission.PROCUREMENT_RECEIVE,
+        Permission.PROCUREMENT_PAYABLES,
+        # Subscription (read-only)
+        Permission.SUBSCRIPTION_VIEW,
+        # Reports / Analytics
         Permission.REPORT_VIEW,
+        Permission.REPORT_PROFIT,
+        Permission.REPORT_EXPORT,
+        Permission.ANALYTICS_DASHBOARD,
+        Permission.ANALYTICS_SALES,
+        Permission.ANALYTICS_INVENTORY,
+        Permission.ANALYTICS_FINANCIAL,
+        # Notifications
+        Permission.NOTIFICATION_VIEW,
     ],
     UserRole.BUSINESS_OWNER: [
         Permission.USER_VIEW,
@@ -810,6 +844,28 @@ ROLE_DEFAULT_PERMISSIONS: dict[str, list[str]] = {
         Permission.NOTIFICATION_VIEW,
         Permission.NOTIFICATION_PREFERENCES,
     ],
+}
+
+# Maps F9 portal permission names → Permission codes stored in restricted_permissions.
+# A reseller has the permission when its code is NOT in assignment.restricted_permissions.
+RESELLER_PERMISSION_MAP: dict[str, str] = {
+    "view_revenue":             Permission.ANALYTICS_SALES.value,
+    "view_profit":              Permission.REPORT_PROFIT.value,
+    "view_analytics":           Permission.ANALYTICS_DASHBOARD.value,
+    "view_inventory":           Permission.INVENTORY_VIEW.value,
+    "adjust_inventory":         Permission.INVENTORY_ADJUST.value,
+    "transfer_inventory":       Permission.INVENTORY_TRANSFER.value,
+    "view_customers":           Permission.CUSTOMER_VIEW.value,
+    "view_customer_debt":       Permission.CUSTOMER_VIEW.value,
+    "record_customer_payment":  Permission.CUSTOMER_PAYMENT.value,
+    "view_procurement":         Permission.PROCUREMENT_VIEW.value,
+    "create_purchase_order":    Permission.PROCUREMENT_CREATE.value,
+    "approve_purchase_order":   Permission.PROCUREMENT_APPROVE.value,
+    "view_subscription_status": Permission.SUBSCRIPTION_VIEW.value,
+    "view_staff":               Permission.USER_VIEW.value,
+    "manage_staff":             Permission.USER_CREATE.value,
+    "export_data":              Permission.REPORT_EXPORT.value,
+    "view_branch_reports":      Permission.REPORT_VIEW.value,
 }
 
 # API versioning

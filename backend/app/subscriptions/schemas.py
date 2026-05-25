@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import EmailStr, Field, field_validator
 
 from app.schemas.common import BaseSchema, PaginatedResponse, TimestampedSchema
 
@@ -33,6 +33,8 @@ class PlanCreateRequest(BaseSchema):
     currency: str = "USD"
     trial_days: int = Field(default=0, ge=0)
     is_active: bool = True
+    is_trial: bool = False
+    is_public: bool = True
     sort_order: int = 0
     entitlements: list[PlanEntitlementCreate] = Field(default_factory=list)
 
@@ -50,6 +52,8 @@ class PlanUpdateRequest(BaseSchema):
     currency: str | None = None
     trial_days: int | None = None
     is_active: bool | None = None
+    is_trial: bool | None = None
+    is_public: bool | None = None
     sort_order: int | None = None
     entitlements: list[PlanEntitlementCreate] | None = None
 
@@ -70,8 +74,64 @@ class PlanResponse(TimestampedSchema):
     currency: str
     trial_days: int
     is_active: bool
+    is_trial: bool
+    is_public: bool
     sort_order: int
     entitlements: list[PlanEntitlementResponse]
+
+
+class TrialStatusResponse(BaseSchema):
+    status: str
+    plan_name: str
+    plan_code: str
+    started_at: str
+    expires_at: str
+    days_remaining: int
+    is_expired: bool
+    usage: dict[str, dict]
+
+
+class PublicPlanResponse(BaseSchema):
+    id: uuid.UUID
+    name: str
+    code: str
+    description: str | None
+    billing_cycle: str
+    price: Decimal
+    currency: str
+    trial_days: int
+    sort_order: int
+    entitlements: list[PlanEntitlementResponse]
+
+
+class RegisterRequest(BaseSchema):
+    business_name: str = Field(min_length=2, max_length=255)
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
+    email: EmailStr
+    phone: str | None = None
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one digit")
+        return v
+
+
+class RegistrationResponse(BaseSchema):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user_id: str
+    tenant_id: str
+    onboarding_required: bool = True
 
 
 class SubscriptionHistoryResponse(TimestampedSchema):

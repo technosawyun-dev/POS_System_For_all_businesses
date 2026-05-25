@@ -78,7 +78,7 @@ class PurchaseOrderRepository(BaseRepository[PurchaseOrder]):
         stmt = (
             select(PurchaseOrder)
             .where(PurchaseOrder.id == po_id, PurchaseOrder.deleted_at.is_(None))
-            .options(selectinload(PurchaseOrder.items))
+            .options(selectinload(PurchaseOrder.items), selectinload(PurchaseOrder.payable))
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
@@ -93,7 +93,7 @@ class PurchaseOrderRepository(BaseRepository[PurchaseOrder]):
                 PurchaseOrder.tenant_id == tenant_id,
                 PurchaseOrder.deleted_at.is_(None),
             )
-            .options(selectinload(PurchaseOrder.items))
+            .options(selectinload(PurchaseOrder.items), selectinload(PurchaseOrder.payable))
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()

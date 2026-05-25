@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Depends, Response
 
 from app.api.deps import (
     ClientIp,
@@ -10,6 +10,8 @@ from app.api.deps import (
     UserAgent,
 )
 from app.core.config import settings
+from app.core.rate_limit import check_registration_rate_limit
+from app.db.redis import get_redis
 from app.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
@@ -20,6 +22,8 @@ from app.schemas.auth import (
 from app.schemas.common import SuccessResponse
 from app.schemas.user import UserResponse
 from app.services.auth_service import AuthService
+from app.subscriptions.schemas import RegisterRequest, RegistrationResponse
+from app.services.registration_service import RegistrationService
 
 router = APIRouter()
 
@@ -36,6 +40,8 @@ async def login(
     service = AuthService(db)
     token_response, refresh_token = await service.login(
         email=payload.email,
+        business_code=payload.business_code,
+        identifier=payload.identifier,
         password=payload.password,
         ip_address=ip,
         user_agent=ua,
@@ -119,3 +125,33 @@ async def change_password(
 @router.get("/me", response_model=UserResponse, summary="Get current user profile")
 async def get_me(current_user: CurrentUser) -> UserResponse:
     return UserResponse.model_validate(current_user)
+
+
+@router.post("/register", response_model=RegistrationResponse, status_code=201, summary="Self-service business registration")
+async def register(
+    payload: RegisterRequest,
+    response: Response,
+    db: DbSession,
+    ip: ClientIp,
+    ua: UserAgent,
+    request_id: RequestId,
+    redis=Depends(get_redis),
+) -> RegistrationResponse:
+    await check_registration_rate_limit(redis, ip or "unknown")
+    svc = RegistrationService(db)
+    result = await svc.register(
+        data=payload,
+        ip_address=ip,
+        user_agent=ua,
+        request_id=request_id,
+        redis=redis,
+    )
+    response.set_cookie(
+        key=settings.JWT_REFRESH_TOKEN_COOKIE_NAME,
+        value=result.refresh_token,
+        httponly=True,
+        secure=settings.is_production,
+        samesite="lax",
+        max_age=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+    )
+    return result

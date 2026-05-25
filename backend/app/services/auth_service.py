@@ -36,24 +36,37 @@ class AuthService:
 
     async def login(
         self,
-        email: str,
         password: str,
+        email: str | None = None,
+        business_code: str | None = None,
+        identifier: str | None = None,
         ip_address: str | None = None,
         user_agent: str | None = None,
         request_id: str | None = None,
     ) -> tuple[TokenResponse, str]:
-        user = await self.user_repo.get_by_email(email)
+        from app.repositories.tenant_repository import TenantRepository
+        tenant_repo = TenantRepository(self.session)
+
+        user = None
+        if business_code and identifier:
+            tenant = await tenant_repo.get_by_business_code(business_code)
+            if tenant:
+                user = await self.user_repo.get_by_phone_and_tenant(identifier, tenant.id)
+                if not user:
+                    user = await self.user_repo.get_by_email_and_tenant(identifier, tenant.id)
+        elif email:
+            user = await self.user_repo.get_by_email(email)
 
         if not user or not verify_password(password, user.hashed_password):
             await self.audit_service.log(
                 action=AuditAction.LOGIN_FAILED,
                 entity_type=EntityType.AUTH_SESSION,
-                metadata={"email": email, "reason": "Invalid credentials"},
+                metadata={"identifier": email or identifier, "reason": "Invalid credentials"},
                 ip_address=ip_address,
                 user_agent=user_agent,
                 request_id=request_id,
             )
-            raise AuthenticationError("Invalid email or password")
+            raise AuthenticationError("Invalid credentials")
 
         if user.status != UserStatus.ACTIVE:
             raise AuthenticationError(f"Account is {user.status.lower()}. Contact support.")

@@ -2,14 +2,27 @@ from __future__ import annotations
 
 import uuid
 
-from pydantic import EmailStr, Field, field_validator
+from pydantic import EmailStr, Field, field_validator, model_validator
 
 from app.schemas.common import BaseSchema
 
 
 class LoginRequest(BaseSchema):
-    email: EmailStr
+    # Owner/admin login
+    email: str | None = None
+    # Staff login: business_code + phone (or email)
+    business_code: str | None = None
+    identifier: str | None = None  # phone number or email for staff
     password: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_mode(self) -> "LoginRequest":
+        if self.business_code:
+            if not self.identifier:
+                raise ValueError("identifier (phone or email) is required for staff login")
+        elif not self.email:
+            raise ValueError("email is required for owner/admin login")
+        return self
 
 
 class TokenResponse(BaseSchema):

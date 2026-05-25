@@ -14,10 +14,12 @@ from app.api.deps import (
     require_super_admin,
     require_tenant_admin,
 )
+from app.subscriptions.gates import require_subscription_active, validate_user_limit
 from app.core.constants import UserRole, UserStatus
 from app.schemas.common import PaginatedResponse, SuccessResponse
 from app.schemas.user import (
     UserCreateRequest,
+    UserPasswordResetRequest,
     UserResponse,
     UserRoleUpdateRequest,
     UserStatusUpdateRequest,
@@ -37,7 +39,11 @@ router = APIRouter()
         "Creates a user within the caller's tenant. "
         "SUPER_ADMIN must pass `?tenant_id=` query param to specify which tenant."
     ),
-    dependencies=[Depends(require_tenant_admin)],
+    dependencies=[
+        Depends(require_tenant_admin),
+        Depends(require_subscription_active()),
+        Depends(validate_user_limit),
+    ],
 )
 async def create_user(
     payload: UserCreateRequest,
@@ -77,7 +83,7 @@ async def list_users(
     db: DbSession,
     current_user: CurrentUser,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
     tenant_id: str | None = Query(default=None, description="Filter by tenant (super admin only)"),
 ) -> PaginatedResponse[UserResponse]:
     from app.core.constants import UserRole
@@ -87,6 +93,14 @@ async def list_users(
     if current_user.role == UserRole.SUPER_ADMIN and tenant_id:
         effective_tenant_id = _uuid.UUID(tenant_id)
     if not effective_tenant_id:
+        if current_user.role == UserRole.SUPER_ADMIN:
+            users, total = await service.list_all_users(page=page, page_size=page_size)
+            return PaginatedResponse.create(
+                items=[UserResponse.model_validate(u) for u in users],
+                total=total,
+                page=page,
+                page_size=page_size,
+            )
         return PaginatedResponse.create(items=[], total=0, page=page, page_size=page_size)
     users, total = await service.list_users(tenant_id=effective_tenant_id, page=page, page_size=page_size)
     return PaginatedResponse.create(
@@ -116,7 +130,6 @@ async def get_user(
     "/{user_id}",
     response_model=UserResponse,
     summary="Update user profile",
-    dependencies=[Depends(require_manager_or_above)],
 )
 async def update_user(
     user_id: uuid.UUID,
@@ -125,6 +138,13 @@ async def update_user(
     current_user: CurrentUser,
     request_id: RequestId,
 ) -> UserResponse:
+    from app.core.exceptions import AuthorizationError
+    is_self = current_user.id == user_id
+    is_manager_plus = current_user.role in {
+        "MANAGER", "BUSINESS_OWNER", "SUPER_ADMIN",
+    }
+    if not is_self and not is_manager_plus:
+        raise AuthorizationError("Insufficient permissions to update this user")
     service = UserService(db)
     user = await service.update_user(
         user_id=user_id,
@@ -182,6 +202,30 @@ async def update_user_role(
         request_id=request_id,
     )
     return UserResponse.model_validate(user)
+
+
+@router.post(
+    "/{user_id}/reset-password",
+    response_model=SuccessResponse,
+    summary="Reset staff password (admin only)",
+    dependencies=[Depends(require_tenant_admin)],
+)
+async def reset_user_password(
+    user_id: uuid.UUID,
+    payload: UserPasswordResetRequest,
+    db: DbSession,
+    current_user: CurrentUser,
+    request_id: RequestId,
+) -> SuccessResponse:
+    service = UserService(db)
+    await service.reset_user_password(
+        user_id=user_id,
+        new_password=payload.new_password,
+        actor_id=current_user.id,
+        tenant_id=current_user.tenant_id,
+        request_id=request_id,
+    )
+    return SuccessResponse(message="Password reset successfully")
 
 
 @router.delete(

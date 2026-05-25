@@ -32,6 +32,7 @@ from app.api.deps import (
     DbSession,
     EffectiveTenantId,
     RequestId,
+    check_reseller_access,
     require_cashier_or_above,
     require_manager_or_above,
 )
@@ -41,7 +42,11 @@ router = APIRouter()
 
 
 
-@router.get("/dashboard", response_model=DashboardResponse)
+@router.get(
+    "/dashboard",
+    response_model=DashboardResponse,
+    dependencies=[check_reseller_access("analytics:dashboard:view")],
+)
 async def get_dashboard(
     db: DbSession,
     current_user: Annotated[User, Depends(require_cashier_or_above)],
@@ -59,7 +64,11 @@ async def get_dashboard(
 
 
 
-@router.get("/sales/summary", response_model=SalesSummaryResponse)
+@router.get(
+    "/sales/summary",
+    response_model=SalesSummaryResponse,
+    dependencies=[check_reseller_access("analytics:sales:view")],
+)
 async def get_sales_summary(
     db: DbSession,
     current_user: Annotated[User, Depends(require_manager_or_above)],
@@ -80,7 +89,11 @@ async def get_sales_summary(
     )
 
 
-@router.get("/sales/trend", response_model=SalesTrendResponse)
+@router.get(
+    "/sales/trend",
+    response_model=SalesTrendResponse,
+    dependencies=[check_reseller_access("analytics:sales:view")],
+)
 async def get_sales_trend(
     db: DbSession,
     current_user: Annotated[User, Depends(require_manager_or_above)],
@@ -103,7 +116,11 @@ async def get_sales_trend(
     )
 
 
-@router.get("/sales/top-products", response_model=list[TopProductResponse])
+@router.get(
+    "/sales/top-products",
+    response_model=list[TopProductResponse],
+    dependencies=[check_reseller_access("analytics:sales:view")],
+)
 async def get_top_products(
     db: DbSession,
     current_user: Annotated[User, Depends(require_manager_or_above)],
@@ -126,7 +143,11 @@ async def get_top_products(
     )
 
 
-@router.get("/sales/by-category", response_model=list[CategorySalesResponse])
+@router.get(
+    "/sales/by-category",
+    response_model=list[CategorySalesResponse],
+    dependencies=[check_reseller_access("analytics:sales:view")],
+)
 async def get_sales_by_category(
     db: DbSession,
     current_user: Annotated[User, Depends(require_manager_or_above)],
@@ -147,7 +168,11 @@ async def get_sales_by_category(
     )
 
 
-@router.get("/sales/by-branch", response_model=list[BranchSalesResponse])
+@router.get(
+    "/sales/by-branch",
+    response_model=list[BranchSalesResponse],
+    dependencies=[check_reseller_access("analytics:sales:view", check_branch=False)],
+)
 async def get_sales_by_branch(
     db: DbSession,
     current_user: Annotated[User, Depends(require_manager_or_above)],
@@ -166,7 +191,11 @@ async def get_sales_by_branch(
     )
 
 
-@router.get("/sales/by-cashier", response_model=list[CashierSalesResponse])
+@router.get(
+    "/sales/by-cashier",
+    response_model=list[CashierSalesResponse],
+    dependencies=[check_reseller_access("analytics:sales:view")],
+)
 async def get_sales_by_cashier(
     db: DbSession,
     current_user: Annotated[User, Depends(require_manager_or_above)],
@@ -187,7 +216,11 @@ async def get_sales_by_cashier(
     )
 
 
-@router.get("/sales/payment-methods", response_model=list[PaymentMethodResponse])
+@router.get(
+    "/sales/payment-methods",
+    response_model=list[PaymentMethodResponse],
+    dependencies=[check_reseller_access("analytics:sales:view")],
+)
 async def get_payment_methods(
     db: DbSession,
     current_user: Annotated[User, Depends(require_manager_or_above)],
@@ -209,7 +242,11 @@ async def get_payment_methods(
 
 
 
-@router.get("/inventory/valuation", response_model=InventoryValuationResponse)
+@router.get(
+    "/inventory/valuation",
+    response_model=InventoryValuationResponse,
+    dependencies=[check_reseller_access("analytics:inventory:view")],
+)
 async def get_inventory_valuation(
     db: DbSession,
     current_user: Annotated[User, Depends(require_manager_or_above)],
@@ -226,10 +263,14 @@ async def get_inventory_valuation(
     )
 
 
-@router.get("/inventory/low-stock", response_model=list[LowStockResponse])
+@router.get(
+    "/inventory/low-stock",
+    response_model=list[LowStockResponse],
+    dependencies=[check_reseller_access("analytics:inventory:view")],
+)
 async def get_low_stock(
     db: DbSession,
-    current_user: Annotated[User, Depends(require_manager_or_above)],
+    current_user: Annotated[User, Depends(require_cashier_or_above)],
     tenant_id: EffectiveTenantId,
     request_id: RequestId,
     branch_id: uuid.UUID | None = Query(default=None),
@@ -243,7 +284,11 @@ async def get_low_stock(
     )
 
 
-@router.get("/inventory/movements", response_model=list[MovementReportResponse])
+@router.get(
+    "/inventory/movements",
+    response_model=list[MovementReportResponse],
+    dependencies=[check_reseller_access("analytics:inventory:view")],
+)
 async def get_inventory_movements(
     db: DbSession,
     current_user: Annotated[User, Depends(require_manager_or_above)],
@@ -266,7 +311,11 @@ async def get_inventory_movements(
     )
 
 
-@router.get("/inventory/fast-moving", response_model=list[FastMovingResponse])
+@router.get(
+    "/inventory/fast-moving",
+    response_model=list[FastMovingResponse],
+    dependencies=[check_reseller_access("analytics:inventory:view")],
+)
 async def get_fast_moving(
     db: DbSession,
     current_user: Annotated[User, Depends(require_manager_or_above)],
@@ -289,7 +338,11 @@ async def get_fast_moving(
     )
 
 
-@router.get("/inventory/dead-stock", response_model=list[DeadStockResponse])
+@router.get(
+    "/inventory/dead-stock",
+    response_model=list[DeadStockResponse],
+    dependencies=[check_reseller_access("analytics:inventory:view")],
+)
 async def get_dead_stock(
     db: DbSession,
     current_user: Annotated[User, Depends(require_manager_or_above)],
@@ -309,7 +362,11 @@ async def get_dead_stock(
 
 
 
-@router.get("/financial/summary", response_model=FinancialSummaryResponse)
+@router.get(
+    "/financial/summary",
+    response_model=FinancialSummaryResponse,
+    dependencies=[check_reseller_access("analytics:financial:view")],
+)
 async def get_financial_summary(
     db: DbSession,
     current_user: Annotated[User, Depends(require_manager_or_above)],
@@ -330,7 +387,11 @@ async def get_financial_summary(
     )
 
 
-@router.get("/financial/profit", response_model=ProfitReportResponse)
+@router.get(
+    "/financial/profit",
+    response_model=ProfitReportResponse,
+    dependencies=[check_reseller_access("report:profit")],
+)
 async def get_profit_report(
     db: DbSession,
     current_user: Annotated[User, Depends(require_manager_or_above)],

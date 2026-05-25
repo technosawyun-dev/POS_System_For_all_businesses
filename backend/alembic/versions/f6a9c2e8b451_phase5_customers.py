@@ -24,7 +24,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # ── customer_counters ─────────────────────────────────────────────────────
+    # customer_counters
     op.create_table(
         "customer_counters",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
@@ -38,7 +38,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("tenant_id", name="uq_customer_counters_tenant_id"),
     )
 
-    # ── customers ─────────────────────────────────────────────────────────────
+    # customers
     op.create_table(
         "customers",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
@@ -68,7 +68,7 @@ def upgrade() -> None:
     op.create_index("ix_customers_customer_code", "customers", ["customer_code"])
     op.create_index("ix_customers_is_active", "customers", ["is_active"])
 
-    # ── customer_contacts ─────────────────────────────────────────────────────
+    # customer_contacts
     op.create_table(
         "customer_contacts",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
@@ -85,7 +85,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_customer_contacts_customer_id", "customer_contacts", ["customer_id"])
 
-    # ── customer_notes ────────────────────────────────────────────────────────
+    # customer_notes
     op.create_table(
         "customer_notes",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
@@ -103,7 +103,7 @@ def upgrade() -> None:
     op.create_index("ix_customer_notes_customer_id", "customer_notes", ["customer_id"])
     op.create_index("ix_customer_notes_created_by", "customer_notes", ["created_by_user_id"])
 
-    # ── customer_ledger ───────────────────────────────────────────────────────
+    # customer_ledger
     op.create_table(
         "customer_ledger",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),

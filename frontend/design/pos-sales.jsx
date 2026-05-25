@@ -1,6 +1,4 @@
-// ============================================================
 // pos-sales.jsx — Sales history, order detail, sync screen
-// ============================================================
 
 const { useApp: salesUseApp, fmt: salesFmt, fmtDateTime: salesFmtDT, fmtDate: salesFmtDate, timeAgo: salesTimeAgo } = window;
 const { useState: salesUseState, useMemo: salesUseMemo } = React;
@@ -17,7 +15,7 @@ const METHOD_ICON = {
   split: <IconSplit width="12" height="12" className="text-violet-400"/>,
 };
 
-// ─── Order Detail Panel ───────────────────────────────────────
+// Order Detail Panel
 function OrderDetailPanel({ order, onClose }) {
   const { dispatch } = salesUseApp();
   const [refunding, setRefunding] = salesUseState(false);
@@ -110,7 +108,7 @@ function OrderDetailPanel({ order, onClose }) {
   );
 }
 
-// ─── Sales Screen ─────────────────────────────────────────────
+// Sales Screen
 function SalesScreen() {
   const { state, dispatch } = salesUseApp();
   const [search, setSearch]    = salesUseState('');
@@ -250,7 +248,7 @@ function SalesScreen() {
   );
 }
 
-// ─── Sync Screen ──────────────────────────────────────────────
+// Sync Screen
 function SyncScreen() {
   const { state, dispatch } = salesUseApp();
   const { syncQueue, syncStatus, lastSync, isOnline } = state;

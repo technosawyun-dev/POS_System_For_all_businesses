@@ -21,6 +21,7 @@ class Tenant(Base):
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    business_code: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default=TenantStatus.TRIAL)
 
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)

@@ -65,3 +65,23 @@ class AuditRepository(BaseRepository[AuditLog]):
         if date_to:
             filters.append(AuditLog.created_at <= date_to)
         return await self.get_all(offset=offset, limit=limit, filters=filters)
+
+    async def get_platform_logs(
+        self,
+        offset: int = 0,
+        limit: int = 20,
+        action: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+        tenant_id: uuid.UUID | None = None,
+    ) -> tuple[list[AuditLog], int]:
+        filters = []
+        if tenant_id:
+            filters.append(AuditLog.tenant_id == tenant_id)
+        if action:
+            filters.append(AuditLog.action == action)
+        if date_from:
+            filters.append(AuditLog.created_at >= date_from)
+        if date_to:
+            filters.append(AuditLog.created_at <= date_to)
+        return await self.get_all(offset=offset, limit=limit, filters=filters or None)

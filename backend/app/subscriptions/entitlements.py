@@ -23,6 +23,7 @@ from app.core.exceptions import (
     UsageLimitExceededException,
 )
 from app.services.audit_service import AuditService
+from app.models.tenant import Tenant
 from app.subscriptions.models import (
     SubscriptionHistory,
     SubscriptionPlan,
@@ -293,6 +294,7 @@ class TenantOverrideService:
             override.expires_at = expires_at
 
         await self.session.flush()
+        await self.session.refresh(override)
 
         await self.audit.log(
             action=AuditAction.ENTITLEMENT_OVERRIDE_UPDATED,
@@ -347,6 +349,11 @@ class AdminSubscriptionService:
         self.audit = AuditService(session)
 
     async def get_overview(self) -> dict:
+        total_result = await self.session.execute(
+            select(func.count()).select_from(Tenant).where(Tenant.is_deleted.is_(False))
+        )
+        total = total_result.scalar_one()
+
         stmt_counts = (
             select(TenantSubscription.status, func.count().label("cnt"))
             .group_by(TenantSubscription.status)
@@ -363,7 +370,6 @@ class AdminSubscriptionService:
         revenue_result = await self.session.execute(revenue_stmt)
         monthly_revenue = revenue_result.scalar_one() or Decimal("0.00")
 
-        total = sum(status_map.values())
         return {
             "total_tenants": total,
             "active_subscriptions": status_map.get(SubscriptionStatus.ACTIVE, 0),

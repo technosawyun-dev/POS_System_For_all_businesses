@@ -63,7 +63,7 @@ async def list_suppliers(
     current_user: CurrentUser,
     tenant_id: EffectiveTenantId,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
     status: str | None = Query(default=None),
 ) -> PaginatedResponse[SupplierSummaryResponse]:
     service = SupplierService(db)

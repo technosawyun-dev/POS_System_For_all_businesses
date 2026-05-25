@@ -10,6 +10,7 @@ from app.api.deps import (
     DbSession,
     EffectiveTenantId,
     RequestId,
+    check_reseller_access,
     require_inventory_access,
     require_manager_or_above,
 )
@@ -42,7 +43,12 @@ router = APIRouter()
 
 
 
-@router.post("/purchase-orders", response_model=PurchaseOrderDetail, status_code=201)
+@router.post(
+    "/purchase-orders",
+    response_model=PurchaseOrderDetail,
+    status_code=201,
+    dependencies=[check_reseller_access("procurement:create", check_branch=False)],
+)
 async def create_purchase_order(
     db: DbSession,
     current_user: Annotated[User, Depends(require_manager_or_above)],
@@ -60,7 +66,11 @@ async def create_purchase_order(
     return PurchaseOrderDetail.model_validate(po)
 
 
-@router.get("/purchase-orders", response_model=PaginatedPurchaseOrders)
+@router.get(
+    "/purchase-orders",
+    response_model=PaginatedPurchaseOrders,
+    dependencies=[check_reseller_access("procurement:view")],
+)
 async def list_purchase_orders(
     db: DbSession,
     current_user: Annotated[User, Depends(require_inventory_access)],
@@ -69,7 +79,7 @@ async def list_purchase_orders(
     supplier_id: uuid.UUID | None = Query(default=None),
     status: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> PaginatedPurchaseOrders:
     svc = PurchaseOrderService(db)
     items, total = await svc.list_pos(
@@ -88,7 +98,11 @@ async def list_purchase_orders(
     )
 
 
-@router.get("/purchase-orders/{po_id}", response_model=PurchaseOrderDetail)
+@router.get(
+    "/purchase-orders/{po_id}",
+    response_model=PurchaseOrderDetail,
+    dependencies=[check_reseller_access("procurement:view", check_branch=False)],
+)
 async def get_purchase_order(
     po_id: uuid.UUID,
     db: DbSession,
@@ -126,7 +140,11 @@ async def submit_purchase_order(
     return PurchaseOrderDetail.model_validate(po)
 
 
-@router.post("/purchase-orders/{po_id}/approve", response_model=PurchaseOrderDetail)
+@router.post(
+    "/purchase-orders/{po_id}/approve",
+    response_model=PurchaseOrderDetail,
+    dependencies=[check_reseller_access("procurement:approve", check_branch=False)],
+)
 async def approve_purchase_order(
     po_id: uuid.UUID,
     db: DbSession,
@@ -171,7 +189,11 @@ async def create_goods_receipt(
     return GoodsReceiptDetail.model_validate(receipt)
 
 
-@router.get("/receipts", response_model=PaginatedGoodsReceipts)
+@router.get(
+    "/receipts",
+    response_model=PaginatedGoodsReceipts,
+    dependencies=[check_reseller_access("procurement:view")],
+)
 async def list_goods_receipts(
     db: DbSession,
     current_user: Annotated[User, Depends(require_inventory_access)],
@@ -179,7 +201,7 @@ async def list_goods_receipts(
     purchase_order_id: uuid.UUID | None = Query(default=None),
     branch_id: uuid.UUID | None = Query(default=None),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> PaginatedGoodsReceipts:
     svc = ReceivingService(db)
     items, total = await svc.list_receipts(
@@ -218,7 +240,7 @@ async def list_payables(
     supplier_id: uuid.UUID | None = Query(default=None),
     status: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> PaginatedSupplierPayables:
     svc = SupplierPayableService(db)
     items, total = await svc.list_payables(

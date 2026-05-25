@@ -20,8 +20,11 @@ ENV/
 .env
 .env.local
 .env.*.local
+.env.development
+.env.test
 .env.production
 .env.staging
+*.env
 
 # IDE
 .idea/
@@ -66,6 +69,14 @@ nginx/certs/
 # Docker
 .docker/
 docker-compose.override.yml
+
+# Celery runtime files
+celerybeat-schedule
+celerybeat.pid
+
+# User-uploaded files (payment proofs, etc.)
+uploads/
+backend/uploads/
 
 # Frontend
 node_modules/

@@ -115,16 +115,17 @@ async def require_inventory_access(current_user: CurrentUser) -> User:
 
 
 async def require_cashier_or_above(current_user: CurrentUser) -> User:
-    """CASHIER, MANAGER, BUSINESS_OWNER, RESELLER, SUPER_ADMIN — all operational roles."""
+    """All operational staff: CASHIER, INVENTORY_STAFF, MANAGER, BUSINESS_OWNER, RESELLER, SUPER_ADMIN."""
     allowed = {
         UserRole.SUPER_ADMIN.value,
         UserRole.RESELLER.value,
         UserRole.BUSINESS_OWNER.value,
         UserRole.MANAGER.value,
         UserRole.CASHIER.value,
+        UserRole.INVENTORY_STAFF.value,
     }
     if current_user.role not in allowed:
-        raise AuthorizationError("Cashier or higher access required")
+        raise AuthorizationError("Staff access required")
     return current_user
 
 
@@ -153,21 +154,72 @@ UserAgent = Annotated[str | None, Depends(get_user_agent)]
 
 def get_effective_tenant_id(
     current_user: CurrentUser,
-    tenant_id: str | None = Query(default=None, description="Target tenant (SUPER_ADMIN only)"),
+    tenant_id: str | None = Query(
+        default=None, description="Target tenant (SUPER_ADMIN or RESELLER only)"
+    ),
 ) -> uuid.UUID:
     """
     Resolves the tenant_id for the current request.
     - Regular users: always use their own tenant_id from JWT
-    - SUPER_ADMIN: must pass ?tenant_id= query param
+    - SUPER_ADMIN / RESELLER: must pass ?tenant_id= query param
+      (reseller assignment validity is enforced separately in each route via
+      check_reseller_access, not here — this only parses the UUID)
     """
     if current_user.tenant_id:
         return current_user.tenant_id
-    if current_user.role == UserRole.SUPER_ADMIN and tenant_id:
+    cross_tenant_roles = {UserRole.SUPER_ADMIN.value, UserRole.RESELLER.value}
+    if current_user.role in cross_tenant_roles and tenant_id:
         try:
             return uuid.UUID(tenant_id)
         except ValueError:
             raise ValidationError("Invalid tenant_id format")
-    raise ValidationError("tenant_id query param is required for SUPER_ADMIN")
+    raise ValidationError("tenant_id query param is required")
 
 
 EffectiveTenantId = Annotated[uuid.UUID, Depends(get_effective_tenant_id)]
+
+
+async def require_reseller_only(current_user: CurrentUser) -> User:
+    """Allows only RESELLER role."""
+    if current_user.role != UserRole.RESELLER.value:
+        raise AuthorizationError("Reseller access required")
+    return current_user
+
+
+def check_reseller_access(
+    permission_code: str | None = None,
+    *,
+    check_branch: bool = True,
+) -> "Depends":
+    """
+    Dependency factory that enforces reseller-specific scoping.
+
+    Short-circuits (returns immediately) when the user is NOT a RESELLER,
+    so it is safe to add to any route without affecting other roles.
+
+    Checks performed for RESELLER users:
+    1. Active, non-expired assignment exists for the effective tenant
+    2. If check_branch=True and a branch_id query-param is present, validates
+       the branch is within allowed_branch_ids
+    3. If permission_code is provided, validates it is not in restricted_permissions
+
+    For routes whose branch comes from a path or body parameter, set
+    check_branch=False and add inline service calls instead.
+    """
+    async def _dep(
+        current_user: CurrentUser,
+        tenant_id: EffectiveTenantId,
+        db: DbSession,
+        branch_id: uuid.UUID | None = Query(default=None),
+    ) -> None:
+        if current_user.role != UserRole.RESELLER.value:
+            return
+        from app.services.reseller_access import ResellerAccessService
+        svc = ResellerAccessService(db)
+        await svc.require_tenant_access(current_user.id, tenant_id)
+        if check_branch and branch_id is not None:
+            await svc.require_branch_access(current_user.id, tenant_id, branch_id)
+        if permission_code is not None:
+            await svc.require_permission(current_user.id, tenant_id, permission_code)
+
+    return Depends(_dep)

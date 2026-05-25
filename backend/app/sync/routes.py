@@ -11,6 +11,7 @@ from app.api.deps import (
     DbSession,
     EffectiveTenantId,
     RequestId,
+    get_effective_tenant_id,
     require_roles,
 )
 from app.core.constants import SyncEntityType, UserRole
@@ -57,7 +58,7 @@ async def sync_push(
     data: SyncPushRequest,
     db: DbSession,
     current_user: User = _sync_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> SyncPushResponse:
     svc = SyncPushService(db)
     return await svc.push(
@@ -80,7 +81,7 @@ async def sync_push(
 async def sync_pull(
     db: DbSession,
     current_user: User = _sync_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
     device_id: uuid.UUID = Query(..., description="The device pulling data"),
     entity_types: list[str] = Query(
         default=_ALL_ENTITY_TYPES,
@@ -110,12 +111,12 @@ async def sync_pull(
 async def list_sync_operations(
     db: DbSession,
     current_user: User = _view_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
     device_id: uuid.UUID | None = Query(default=None),
     op_status: str | None = Query(default=None, alias="status"),
     operation_type: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> SyncOperationListResponse:
     repo = SyncOperationRepository(db)
     items, total = await repo.get_for_tenant(
@@ -143,7 +144,7 @@ async def get_sync_operation(
     operation_id: uuid.UUID,
     db: DbSession,
     current_user: User = _view_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> SyncOperationResponse:
     from app.core.exceptions import NotFoundError
     repo = SyncOperationRepository(db)

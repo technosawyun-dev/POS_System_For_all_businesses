@@ -5,7 +5,7 @@ from datetime import datetime
 
 from pydantic import Field
 
-from app.schemas.common import BaseSchema, TimestampedSchema
+from app.schemas.common import BaseSchema, PaginatedResponse, TimestampedSchema
 
 
 class ResellerAssignmentCreateRequest(BaseSchema):
@@ -37,3 +37,34 @@ class ResellerAssignmentResponse(TimestampedSchema):
     is_active: bool
     notes: str | None
     assigned_by_id: uuid.UUID | None
+
+
+PaginatedResellerAssignments = PaginatedResponse[ResellerAssignmentResponse]
+
+
+
+class MyBusinessResponse(TimestampedSchema):
+    """One tenant assignment returned by GET /resellers/me/businesses."""
+    tenant_id: uuid.UUID
+    allowed_branch_ids: list[uuid.UUID]
+    restricted_permissions: list[str]
+    access_starts_at: datetime | None
+    access_expires_at: datetime | None
+    is_active: bool
+    is_access_valid: bool
+
+
+class MyBranchResponse(BaseSchema):
+    """Accessible branches for a single tenant. Empty branch_ids means all branches."""
+    tenant_id: uuid.UUID
+    branch_ids: list[uuid.UUID]
+    all_branches_allowed: bool
+
+
+class MyPermissionsResponse(BaseSchema):
+    """
+    Per-tenant permission summary using the RESELLER_PERMISSION_MAP spec names.
+    True = allowed, False = denied (in restricted_permissions).
+    """
+    tenant_id: uuid.UUID
+    permissions: dict[str, bool]

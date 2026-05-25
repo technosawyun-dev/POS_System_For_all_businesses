@@ -1,12 +1,10 @@
-// ============================================================
 // pos-nav.jsx — AppShell, Sidebar, TopBar, SyncBadge
-// ============================================================
 
 const { ROLE_LABELS, ROLE_BADGE_STYLES, canAccess } = window;
 const { useApp: navUseApp, fmt: navFmt, timeAgo: navTimeAgo } = window;
 const { useState: navUseState, useEffect: navUseEffect, useCallback: navUseCallback } = React;
 
-// ─── Sync status badge (top bar) ─────────────────────────────
+// Sync status badge (top bar)
 function SyncBadge({ onClick }) {
   const { state, dispatch } = navUseApp();
   const { isOnline, syncStatus, syncQueue, lastSync } = state;
@@ -74,7 +72,7 @@ function SyncBadge({ onClick }) {
   );
 }
 
-// ─── Offline Banner ──────────────────────────────────────────
+// Offline Banner
 function OfflineBanner() {
   const { state } = navUseApp();
   if (state.isOnline) return null;
@@ -86,7 +84,7 @@ function OfflineBanner() {
   );
 }
 
-// ─── Nav item ────────────────────────────────────────────────
+// Nav item
 function NavItem({ id, label, icon: Icon, active, onClick }) {
   return (
     <button
@@ -104,7 +102,7 @@ function NavItem({ id, label, icon: Icon, active, onClick }) {
   );
 }
 
-// ─── Sidebar ─────────────────────────────────────────────────
+// Sidebar
 function Sidebar() {
   const { state, dispatch } = navUseApp();
   const { screen, user, session, sidebarOpen } = state;
@@ -223,7 +221,7 @@ function Sidebar() {
   );
 }
 
-// ─── Top Bar ─────────────────────────────────────────────────
+// Top Bar
 function TopBar({ title, action, search, onSearchChange }) {
   const { state, dispatch } = navUseApp();
   const { isOnline } = state;
@@ -279,7 +277,7 @@ function TopBar({ title, action, search, onSearchChange }) {
   );
 }
 
-// ─── App Shell ───────────────────────────────────────────────
+// App Shell
 function AppShell({ children, title, action, search, onSearchChange }) {
   const { state, dispatch } = navUseApp();
   return (
