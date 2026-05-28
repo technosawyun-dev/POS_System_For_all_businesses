@@ -7,7 +7,7 @@ from app.models.tenant import Tenant, TenantSettings
 from app.models.branch import Branch, BranchSettings
 from app.models.user import User, UserBranchAssignment
 from app.models.reseller import ResellerAssignment
-# Phase 2 — product, inventory, supplier
+# product, inventory, supplier
 from app.models.product import (
     Brand,
     Category,
@@ -26,17 +26,17 @@ from app.models.inventory import (
     StockMovement,
 )
 from app.models.supplier import Supplier, SupplierContact
-# Phase 5 — Customers
+# Customers
 from app.customers.models import Customer, CustomerContact, CustomerCounter, CustomerLedger, CustomerNote
-# Phase 3 — Sales Engine
+# Sales Engine
 from app.cashiers.models import CashierSession
 from app.sales.models import BranchCounter, Cart, CartItem, Order, OrderItem
 from app.payments.models import Payment, Refund, RefundItem
 from app.receipts.models import Receipt
-# Phase 4 — Offline Sync
+# Offline Sync
 from app.devices.models import PosDevice
 from app.sync.models import SyncCheckpoint, SyncOperation
-# Phase 7 — Procurement
+# Procurement
 from app.procurement.models import (
     GRCounter,
     GoodsReceipt,
@@ -47,7 +47,7 @@ from app.procurement.models import (
     SupplierPayable,
     SupplierPayment,
 )
-# Phase 8 — Subscriptions
+# Subscriptions
 from app.subscriptions.models import (
     PaymentProof,
     PlanEntitlement,
@@ -55,9 +55,9 @@ from app.subscriptions.models import (
     SubscriptionPlan,
     TenantSubscription,
 )
-# Phase 9 — Entitlement Overrides
+# Entitlement Overrides
 from app.subscriptions.models import TenantEntitlementOverride
-# Phase 10 — Notifications
+# Notifications
 from app.notifications.models import Notification, NotificationPreference, NotificationRecipient
 
 __all__ = [
@@ -73,7 +73,6 @@ __all__ = [
     "User",
     "UserBranchAssignment",
     "ResellerAssignment",
-    # Phase 2
     "Category",
     "Brand",
     "Product",
@@ -89,13 +88,11 @@ __all__ = [
     "InventoryTransferItem",
     "Supplier",
     "SupplierContact",
-    # Phase 5
     "Customer",
     "CustomerContact",
     "CustomerCounter",
     "CustomerNote",
     "CustomerLedger",
-    # Phase 3
     "CashierSession",
     "BranchCounter",
     "Cart",
@@ -106,11 +103,9 @@ __all__ = [
     "Refund",
     "RefundItem",
     "Receipt",
-    # Phase 4
     "PosDevice",
     "SyncCheckpoint",
     "SyncOperation",
-    # Phase 7
     "POCounter",
     "GRCounter",
     "PurchaseOrder",
@@ -119,15 +114,12 @@ __all__ = [
     "GoodsReceiptItem",
     "SupplierPayable",
     "SupplierPayment",
-    # Phase 8
     "SubscriptionPlan",
     "PlanEntitlement",
     "TenantSubscription",
     "SubscriptionHistory",
     "PaymentProof",
-    # Phase 9
     "TenantEntitlementOverride",
-    # Phase 10
     "Notification",
     "NotificationRecipient",
     "NotificationPreference",

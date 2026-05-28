@@ -8,11 +8,12 @@ from app.schemas.common import BaseSchema
 
 
 class LoginRequest(BaseSchema):
-    # Owner/admin login
+    # Owner / admin / reseller login — email or phone
     email: str | None = None
-    # Staff login: business_code + phone (or email)
+    phone: str | None = None
+    # Staff login: business_code + identifier (phone or email)
     business_code: str | None = None
-    identifier: str | None = None  # phone number or email for staff
+    identifier: str | None = None
     password: str = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -20,8 +21,8 @@ class LoginRequest(BaseSchema):
         if self.business_code:
             if not self.identifier:
                 raise ValueError("identifier (phone or email) is required for staff login")
-        elif not self.email:
-            raise ValueError("email is required for owner/admin login")
+        elif not self.email and not self.phone:
+            raise ValueError("email or phone is required for owner/admin/reseller login")
         return self
 
 

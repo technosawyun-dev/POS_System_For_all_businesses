@@ -49,7 +49,7 @@ function AddBranchModal({ tenantId, onClose }: { tenantId: string; onClose: () =
   const qc = useQueryClient()
   const [form, setForm] = useState<BranchCreatePayload>({
     name: '', code: '', address: '', city: '', phone: '',
-    timezone: 'UTC', currency: 'USD', is_main_branch: false,
+    timezone: 'UTC', currency: 'MMK', is_main_branch: false,
   })
 
   function setName(name: string) {
@@ -102,7 +102,7 @@ function AddBranchModal({ tenantId, onClose }: { tenantId: string; onClose: () =
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Timezone" value={form.timezone ?? 'UTC'} onChange={v => setForm(p => ({ ...p, timezone: v }))} placeholder="UTC" />
-            <Field label="Currency" value={form.currency ?? 'USD'} onChange={v => setForm(p => ({ ...p, currency: v }))} placeholder="USD" />
+            <Field label="Currency" value={form.currency ?? 'MMK'} onChange={v => setForm(p => ({ ...p, currency: v }))} placeholder="MMK" />
           </div>
         </div>
 
@@ -138,7 +138,7 @@ function EditBranchModal({
     city:     branch.city     ?? '',
     phone:    branch.phone    ?? '',
     timezone: branch.timezone ?? 'UTC',
-    currency: branch.currency ?? 'USD',
+    currency: branch.currency ?? 'MMK',
   })
 
   const set = (key: keyof EditForm) => (v: string) => setForm(p => ({ ...p, [key]: v }))
@@ -180,7 +180,7 @@ function EditBranchModal({
           <Field label="Phone"       value={form.phone}    onChange={set('phone')}    placeholder="+1 555 000 0000" />
           <div className="grid grid-cols-2 gap-3">
             <Field label="Timezone"  value={form.timezone} onChange={set('timezone')} placeholder="UTC" />
-            <Field label="Currency"  value={form.currency} onChange={set('currency')} placeholder="USD" />
+            <Field label="Currency"  value={form.currency} onChange={set('currency')} placeholder="MMK" />
           </div>
         </div>
 

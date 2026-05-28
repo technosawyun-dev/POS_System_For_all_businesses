@@ -32,7 +32,7 @@ export default function OnboardingWizard() {
 
   const [businessName, setBusinessName] = useState(user?.full_name ?? '')
   const [timezone, setTimezone] = useState('UTC')
-  const [currency, setCurrency] = useState('USD')
+  const [currency, setCurrency] = useState('MMK')
 
   const [branchName, setBranchName] = useState('Main Branch')
   const [branchPhone, setBranchPhone] = useState('')
@@ -173,13 +173,13 @@ export default function OnboardingWizard() {
                     onChange={e => setCurrency(e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-100 px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500"
                   >
+                    <option value="MMK">MMK — Myanmar Kyat</option>
                     <option value="USD">USD — US Dollar</option>
                     <option value="EUR">EUR — Euro</option>
                     <option value="GBP">GBP — British Pound</option>
                     <option value="JPY">JPY — Japanese Yen</option>
                     <option value="SGD">SGD — Singapore Dollar</option>
                     <option value="THB">THB — Thai Baht</option>
-                    <option value="MMK">MMK — Myanmar Kyat</option>
                     <option value="MYR">MYR — Malaysian Ringgit</option>
                     <option value="IDR">IDR — Indonesian Rupiah</option>
                     <option value="PHP">PHP — Philippine Peso</option>

@@ -21,6 +21,7 @@ const TrialExpiredPage = lazy(() => import('@/features/subscription/TrialExpired
 
 const POSScreen              = lazy(() => import('@/features/pos/POSScreen'))
 const ProductsScreen         = lazy(() => import('@/features/products/ProductsScreen'))
+const BrandsPage             = lazy(() => import('@/features/products/BrandsPage'))
 const InventoryScreen        = lazy(() => import('@/features/inventory/InventoryScreen'))
 const SalesScreen            = lazy(() => import('@/features/sales/SalesScreen'))
 const SyncScreen             = lazy(() => import('@/features/sync/SyncScreen'))
@@ -88,6 +89,8 @@ const ResellerProcurementPage     = lazy(() => import('@/features/reseller/Resel
 const ResellerSubscriptionPage    = lazy(() => import('@/features/reseller/ResellerSubscriptionPage'))
 const ResellerNotificationsPage   = lazy(() => import('@/features/reseller/ResellerNotificationsPage'))
 const ResellerProfilePage         = lazy(() => import('@/features/reseller/ResellerProfilePage'))
+const ResellerReferralPage        = lazy(() => import('@/features/reseller/ResellerReferralPage'))
+const ResellerWalletPage          = lazy(() => import('@/features/reseller/ResellerWalletPage'))
 
 const SuperAdminDashboardPage     = lazy(() => import('@/features/superadmin/SuperAdminDashboardPage'))
 const BusinessesPage              = lazy(() => import('@/features/superadmin/BusinessesPage'))
@@ -100,6 +103,7 @@ const PlatformAnalyticsPage       = lazy(() => import('@/features/superadmin/Pla
 const AuditLogsPage               = lazy(() => import('@/features/superadmin/AuditLogsPage'))
 const DevicesPage                 = lazy(() => import('@/features/superadmin/DevicesPage'))
 const PlatformNotificationsPage   = lazy(() => import('@/features/superadmin/PlatformNotificationsPage'))
+const ResellerFinancePage         = lazy(() => import('@/features/superadmin/ResellerFinancePage'))
 
 function Loading() {
   return (
@@ -203,6 +207,7 @@ export const router = createBrowserRouter([
           { path: 'session-close',   element: S(SessionCloseScreen) },
           { path: 'profile',         element: S(ProfileSettingsPage) },
           { path: 'products',        element: <SectionGuard section="products">{S(ProductsScreen)}</SectionGuard> },
+          { path: 'brands',          element: <SectionGuard section="products">{S(BrandsPage)}</SectionGuard> },
           { path: 'inventory',       element: <SectionGuard section="inventory">{S(InventoryScreen)}</SectionGuard> },
           { path: 'sales',           element: <SectionGuard section="sales">{S(SalesScreen)}</SectionGuard> },
           { path: 'sync',            element: <SectionGuard section="sync">{S(SyncScreen)}</SectionGuard> },
@@ -333,7 +338,7 @@ export const router = createBrowserRouter([
           {
             path: 'users',
             children: [
-              { index: true, element: S(AdminUsersPage) },
+              { index: true, element: <Navigate to="/super-admin/businesses?tab=users" replace /> },
               { path: ':id',  element: S(AdminUserDetailPage) },
             ],
           },
@@ -362,6 +367,7 @@ export const router = createBrowserRouter([
           { path: 'devices',      element: <Navigate to="/super-admin/businesses" replace /> },
           { path: 'notifications',  element: S(PlatformNotificationsPage) },
           { path: 'audit-logs',     element: S(AuditLogsPage)             },
+          { path: 'reseller-finance', element: S(ResellerFinancePage)     },
           { path: 'audit',          element: <Navigate to="/super-admin/audit-logs" replace /> },
         ],
       },
@@ -388,8 +394,16 @@ export const router = createBrowserRouter([
           { path: 'inventory',         element: S(ResellerInventoryPage)      },
           { path: 'procurement',       element: S(ResellerProcurementPage)    },
           { path: 'subscriptions',     element: S(ResellerSubscriptionPage)   },
-          { path: 'notifications',     element: S(ResellerNotificationsPage)  },
+          {
+            path: 'notifications',
+            children: [
+              { index: true, element: S(ResellerNotificationsPage) },
+              { path: ':id', element: S(NotificationDetailPage)    },
+            ],
+          },
           { path: 'profile',           element: S(ResellerProfilePage)        },
+          { path: 'referrals',         element: S(ResellerReferralPage)       },
+          { path: 'wallet',            element: S(ResellerWalletPage)         },
         ],
       },
     ],

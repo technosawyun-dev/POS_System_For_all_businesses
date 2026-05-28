@@ -139,10 +139,10 @@ export default function TaxSettingsPage() {
                 <div className="bg-zinc-800/50 rounded-xl p-3 text-xs space-y-1">
                   <p className="text-zinc-400 font-medium">Example</p>
                   <p className="text-zinc-300">
-                    Item price: $100.00 →{' '}
+                    Item price: MMK 100 →{' '}
                     {taxInclusive
-                      ? `${taxName} included: $${(100 * parseFloat(taxRate) / (100 + parseFloat(taxRate))).toFixed(2)}`
-                      : `+ ${taxName} ${taxRate}%: $${(100 * parseFloat(taxRate) / 100).toFixed(2)} = $${(100 + 100 * parseFloat(taxRate) / 100).toFixed(2)} total`
+                      ? `${taxName} included: MMK ${(100 * parseFloat(taxRate) / (100 + parseFloat(taxRate))).toFixed(0)}`
+                      : `+ ${taxName} ${taxRate}%: MMK ${(100 * parseFloat(taxRate) / 100).toFixed(0)} = MMK ${(100 + 100 * parseFloat(taxRate) / 100).toFixed(0)} total`
                     }
                   </p>
                 </div>

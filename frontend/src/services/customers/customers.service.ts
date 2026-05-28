@@ -1,5 +1,5 @@
 import apiClient from '@/app/lib/axios'
-import type { Customer, CreateCustomerRequest, PaginatedResponse, LedgerEntry, CustomerStatement } from '@/shared/types'
+import type { Customer, CustomerContact, CreateCustomerRequest, PaginatedResponse, LedgerEntry, CustomerStatement } from '@/shared/types'
 
 export interface UpdateCustomerRequest extends Partial<CreateCustomerRequest> {
   is_active?: boolean
@@ -53,4 +53,10 @@ export const customersService = {
 
   getStatement: (id: string) =>
     apiClient.get<CustomerStatement>(`/customers/${id}/statement`).then(r => r.data),
+
+  delete: (id: string) =>
+    apiClient.delete(`/customers/${id}`).then(r => r.data),
+
+  addContact: (id: string, payload: { contact_name: string; contact_phone: string; contact_relationship?: string }) =>
+    apiClient.post<CustomerContact>(`/customers/${id}/contacts`, payload).then(r => r.data),
 }

@@ -1,6 +1,6 @@
 """phase5_customers
 
-Adds Phase 5 customer management tables:
+Adds customer management tables:
   - customer_counters  (per-tenant sequential code generator)
   - customers
   - customer_contacts

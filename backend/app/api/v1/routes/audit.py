@@ -10,11 +10,21 @@ from app.api.deps import (
     DbSession,
     require_tenant_admin,
 )
+from app.models.user import User
 from app.repositories.audit_repository import AuditRepository
 from app.schemas.audit import AuditLogResponse
 from app.schemas.common import PaginatedResponse
 
 router = APIRouter()
+
+
+def _build_response(log, actor: User | None) -> AuditLogResponse:
+    resp = AuditLogResponse.model_validate(log)
+    if actor:
+        resp.actor_name = f"{actor.first_name} {actor.last_name}".strip()
+        resp.actor_email = actor.email
+        resp.actor_role = str(actor.role)
+    return resp
 
 
 @router.get(
@@ -37,8 +47,7 @@ async def list_audit_logs(
     offset = (page - 1) * page_size
 
     if not current_user.tenant_id:
-        # Super admin: query platform-wide logs, optionally filtered by tenant
-        logs, total = await repo.get_platform_logs(
+        rows, total = await repo.get_platform_logs(
             offset=offset,
             limit=page_size,
             action=action,
@@ -47,7 +56,7 @@ async def list_audit_logs(
             tenant_id=tenant_id,
         )
     else:
-        logs, total = await repo.get_by_tenant(
+        rows, total = await repo.get_by_tenant(
             tenant_id=current_user.tenant_id,
             offset=offset,
             limit=page_size,
@@ -57,7 +66,7 @@ async def list_audit_logs(
         )
 
     return PaginatedResponse.create(
-        items=[AuditLogResponse.model_validate(log) for log in logs],
+        items=[_build_response(log, actor) for log, actor in rows],
         total=total,
         page=page,
         page_size=page_size,

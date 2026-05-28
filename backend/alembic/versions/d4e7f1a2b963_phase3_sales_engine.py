@@ -4,7 +4,7 @@ Revision ID: d4e7f1a2b963
 Revises: b1e9f3c2a8d4
 Create Date: 2026-05-13 00:00:00.000000
 
-Phase 3 migration: cashier_sessions, branch_counters, carts, cart_items,
+ migration: cashier_sessions, branch_counters, carts, cart_items,
 orders, order_items, payments, refunds, refund_items, receipts.
 """
 from __future__ import annotations

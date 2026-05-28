@@ -1,6 +1,6 @@
 """phase10_notifications
 
-Adds Phase 10 notification tables:
+Adds notification tables:
   - notifications
   - notification_recipients
   - notification_preferences

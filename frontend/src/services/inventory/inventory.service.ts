@@ -2,6 +2,8 @@ import apiClient from '@/app/lib/axios'
 import type {
   InventoryItem,
   InventoryAdjustmentRequest,
+  InventoryAdjustmentDetail,
+  InventoryTransfer,
   PaginatedResponse,
 } from '@/shared/types'
 
@@ -42,11 +44,23 @@ export const inventoryService = {
   listAdjustments: (params?: { branch_id?: string; page?: number }) =>
     apiClient.get('/inventory/adjustments', { params }).then(r => r.data),
 
+  getAdjustment: (adjustmentId: string) =>
+    apiClient.get<InventoryAdjustmentDetail>(`/inventory/adjustments/${adjustmentId}`).then(r => r.data),
+
   setOpeningStock: (payload: OpeningStockRequest) =>
     apiClient.post('/inventory/opening-stock', payload).then(r => r.data),
 
+  listTransfers: (params?: { branch_id?: string; status?: string; page?: number; page_size?: number }) =>
+    apiClient.get<PaginatedResponse<InventoryTransfer>>('/inventory/transfers', { params }).then(r => r.data),
+
+  getTransfer: (transferId: string) =>
+    apiClient.get<InventoryTransfer>(`/inventory/transfers/${transferId}`).then(r => r.data),
+
   createTransfer: (payload: TransferCreateRequest) =>
     apiClient.post('/inventory/transfers', payload).then(r => r.data),
+
+  setReorderLevels: (branchId: string, productId: string, payload: { reorder_point: number; reorder_quantity: number }) =>
+    apiClient.patch(`/inventory/branches/${branchId}/products/${productId}/reorder`, payload).then(r => r.data),
 
   approveTransfer: (transferId: string) =>
     apiClient.patch(`/inventory/transfers/${transferId}/approve`).then(r => r.data),

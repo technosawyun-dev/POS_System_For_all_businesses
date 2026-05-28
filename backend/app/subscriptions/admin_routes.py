@@ -18,6 +18,8 @@ from app.subscriptions.schemas import (
     EffectiveEntitlementResponse,
     ExtendSubscriptionRequest,
     PaginatedAdminSubscriptions,
+    PaginatedPaymentProofs,
+    PaymentProofResponse,
     SubscriptionOverviewResponse,
     SubscriptionResponse,
     TenantEntitlementOverrideCreateRequest,
@@ -230,3 +232,22 @@ async def admin_change_plan(
         request_id=request_id,
     )
     return SubscriptionResponse.model_validate(sub)
+
+
+@router.get("/payment-proofs", response_model=PaginatedPaymentProofs)
+async def admin_list_all_payment_proofs(
+    db: DbSession,
+    _: Annotated[User, Depends(require_super_admin)],
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    status: str | None = Query(default=None),
+) -> PaginatedPaymentProofs:
+    from app.subscriptions.services import PaymentProofService
+    svc = PaymentProofService(db)
+    items, total = await svc.list_all_proofs(status=status, page=page, page_size=page_size)
+    return PaginatedResponse.create(
+        items=[PaymentProofResponse.model_validate(p) for p in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )

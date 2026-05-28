@@ -14,6 +14,8 @@ export default function AnalyticsDashboardPage() {
     ),
   })
 
+  const isFeatureDisabled = (error as any)?.response?.data?.error?.code === 'FEATURE_DISABLED'
+
   return (
     <div className="p-4 sm:p-6 space-y-5">
       {/* Header */}
@@ -30,8 +32,10 @@ export default function AnalyticsDashboardPage() {
       {isLoading ? (
         <div className="flex items-center justify-center h-40"><Spinner size={32} /></div>
       ) : error ? (
-        <div className="text-sm text-red-400 bg-red-950/40 border border-red-900 rounded-2xl px-4 py-3">
-          Failed to load dashboard data
+        <div className={`rounded-2xl px-4 py-5 border text-sm ${isFeatureDisabled ? 'bg-amber-950/30 border-amber-800 text-amber-300' : 'bg-red-950/40 border-red-900 text-red-400'}`}>
+          {isFeatureDisabled
+            ? 'Analytics is not included in your current plan. Upgrade to unlock dashboards and reports.'
+            : 'Failed to load dashboard data'}
         </div>
       ) : !data ? null : (
         <div className="space-y-5">

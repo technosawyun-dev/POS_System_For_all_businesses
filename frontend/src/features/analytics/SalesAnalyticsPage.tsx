@@ -9,7 +9,7 @@ import { fmt } from '@/lib/utils'
 import { StatCard, Table, Th, Td } from '@/components/ui'
 import { analyticsService } from '@/services/analytics/analytics.service'
 import {
-  useAnalyticsFilters, AnalyticsFilters, ChartCard, ExportRow,
+  useAnalyticsFilters, AnalyticsFilters, ChartCard,
   CHART_COLORS, PIE_COLORS, CHART_AXIS_TICK, CHART_TOOLTIP_STYLE, CHART_GRID_STROKE,
 } from './analyticsHelpers'
 
@@ -138,7 +138,7 @@ export default function SalesAnalyticsPage() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
               <XAxis dataKey="period" tick={CHART_AXIS_TICK} tickLine={false} axisLine={false} />
-              <YAxis tick={CHART_AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
+              <YAxis tick={CHART_AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={v => `MMK ${Number(v).toLocaleString()}`} />
               <Tooltip
                 contentStyle={CHART_TOOLTIP_STYLE.contentStyle}
                 labelStyle={CHART_TOOLTIP_STYLE.labelStyle}
@@ -215,7 +215,7 @@ export default function SalesAnalyticsPage() {
                   tick={CHART_AXIS_TICK}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={v => `$${v}`}
+                  tickFormatter={v => `MMK ${Number(v).toLocaleString()}`}
                 />
                 <Tooltip
                   contentStyle={CHART_TOOLTIP_STYLE.contentStyle}
@@ -290,7 +290,6 @@ export default function SalesAnalyticsPage() {
         </Table>
       </ChartCard>
 
-      <ExportRow />
     </div>
   )
 }

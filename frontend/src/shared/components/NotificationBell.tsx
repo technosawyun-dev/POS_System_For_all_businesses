@@ -3,9 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { notificationsService } from '@/services/notifications/notifications.service'
 import { useAuthStore } from '@/store/auth.store'
 
+function notificationsPath(role?: string) {
+  if (role === 'SUPER_ADMIN') return '/super-admin/notifications'
+  if (role === 'RESELLER') return '/reseller/notifications'
+  return '/app/notifications'
+}
+
 export default function NotificationBell() {
   const navigate = useNavigate()
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, user } = useAuthStore()
 
   const { data } = useQuery({
     queryKey: ['notifications', 'unread-count'],
@@ -19,7 +25,7 @@ export default function NotificationBell() {
 
   return (
     <button
-      onClick={() => navigate('/app/notifications')}
+      onClick={() => navigate(notificationsPath(user?.role))}
       className="relative w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

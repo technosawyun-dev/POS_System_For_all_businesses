@@ -37,7 +37,8 @@ router = APIRouter()
     summary="Create a new user",
     description=(
         "Creates a user within the caller's tenant. "
-        "SUPER_ADMIN must pass `?tenant_id=` query param to specify which tenant."
+        "SUPER_ADMIN can pass `?tenant_id=` to create a tenant-scoped user, "
+        "or omit it when creating a RESELLER account (no tenant required)."
     ),
     dependencies=[
         Depends(require_tenant_admin),
@@ -57,9 +58,16 @@ async def create_user(
     import uuid as _uuid
 
     if current_user.tenant_id:
+        # Regular tenant-scoped user (business owner, manager, cashier, etc.)
         effective_tenant_id = current_user.tenant_id
-    elif current_user.role == _Role.SUPER_ADMIN and tenant_id:
-        effective_tenant_id = _uuid.UUID(tenant_id)
+    elif current_user.role == _Role.SUPER_ADMIN:
+        if tenant_id:
+            effective_tenant_id = _uuid.UUID(tenant_id)
+        elif payload.role == _Role.RESELLER:
+            # Reseller accounts are platform-level, no tenant required
+            effective_tenant_id = None
+        else:
+            raise ValidationError("tenant_id query param is required when creating non-RESELLER users as SUPER_ADMIN")
     else:
         raise ValidationError("tenant_id query param is required for SUPER_ADMIN")
 
@@ -85,6 +93,7 @@ async def list_users(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=500),
     tenant_id: str | None = Query(default=None, description="Filter by tenant (super admin only)"),
+    role: str | None = Query(default=None, description="Filter by role (super admin only)"),
 ) -> PaginatedResponse[UserResponse]:
     from app.core.constants import UserRole
     import uuid as _uuid
@@ -94,7 +103,8 @@ async def list_users(
         effective_tenant_id = _uuid.UUID(tenant_id)
     if not effective_tenant_id:
         if current_user.role == UserRole.SUPER_ADMIN:
-            users, total = await service.list_all_users(page=page, page_size=page_size)
+            effective_role = role if current_user.role == UserRole.SUPER_ADMIN else None
+            users, total = await service.list_all_users(page=page, page_size=page_size, role=effective_role)
             return PaginatedResponse.create(
                 items=[UserResponse.model_validate(u) for u in users],
                 total=total,

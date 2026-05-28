@@ -17,7 +17,7 @@ class TenantCreateRequest(BaseSchema):
     country: str | None = Field(default=None, max_length=100)
     city: str | None = Field(default=None, max_length=100)
     timezone: str = "UTC"
-    currency: str = Field(default="USD", max_length=10)
+    currency: str = Field(default="MMK", max_length=10)
     locale: str = Field(default="en-US", max_length=20)
     subscription_plan: str = "trial"
 

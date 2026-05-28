@@ -36,10 +36,13 @@ from app.api.deps import (
     require_cashier_or_above,
     require_manager_or_above,
 )
+from app.core.cache import cache_get, cache_set
+from app.db.redis import get_redis
 from app.models.user import User
 
 router = APIRouter()
 
+_DASHBOARD_TTL = 120  # seconds
 
 
 @router.get(
@@ -53,14 +56,24 @@ async def get_dashboard(
     tenant_id: EffectiveTenantId,
     request_id: RequestId,
     branch_id: uuid.UUID | None = Query(default=None),
+    redis=Depends(get_redis),
 ) -> DashboardResponse:
+    cache_key = f"dashboard:{tenant_id}:{branch_id or 'all'}"
+
+    cached = await cache_get(redis, cache_key)
+    if cached:
+        return DashboardResponse(**cached)
+
     svc = DashboardService(db)
-    return await svc.get_dashboard(
+    result = await svc.get_dashboard(
         tenant_id=tenant_id,
         branch_id=branch_id,
         actor_id=current_user.id,
         request_id=request_id,
     )
+
+    await cache_set(redis, cache_key, result.model_dump(mode="json"), ttl=_DASHBOARD_TTL)
+    return result
 
 
 

@@ -45,7 +45,7 @@ const MAX_MB = 10
 function SubmitProofModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
   const [amount, setAmount] = useState('')
-  const [currency, setCurrency] = useState('USD')
+  const [currency, setCurrency] = useState('MMK')
   const [reference, setReference] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
@@ -126,7 +126,7 @@ function SubmitProofModal({ onClose }: { onClose: () => void }) {
             </div>
             <div>
               <label className="block text-xs text-zinc-400 mb-1">Currency</label>
-              <input type="text" value={currency} onChange={e => setCurrency(e.target.value)} placeholder="USD"
+              <input type="text" value={currency} onChange={e => setCurrency(e.target.value)} placeholder="MMK"
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-amber-500" />
             </div>
           </div>

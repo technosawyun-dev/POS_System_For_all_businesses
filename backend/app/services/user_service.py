@@ -29,6 +29,8 @@ class UserService:
         actor_tenant_id: uuid.UUID | None = None,
         request_id: str | None = None,
     ) -> User:
+        if data.role == UserRole.SUPER_ADMIN:
+            raise AuthorizationError("Cannot create a SUPER_ADMIN user")
         if await self.user_repo.email_exists(data.email):
             raise ConflictError(f"User with email '{data.email}' already exists")
 
@@ -51,6 +53,19 @@ class UserService:
             after_state={"email": user.email, "role": user.role},
             request_id=request_id,
         )
+        # Auto-generate a referral code for new resellers
+        if data.role == UserRole.RESELLER:
+            try:
+                from app.reseller_finance.services.referral_service import ReferralService
+                referral_svc = ReferralService(self.session)
+                await referral_svc.create_referral_code(
+                    reseller_id=user.id,
+                    code=None,  # auto-generate
+                    actor_id=actor_id,
+                    request_id=request_id,
+                )
+            except Exception:
+                pass  # fail-open, don't break user creation
         return user
 
     async def get_user(self, user_id: uuid.UUID) -> User:
@@ -72,9 +87,10 @@ class UserService:
         self,
         page: int = 1,
         page_size: int = 20,
+        role: str | None = None,
     ) -> tuple[list[User], int]:
         offset = (page - 1) * page_size
-        return await self.user_repo.get_all_users(offset=offset, limit=page_size)
+        return await self.user_repo.get_all_users(offset=offset, limit=page_size, role=role)
 
     async def update_user(
         self,
@@ -120,11 +136,16 @@ class UserService:
         user = await self.user_repo.get_by_id_active(user_id)
         if not user:
             raise NotFoundError("User", user_id)
+        if user.role == UserRole.SUPER_ADMIN:
+            raise AuthorizationError("SUPER_ADMIN account cannot be modified")
 
         old_status = user.status
         user = await self.user_repo.update(user, status=status)
 
-        action = AuditAction.USER_ACTIVATED if status == UserStatus.ACTIVE else AuditAction.USER_DEACTIVATED
+        action = {
+            UserStatus.ACTIVE: AuditAction.USER_ACTIVATED,
+            UserStatus.SUSPENDED: AuditAction.USER_SUSPENDED,
+        }.get(status, AuditAction.USER_DEACTIVATED)
         await self.audit_service.log(
             action=action,
             actor_user_id=actor_id,
@@ -148,6 +169,14 @@ class UserService:
         user = await self.user_repo.get_by_id_active(user_id)
         if not user:
             raise NotFoundError("User", user_id)
+        if user.role == UserRole.SUPER_ADMIN:
+            raise AuthorizationError("SUPER_ADMIN account cannot be modified")
+        if role == UserRole.SUPER_ADMIN:
+            raise AuthorizationError("Cannot assign SUPER_ADMIN role")
+        if role == UserRole.RESELLER and user.tenant_id is not None:
+            raise AuthorizationError("Cannot assign RESELLER role to a tenant-scoped user. Create a new RESELLER account instead.")
+        if user.role == UserRole.RESELLER and role != UserRole.RESELLER:
+            raise AuthorizationError("Cannot change a RESELLER's role to a tenant-scoped role. Create a new user account instead.")
 
         old_role = user.role
         user = await self.user_repo.update(user, role=role)
@@ -175,9 +204,10 @@ class UserService:
         user = await self.user_repo.get_by_id_active(user_id)
         if not user:
             raise NotFoundError("User", user_id)
+        if user.role == UserRole.SUPER_ADMIN:
+            raise AuthorizationError("SUPER_ADMIN account cannot be modified")
 
-        from app.core.security import hash_password as _hash
-        await self.user_repo.update(user, hashed_password=_hash(new_password))
+        await self.user_repo.update(user, hashed_password=hash_password(new_password))
 
         await self.audit_service.log(
             action=AuditAction.PASSWORD_CHANGED,
@@ -199,6 +229,8 @@ class UserService:
         user = await self.user_repo.get_by_id_active(user_id)
         if not user:
             raise NotFoundError("User", user_id)
+        if user.role == UserRole.SUPER_ADMIN:
+            raise AuthorizationError("SUPER_ADMIN account cannot be deleted")
 
         await self.user_repo.soft_delete(user)
 

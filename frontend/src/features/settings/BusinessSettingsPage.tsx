@@ -13,7 +13,7 @@ const TIMEZONES = [
   'Asia/Singapore', 'Asia/Kolkata', 'Asia/Bangkok', 'Australia/Sydney',
 ]
 
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'SGD', 'INR', 'THB', 'AUD', 'CAD', 'MMK']
+const CURRENCIES = ['MMK', 'USD', 'EUR', 'GBP', 'JPY', 'CNY', 'SGD', 'INR', 'THB', 'AUD', 'CAD']
 
 const LOCALES = ['en-US', 'en-GB', 'fr-FR', 'de-DE', 'ja-JP', 'zh-CN', 'th-TH', 'my-MM']
 

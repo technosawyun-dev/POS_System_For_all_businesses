@@ -14,26 +14,15 @@ const PRIORITY_VARIANT: Record<string, 'danger' | 'warning' | 'info' | 'default'
   LOW:      'default',
 }
 
-const TYPE_FILTERS = [
-  { label: 'All',          value: undefined as string | undefined },
-  { label: 'System',       value: 'SYSTEM'       },
-  { label: 'Inventory',    value: 'INVENTORY'    },
-  { label: 'Procurement',  value: 'PROCUREMENT'  },
-  { label: 'Customer',     value: 'CUSTOMER'     },
-  { label: 'Subscription', value: 'SUBSCRIPTION' },
-  { label: 'Security',     value: 'SECURITY'     },
-]
-
 export default function ResellerNotificationsPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [readFilter, setReadFilter] = useState<boolean | undefined>(undefined)
-  const [typeFilter, setTypeFilter] = useState<string | undefined>(undefined)
   const [page, setPage] = useState(1)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['reseller-notifications', { read: readFilter, type: typeFilter, page }],
-    queryFn: () => notificationsService.list({ read: readFilter, type: typeFilter, page, page_size: 20 }),
+    queryKey: ['reseller-notifications', { read: readFilter, page }],
+    queryFn: () => notificationsService.list({ read: readFilter, page, page_size: 20 }),
     staleTime: 30 * 1000,
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
@@ -75,45 +64,25 @@ export default function ResellerNotificationsPage() {
         </Btn>
       </div>
 
-      {/* Filters */}
-      <div className="space-y-3 mb-6">
-        {/* Read/Unread */}
-        <div className="flex gap-2">
-          {[
-            { label: 'All', value: undefined as boolean | undefined },
-            { label: 'Unread', value: false },
-            { label: 'Read', value: true },
-          ].map(f => (
-            <button
-              key={String(f.label)}
-              onClick={() => { setReadFilter(f.value); setPage(1) }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
-                readFilter === f.value
-                  ? 'bg-orange-500/15 border-orange-500/30 text-orange-400'
-                  : 'bg-zinc-900 border-zinc-700 text-zinc-500 hover:text-zinc-300'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Type filter */}
-        <div className="flex flex-wrap gap-2">
-          {TYPE_FILTERS.map(f => (
-            <button
-              key={String(f.value)}
-              onClick={() => { setTypeFilter(f.value); setPage(1) }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
-                typeFilter === f.value
-                  ? 'bg-orange-500/15 border-orange-500/30 text-orange-400'
-                  : 'bg-zinc-900 border-zinc-700 text-zinc-500 hover:text-zinc-300'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+      {/* Read/Unread filter */}
+      <div className="flex gap-2 mb-6">
+        {[
+          { label: 'All', value: undefined as boolean | undefined },
+          { label: 'Unread', value: false },
+          { label: 'Read', value: true },
+        ].map(f => (
+          <button
+            key={String(f.label)}
+            onClick={() => { setReadFilter(f.value); setPage(1) }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+              readFilter === f.value
+                ? 'bg-orange-500/15 border-orange-500/30 text-orange-400'
+                : 'bg-zinc-900 border-zinc-700 text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {/* List */}

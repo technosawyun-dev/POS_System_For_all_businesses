@@ -179,6 +179,32 @@ def get_effective_tenant_id(
 EffectiveTenantId = Annotated[uuid.UUID, Depends(get_effective_tenant_id)]
 
 
+def get_optional_effective_tenant_id(
+    current_user: CurrentUser,
+    tenant_id: str | None = Query(
+        default=None, description="Target tenant (SUPER_ADMIN or RESELLER only)"
+    ),
+) -> uuid.UUID | None:
+    """
+    Like get_effective_tenant_id but returns None instead of raising when SUPER_ADMIN
+    has no tenant_id (e.g. when creating platform-level users like RESELLER).
+    """
+    if current_user.tenant_id:
+        return current_user.tenant_id
+    cross_tenant_roles = {UserRole.SUPER_ADMIN.value, UserRole.RESELLER.value}
+    if current_user.role in cross_tenant_roles and tenant_id:
+        try:
+            return uuid.UUID(tenant_id)
+        except ValueError:
+            raise ValidationError("Invalid tenant_id format")
+    if current_user.role == UserRole.SUPER_ADMIN.value:
+        return None  # SUPER_ADMIN may operate without a tenant context
+    raise ValidationError("tenant_id query param is required")
+
+
+OptionalEffectiveTenantId = Annotated[uuid.UUID | None, Depends(get_optional_effective_tenant_id)]
+
+
 async def require_reseller_only(current_user: CurrentUser) -> User:
     """Allows only RESELLER role."""
     if current_user.role != UserRole.RESELLER.value:

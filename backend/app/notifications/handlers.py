@@ -116,7 +116,7 @@ async def handle_purchase_order_approved(event: DomainEvent) -> None:
     po_number = event.payload.get("po_number", "")
     supplier_name = event.payload.get("supplier_name", "")
     total_amount = event.payload.get("total_amount", "")
-    currency = event.payload.get("currency", "USD")
+    currency = event.payload.get("currency", "MMK")
     expected_date = event.payload.get("expected_date", "")
 
     async with AsyncSessionLocal() as session:
@@ -406,7 +406,7 @@ async def handle_payment_proof_submitted(event: DomainEvent) -> None:
 
     tenant_name = event.payload.get("tenant_name", "")
     amount = event.payload.get("amount", "")
-    currency = event.payload.get("currency", "USD")
+    currency = event.payload.get("currency", "MMK")
 
     async with AsyncSessionLocal() as session:
         try:
@@ -442,7 +442,7 @@ async def handle_payment_proof_approved(event: DomainEvent) -> None:
 
     tenant_name = event.payload.get("tenant_name", "")
     amount = event.payload.get("amount", "")
-    currency = event.payload.get("currency", "USD")
+    currency = event.payload.get("currency", "MMK")
     expires_at = event.payload.get("expires_at", "")
 
     async with AsyncSessionLocal() as session:
@@ -516,6 +516,205 @@ async def handle_sync_failed(event: DomainEvent) -> None:
             await session.rollback()
             logger.exception("handle_sync_failed_error", tenant_id=str(event.tenant_id))
 
+
+
+@event_publisher.on(EventType.BUSINESS_REGISTERED)
+async def handle_business_registered(event: DomainEvent) -> None:
+    """Notify all super admins when a new business registers."""
+    from app.db.session import AsyncSessionLocal
+    from app.notifications.services import NotificationService
+
+    business_name = event.payload.get("business_name", "Unknown")
+    owner_name = event.payload.get("owner_name", "")
+    owner_email = event.payload.get("owner_email", "")
+    plan_name = event.payload.get("plan_name", "Trial")
+    trial_days = event.payload.get("trial_days", 14)
+
+    async with AsyncSessionLocal() as session:
+        try:
+            super_admin_ids = await _get_super_admin_ids(session)
+            if not super_admin_ids:
+                return
+
+            svc = NotificationService(session)
+            await svc.notify_users(
+                tenant_id=None,
+                type=NotificationType.SUBSCRIPTION,
+                priority=NotificationPriority.MEDIUM,
+                title=f"New Business Registered: {business_name}",
+                message=(
+                    f"{owner_name} ({owner_email}) just registered '{business_name}' "
+                    f"on a {trial_days}-day {plan_name} trial."
+                ),
+                user_ids=super_admin_ids,
+                metadata=event.payload,
+            )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            logger.exception("handle_business_registered_error")
+
+
+@event_publisher.on(EventType.SUBSCRIPTION_ACTIVATED)
+async def handle_subscription_activated(event: DomainEvent) -> None:
+    """Notify super admins when a tenant activates (purchases) a subscription."""
+    from app.db.session import AsyncSessionLocal
+    from app.notifications.services import NotificationService
+    from app.models.tenant import Tenant
+    from sqlalchemy import select
+
+    plan_name = event.payload.get("plan_name", "")
+    expires_at = event.payload.get("expires_at", "")
+
+    async with AsyncSessionLocal() as session:
+        try:
+            super_admin_ids = await _get_super_admin_ids(session)
+            if not super_admin_ids:
+                return
+
+            tenant_name = "Unknown"
+            if event.tenant_id:
+                row = await session.execute(select(Tenant.name).where(Tenant.id == event.tenant_id))
+                tenant_name = row.scalar_one_or_none() or "Unknown"
+
+            svc = NotificationService(session)
+            await svc.notify_users(
+                tenant_id=None,
+                type=NotificationType.SUBSCRIPTION,
+                priority=NotificationPriority.HIGH,
+                title=f"Subscription Purchased: {tenant_name}",
+                message=(
+                    f"'{tenant_name}' has activated the '{plan_name}' plan. "
+                    f"Active until {expires_at[:10]}."
+                ),
+                user_ids=super_admin_ids,
+                metadata=event.payload,
+            )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            logger.exception("handle_subscription_activated_error")
+
+
+@event_publisher.on(EventType.SUBSCRIPTION_RENEWED)
+async def handle_subscription_renewed(event: DomainEvent) -> None:
+    """Notify super admins when a tenant renews their subscription."""
+    from app.db.session import AsyncSessionLocal
+    from app.notifications.services import NotificationService
+    from app.models.tenant import Tenant
+    from sqlalchemy import select
+
+    plan_name = event.payload.get("plan_name", "")
+    expires_at = event.payload.get("expires_at", "")
+
+    async with AsyncSessionLocal() as session:
+        try:
+            super_admin_ids = await _get_super_admin_ids(session)
+            if not super_admin_ids:
+                return
+
+            tenant_name = "Unknown"
+            if event.tenant_id:
+                row = await session.execute(select(Tenant.name).where(Tenant.id == event.tenant_id))
+                tenant_name = row.scalar_one_or_none() or "Unknown"
+
+            svc = NotificationService(session)
+            await svc.notify_users(
+                tenant_id=None,
+                type=NotificationType.SUBSCRIPTION,
+                priority=NotificationPriority.MEDIUM,
+                title=f"Subscription Renewed: {tenant_name}",
+                message=(
+                    f"'{tenant_name}' renewed their '{plan_name}' subscription. "
+                    f"New expiry: {expires_at[:10]}."
+                ),
+                user_ids=super_admin_ids,
+                metadata=event.payload,
+            )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            logger.exception("handle_subscription_renewed_error")
+
+
+@event_publisher.on(EventType.SUBSCRIPTION_UPGRADED)
+async def handle_subscription_upgraded(event: DomainEvent) -> None:
+    """Notify super admins when a tenant upgrades their plan."""
+    from app.db.session import AsyncSessionLocal
+    from app.notifications.services import NotificationService
+    from app.models.tenant import Tenant
+    from sqlalchemy import select
+
+    old_plan = event.payload.get("old_plan_name", "")
+    new_plan = event.payload.get("new_plan_name", "")
+
+    async with AsyncSessionLocal() as session:
+        try:
+            super_admin_ids = await _get_super_admin_ids(session)
+            if not super_admin_ids:
+                return
+
+            tenant_name = "Unknown"
+            if event.tenant_id:
+                row = await session.execute(select(Tenant.name).where(Tenant.id == event.tenant_id))
+                tenant_name = row.scalar_one_or_none() or "Unknown"
+
+            svc = NotificationService(session)
+            await svc.notify_users(
+                tenant_id=None,
+                type=NotificationType.SUBSCRIPTION,
+                priority=NotificationPriority.HIGH,
+                title=f"Plan Upgraded: {tenant_name}",
+                message=(
+                    f"'{tenant_name}' upgraded from '{old_plan}' to '{new_plan}'."
+                ),
+                user_ids=super_admin_ids,
+                metadata=event.payload,
+            )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            logger.exception("handle_subscription_upgraded_error")
+
+
+@event_publisher.on(EventType.SUBSCRIPTION_DOWNGRADED)
+async def handle_subscription_downgraded(event: DomainEvent) -> None:
+    """Notify super admins when a tenant downgrades their plan."""
+    from app.db.session import AsyncSessionLocal
+    from app.notifications.services import NotificationService
+    from app.models.tenant import Tenant
+    from sqlalchemy import select
+
+    old_plan = event.payload.get("old_plan_name", "")
+    new_plan = event.payload.get("new_plan_name", "")
+
+    async with AsyncSessionLocal() as session:
+        try:
+            super_admin_ids = await _get_super_admin_ids(session)
+            if not super_admin_ids:
+                return
+
+            tenant_name = "Unknown"
+            if event.tenant_id:
+                row = await session.execute(select(Tenant.name).where(Tenant.id == event.tenant_id))
+                tenant_name = row.scalar_one_or_none() or "Unknown"
+
+            svc = NotificationService(session)
+            await svc.notify_users(
+                tenant_id=None,
+                type=NotificationType.SUBSCRIPTION,
+                priority=NotificationPriority.MEDIUM,
+                title=f"Plan Downgraded: {tenant_name}",
+                message=(
+                    f"'{tenant_name}' downgraded from '{old_plan}' to '{new_plan}'."
+                ),
+                user_ids=super_admin_ids,
+                metadata=event.payload,
+            )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            logger.exception("handle_subscription_downgraded_error")
 
 
 @event_publisher.on(EventType.DEVICE_OFFLINE)

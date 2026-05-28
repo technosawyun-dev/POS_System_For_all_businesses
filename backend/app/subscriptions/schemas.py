@@ -30,12 +30,13 @@ class PlanCreateRequest(BaseSchema):
     description: str | None = None
     billing_cycle: str
     price: Decimal
-    currency: str = "USD"
+    currency: str = "MMK"
     trial_days: int = Field(default=0, ge=0)
     is_active: bool = True
     is_trial: bool = False
     is_public: bool = True
     sort_order: int = 0
+    is_referral_plan: bool = False
     entitlements: list[PlanEntitlementCreate] = Field(default_factory=list)
 
     @field_validator("price", mode="before")
@@ -55,6 +56,7 @@ class PlanUpdateRequest(BaseSchema):
     is_trial: bool | None = None
     is_public: bool | None = None
     sort_order: int | None = None
+    is_referral_plan: bool | None = None
     entitlements: list[PlanEntitlementCreate] | None = None
 
     @field_validator("price", mode="before")
@@ -77,6 +79,7 @@ class PlanResponse(TimestampedSchema):
     is_trial: bool
     is_public: bool
     sort_order: int
+    is_referral_plan: bool
     entitlements: list[PlanEntitlementResponse]
 
 
@@ -111,6 +114,7 @@ class RegisterRequest(BaseSchema):
     email: EmailStr
     phone: str | None = None
     password: str = Field(min_length=8, max_length=128)
+    referral_code: str | None = None
 
     @field_validator("password")
     @classmethod
@@ -160,7 +164,7 @@ class SubscriptionResponse(TimestampedSchema):
 
 class PaymentProofCreateRequest(BaseSchema):
     amount: Decimal
-    currency: str = "USD"
+    currency: str = "MMK"
     reference_number: str | None = None
     proof_file_url: str
 
@@ -242,6 +246,9 @@ class SubscriptionOverviewResponse(BaseSchema):
     expired_subscriptions: int
     suspended_subscriptions: int
     monthly_revenue: Decimal
+    total_users: int = 0
+    total_branches: int = 0
+    total_orders: int = 0
 
 
 class ExtendSubscriptionRequest(BaseSchema):

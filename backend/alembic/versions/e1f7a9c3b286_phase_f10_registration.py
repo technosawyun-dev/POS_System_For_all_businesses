@@ -1,6 +1,6 @@
 """phase_f10_registration
 
-Adds Phase F10 public registration support:
+Adds public registration support:
   - is_trial column on subscription_plans (marks the trial plan)
   - is_public column on subscription_plans (marks plans visible on pricing page)
 

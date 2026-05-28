@@ -1,6 +1,6 @@
 """phase8_subscriptions
 
-Adds Phase 8 subscription & billing tables:
+Adds subscription & billing tables:
   - subscription_plans
   - plan_entitlements
   - tenant_subscriptions

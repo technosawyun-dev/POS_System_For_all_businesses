@@ -26,6 +26,10 @@ class AuditLogResponse(TimestampedSchema):
     ip_address: str | None
     user_agent: str | None
     request_id: str | None
+    # Enriched actor info (joined from users table)
+    actor_name: str | None = None
+    actor_email: str | None = None
+    actor_role: str | None = None
 
 
 class AuditLogFilterParams(BaseSchema):

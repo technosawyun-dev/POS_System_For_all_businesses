@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query, Response
 
 from app.api.deps import (
     ClientIp,
@@ -40,6 +40,7 @@ async def login(
     service = AuthService(db)
     token_response, refresh_token = await service.login(
         email=payload.email,
+        phone=payload.phone,
         business_code=payload.business_code,
         identifier=payload.identifier,
         password=payload.password,
@@ -136,7 +137,11 @@ async def register(
     ua: UserAgent,
     request_id: RequestId,
     redis=Depends(get_redis),
+    ref: str | None = Query(default=None, description="Referral code from ?ref=CODE link"),
 ) -> RegistrationResponse:
+    # Merge query-param referral code into payload (query param takes precedence)
+    if ref and not payload.referral_code:
+        payload.referral_code = ref.strip().upper()
     await check_registration_rate_limit(redis, ip or "unknown")
     svc = RegistrationService(db)
     result = await svc.register(

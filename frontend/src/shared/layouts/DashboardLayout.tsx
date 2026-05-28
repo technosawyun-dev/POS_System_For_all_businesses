@@ -39,12 +39,12 @@ const APP_NAV: NavItem[] = [
 
 const SUPER_ADMIN_NAV: NavItem[] = [
   { to: '/super-admin/dashboard',     section: 'dashboard',     label: 'Dashboard',     icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏠</span> },
-  { to: '/super-admin/businesses',    section: 'businesses',    label: 'Businesses',    icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏢</span> },
-  { to: '/super-admin/users',         section: 'users',         label: 'Users',         icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">👤</span> },
+  { to: '/super-admin/businesses',    section: 'businesses',    label: 'Businesses & Users', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏢</span> },
   { to: '/super-admin/resellers',     section: 'resellers',     label: 'Resellers',     icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🤝</span> },
   { to: '/super-admin/plans',         section: 'plans',         label: 'Plans',         icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📋</span> },
   { to: '/super-admin/notifications', section: 'notifications', label: 'Notifications', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🔔</span> },
-  { to: '/super-admin/audit-logs',    section: 'audit-logs',    label: 'Audit Logs',    icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📝</span> },
+  { to: '/super-admin/audit-logs',       section: 'audit-logs',       label: 'Audit Logs',       icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📝</span> },
+  { to: '/super-admin/reseller-finance', section: 'reseller-finance', label: 'Reseller Finance', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">💰</span> },
 ]
 
 const RESELLER_NAV: NavItem[] = [

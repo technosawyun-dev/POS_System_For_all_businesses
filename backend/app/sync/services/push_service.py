@@ -4,7 +4,7 @@ from __future__ import annotations
 Sync Push Service — Idempotent Offline Operation Replay
 =========================================================
 Accepts a batch of offline operations from a device and replays them
-against the live Phase 3 business services.
+against the live business services.
 
 Idempotency guarantee:
   If an operation_uuid has already been processed (COMPLETED), the service

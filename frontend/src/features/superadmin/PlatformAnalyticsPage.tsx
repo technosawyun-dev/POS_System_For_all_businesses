@@ -45,8 +45,8 @@ export default function PlatformAnalyticsPage() {
             {/* Revenue cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label: 'MRR', value: `$${mrr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub: 'Monthly recurring revenue' },
-                { label: 'ARR (est.)', value: `$${arr.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, sub: 'MRR × 12' },
+                { label: 'MRR', value: `MMK ${mrr.toLocaleString('en-US', { maximumFractionDigits: 0 })}`, sub: 'Monthly recurring revenue' },
+                { label: 'ARR (est.)', value: `MMK ${arr.toLocaleString('en-US', { maximumFractionDigits: 0 })}`, sub: 'MRR × 12' },
                 { label: 'Total Businesses', value: ov.total_tenants.toLocaleString(), sub: 'All tenants' },
                 { label: 'Active', value: ov.active_subscriptions.toLocaleString(), sub: 'Active subscriptions' },
               ].map(card => (

@@ -22,8 +22,13 @@ from app.core.exceptions import (
     SubscriptionSuspendedException,
     UsageLimitExceededException,
 )
+from app.core.logging import get_logger
 from app.services.audit_service import AuditService
+
+logger = get_logger(__name__)
 from app.models.tenant import Tenant
+from app.models.branch import Branch
+from app.models.user import User
 from app.subscriptions.models import (
     SubscriptionHistory,
     SubscriptionPlan,
@@ -370,6 +375,21 @@ class AdminSubscriptionService:
         revenue_result = await self.session.execute(revenue_stmt)
         monthly_revenue = revenue_result.scalar_one() or Decimal("0.00")
 
+        from app.core.constants import UserRole
+        from app.sales.models import Order
+
+        user_count_result = await self.session.execute(
+            select(func.count()).select_from(User).where(
+                User.role != UserRole.SUPER_ADMIN
+            )
+        )
+        branch_count_result = await self.session.execute(
+            select(func.count()).select_from(Branch).where(Branch.is_deleted.is_(False))
+        )
+        order_count_result = await self.session.execute(
+            select(func.count()).select_from(Order)
+        )
+
         return {
             "total_tenants": total,
             "active_subscriptions": status_map.get(SubscriptionStatus.ACTIVE, 0),
@@ -377,6 +397,9 @@ class AdminSubscriptionService:
             "expired_subscriptions": status_map.get(SubscriptionStatus.EXPIRED, 0),
             "suspended_subscriptions": status_map.get(SubscriptionStatus.SUSPENDED, 0),
             "monthly_revenue": monthly_revenue,
+            "total_users": user_count_result.scalar_one(),
+            "total_branches": branch_count_result.scalar_one(),
+            "total_orders": order_count_result.scalar_one(),
         }
 
     async def list_all_subscriptions(
@@ -496,4 +519,24 @@ class AdminSubscriptionService:
             request_id=request_id,
         )
 
-        return await self.sub_repo.get_by_tenant(tenant_id)  # type: ignore[return-value]
+        result = await self.sub_repo.get_by_tenant(tenant_id)
+        try:
+            from app.events.base import DomainEvent
+            from app.events.publisher import event_publisher
+            from app.events.types import EventType
+            old_plan_obj = await self.plan_repo.get_by_id(old_plan_id)
+            evt = EventType.SUBSCRIPTION_UPGRADED if (plan.price >= (old_plan_obj.price if old_plan_obj else plan.price)) else EventType.SUBSCRIPTION_DOWNGRADED
+            await event_publisher.publish(DomainEvent(
+                event_type=evt,
+                tenant_id=tenant_id,
+                actor_id=actor_id,
+                payload={
+                    "old_plan_name": old_plan_obj.name if old_plan_obj else str(old_plan_id),
+                    "new_plan_name": plan.name,
+                    "new_plan_id": str(plan_id),
+                    "reason": reason,
+                },
+            ))
+        except Exception as exc:
+            logger.warning("admin_change_plan_event_failed", error=str(exc))
+        return result  # type: ignore[return-value]

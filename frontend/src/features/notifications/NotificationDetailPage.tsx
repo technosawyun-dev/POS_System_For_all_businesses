@@ -54,7 +54,7 @@ export default function NotificationDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3">
         <p className="text-zinc-400 text-sm">Notification not found</p>
-        <Btn variant="secondary" size="sm" onClick={() => navigate('/app/notifications')}>
+        <Btn variant="secondary" size="sm" onClick={() => navigate(-1)}>
           Back to Notifications
         </Btn>
       </div>
@@ -66,7 +66,7 @@ export default function NotificationDetailPage() {
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3.5 border-b border-zinc-800 flex-shrink-0">
         <button
-          onClick={() => navigate('/app/notifications')}
+          onClick={() => navigate(-1)}
           className="text-zinc-500 hover:text-zinc-200 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800 transition-colors"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

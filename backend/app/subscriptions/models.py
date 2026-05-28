@@ -26,12 +26,13 @@ class SubscriptionPlan(Base):
         String(20), nullable=False, default=BillingCycle.MONTHLY
     )
     price: Mapped[Decimal] = mapped_column(Numeric(15, 4), nullable=False)
-    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="USD")
+    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="MMK")
     trial_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_trial: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_referral_plan: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     entitlements: Mapped[list[PlanEntitlement]] = relationship(
         "PlanEntitlement", back_populates="plan", cascade="all, delete-orphan"
@@ -173,7 +174,7 @@ class PaymentProof(Base):
         nullable=False,
     )
     amount: Mapped[Decimal] = mapped_column(Numeric(15, 4), nullable=False)
-    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="USD")
+    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="MMK")
     reference_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
     proof_file_url: Mapped[str] = mapped_column(String(500), nullable=False)
     status: Mapped[str] = mapped_column(

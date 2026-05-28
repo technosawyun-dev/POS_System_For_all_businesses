@@ -10,6 +10,7 @@ export type UserRole =
 
 export interface LoginRequest {
   email?: string
+  phone?: string
   business_code?: string
   identifier?: string
   password: string
@@ -445,6 +446,7 @@ export interface Plan {
   currency: string
   trial_days: number
   is_active: boolean
+  is_referral_plan: boolean
   sort_order: number
   entitlements: PlanEntitlement[]
   created_at: string
@@ -524,6 +526,9 @@ export interface SubscriptionOverview {
   expired_subscriptions: number
   suspended_subscriptions: number
   monthly_revenue: string
+  total_users: number
+  total_branches: number
+  total_orders: number
 }
 
 export interface PlanCreateRequest {
@@ -535,6 +540,7 @@ export interface PlanCreateRequest {
   currency?: string
   trial_days?: number
   is_active?: boolean
+  is_referral_plan?: boolean
   sort_order?: number
   entitlements?: { feature_code: string; enabled: boolean; limit_value?: number | null }[]
 }
@@ -547,6 +553,7 @@ export interface PlanUpdateRequest {
   currency?: string
   trial_days?: number
   is_active?: boolean
+  is_referral_plan?: boolean
   sort_order?: number
   entitlements?: { feature_code: string; enabled: boolean; limit_value?: number | null }[]
 }
@@ -732,6 +739,9 @@ export interface MyPermissionsResponse {
 export interface AuditLog {
   id: string
   actor_user_id: string | null
+  actor_name: string | null
+  actor_email: string | null
+  actor_role: string | null
   tenant_id: string | null
   branch_id: string | null
   action: string
@@ -1284,6 +1294,7 @@ export interface RegisterRequest {
   email: string
   phone?: string
   password: string
+  referral_code?: string
 }
 
 export interface RegistrationResponse {
@@ -1318,4 +1329,91 @@ export interface TrialStatus {
   days_remaining: number
   is_expired: boolean
   usage: Record<string, { used: number; limit: number | null }>
+}
+
+export interface Brand {
+  id: string
+  tenant_id: string
+  name: string
+  slug: string
+  description: string | null
+  website: string | null
+  is_deleted: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface BrandCreateRequest {
+  name: string
+  slug?: string
+  description?: string
+  website?: string
+}
+
+export interface BrandUpdateRequest {
+  name?: string
+  description?: string
+  website?: string
+}
+
+export interface CustomerContact {
+  id: string
+  customer_id: string
+  contact_name: string
+  contact_phone: string
+  contact_relationship: string | null
+  is_deleted: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface InventoryTransfer {
+  id: string
+  tenant_id: string
+  from_branch_id: string
+  to_branch_id: string
+  status: string
+  notes: string | null
+  requested_by_id: string | null
+  approved_by_id: string | null
+  executed_by_id: string | null
+  items: Array<{
+    product_id: string
+    variant_id: string | null
+    quantity: string
+    product_name?: string
+  }>
+  created_at: string
+  updated_at: string
+}
+
+export interface InventoryAdjustmentDetail {
+  id: string
+  tenant_id: string
+  branch_id: string
+  adjustment_type: string
+  reason: string | null
+  notes: string | null
+  items: Array<{
+    product_id: string
+    variant_id: string | null
+    quantity_change: string
+    product_name?: string
+  }>
+  created_by_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CommissionRecord {
+  id: string
+  reseller_id: string
+  tenant_id: string
+  commission_type: string
+  amount: string
+  currency_code: string
+  status: string
+  reference_id: string | null
+  note: string | null
+  created_at: string
 }

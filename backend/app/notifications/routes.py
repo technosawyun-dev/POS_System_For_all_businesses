@@ -4,7 +4,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, Query, Response
 
-from app.api.deps import CurrentUser, DbSession, EffectiveTenantId, RequestId, require_manager_or_above
+from app.api.deps import CurrentUser, DbSession, RequestId, require_manager_or_above
 from app.notifications.schemas import (
     NotificationListResponse,
     NotificationPreferenceResponse,
@@ -25,7 +25,6 @@ router = APIRouter()
 async def list_notifications(
     db: DbSession,
     current_user: CurrentUser,
-    tenant_id: EffectiveTenantId,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=500),
     type: str | None = Query(default=None, description="Filter by notification type"),

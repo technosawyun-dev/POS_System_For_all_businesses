@@ -8,7 +8,7 @@ import { fmt, fmtDate } from '@/lib/utils'
 import { StatCard, Table, Th, Td } from '@/components/ui'
 import { analyticsService } from '@/services/analytics/analytics.service'
 import {
-  useAnalyticsFilters, AnalyticsFilters, ChartCard, ExportRow,
+  useAnalyticsFilters, AnalyticsFilters, ChartCard,
   CHART_COLORS, CHART_AXIS_TICK, CHART_TOOLTIP_STYLE, CHART_GRID_STROKE,
 } from './analyticsHelpers'
 
@@ -248,7 +248,6 @@ export default function InventoryAnalyticsPage() {
         </Table>
       </ChartCard>
 
-      <ExportRow />
     </div>
   )
 }

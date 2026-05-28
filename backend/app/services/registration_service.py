@@ -250,6 +250,36 @@ class RegistrationService:
             request_id=request_id,
         )
 
+        # Referral tracking — fail-open so registration is never blocked
+        if data.referral_code:
+            try:
+                from app.reseller_finance.services.referral_service import ReferralService
+                referral_svc = ReferralService(self.session)
+                code_row = await referral_svc.validate_and_get_code(data.referral_code)
+                await referral_svc.attach_referral_to_tenant(
+                    tenant_id=tenant.id,
+                    reseller_id=code_row.reseller_id,
+                    referral_code_id=code_row.id,
+                    code_snapshot=code_row.code,
+                    registration_email=data.email,
+                    actor_id=user.id,
+                )
+                # Try to upgrade to referral (promo) plan
+                referral_plan = await self.plan_repo.get_referral_plan()
+                if referral_plan and referral_plan.id != trial_plan.id:
+                    sub.plan_id = referral_plan.id
+                    promo_days = referral_plan.trial_days if referral_plan.trial_days > 0 else trial_days
+                    sub.trial_ends_at = _now() + timedelta(days=promo_days)
+                    sub.expires_at = sub.trial_ends_at
+                    await self.session.flush()
+            except Exception as exc:
+                logger.warning(
+                    "referral_attach_failed",
+                    referral_code=data.referral_code,
+                    tenant_id=str(tenant.id),
+                    error=str(exc),
+                )
+
         # trial start notification
         try:
             from app.notifications.services import NotificationService
@@ -275,6 +305,26 @@ class RegistrationService:
             )
         except Exception as exc:
             logger.warning("trial_start_notification_failed", error=str(exc), tenant_id=str(tenant.id))
+
+        # notify super admins of new business registration
+        try:
+            from app.events.base import DomainEvent
+            from app.events.publisher import event_publisher
+            from app.events.types import EventType
+            await event_publisher.publish(DomainEvent(
+                event_type=EventType.BUSINESS_REGISTERED,
+                tenant_id=tenant.id,
+                actor_id=user.id,
+                payload={
+                    "business_name": tenant.name,
+                    "owner_name": f"{data.first_name} {data.last_name}",
+                    "owner_email": data.email,
+                    "plan_name": trial_plan.name,
+                    "trial_days": trial_days,
+                },
+            ))
+        except Exception as exc:
+            logger.warning("business_registered_event_failed", error=str(exc))
 
         # token generation
         access_token = create_access_token(

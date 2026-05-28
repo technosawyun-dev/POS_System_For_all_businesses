@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui'
 import { subscriptionsService } from '@/services/subscriptions/subscriptions.service'
 import { tenantService } from '@/services/tenant/tenant.service'
 import { auditService } from '@/services/audit/audit.service'
+import { resellerFinanceAdminService } from '@/services/reseller_finance/reseller_finance.service'
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'default'> = {
   ACTIVE:    'success',
@@ -65,7 +66,7 @@ function SectionHeader({ title, action }: { title: string; action?: { label: str
 export default function SuperAdminDashboardPage() {
   const navigate = useNavigate()
 
-  const [overviewQuery, tenantsQuery, auditQuery, subsQuery] = useQueries({
+  const [overviewQuery, tenantsQuery, auditQuery, subsQuery, resellerQuery] = useQueries({
     queries: [
       {
         queryKey: ['admin', 'overview'],
@@ -73,21 +74,27 @@ export default function SuperAdminDashboardPage() {
       },
       {
         queryKey: ['admin', 'tenants-recent'],
-        queryFn: () => tenantService.listTenants({ page: 1, page_size: 6 }),
+        queryFn: () => tenantService.listTenants({ page: 1, page_size: 3 }),
       },
       {
         queryKey: ['audit', 'logs', 1, undefined, undefined, undefined],
-        queryFn: () => auditService.listLogs({ page: 1, page_size: 5 }),
+        queryFn: () => auditService.listLogs({ page: 1, page_size: 3 }),
       },
       {
         queryKey: ['admin', 'subs-recent'],
-        queryFn: () => subscriptionsService.adminListSubscriptions({ page: 1, page_size: 5 }),
+        queryFn: () => subscriptionsService.adminListSubscriptions({ page: 1, page_size: 3 }),
+      },
+      {
+        queryKey: ['admin', 'reseller-finance', 'overview'],
+        queryFn: resellerFinanceAdminService.getOverview,
+        staleTime: 120_000,
       },
     ],
   })
 
   const ov = overviewQuery.data
   const loading = overviewQuery.isLoading
+  const resellerCount = resellerQuery.data?.total_resellers ?? '—'
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
@@ -101,28 +108,17 @@ export default function SuperAdminDashboardPage() {
         {/* Platform KPIs */}
         <section>
           <SectionHeader title="Platform Overview" />
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <KpiCard label="Total Businesses" value={ov?.total_tenants ?? '—'}             isLoading={loading} />
-            <KpiCard label="Active"            value={ov?.active_subscriptions ?? '—'}      isLoading={loading} />
-            <KpiCard label="Trial"             value={ov?.trial_subscriptions ?? '—'}       isLoading={loading} />
-            <KpiCard label="Expired"           value={ov?.expired_subscriptions ?? '—'}     isLoading={loading} />
-            <KpiCard label="Suspended"         value={ov?.suspended_subscriptions ?? '—'}   isLoading={loading} />
-            <KpiCard
-              label="Est. MRR"
-              value={ov ? `$${Number(ov.monthly_revenue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '—'}
-              sub={ov ? `ARR: $${(Number(ov.monthly_revenue) * 12).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : undefined}
-              isLoading={loading}
-            />
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+            <KpiCard label="Total Businesses" value={ov?.total_tenants ?? '—'}           isLoading={loading} />
+            <KpiCard label="Subscribed"        value={ov?.active_subscriptions ?? '—'}    isLoading={loading} sub="active plan" />
+            <KpiCard label="Trial"             value={ov?.trial_subscriptions ?? '—'}     isLoading={loading} />
+            <KpiCard label="Expired"           value={ov?.expired_subscriptions ?? '—'}   isLoading={loading} />
+            <KpiCard label="Suspended"         value={ov?.suspended_subscriptions ?? '—'} isLoading={loading} />
+            <KpiCard label="Total Users"       value={ov?.total_users ?? '—'}             isLoading={loading} />
+            <KpiCard label="Total Branches"    value={ov?.total_branches ?? '—'}          isLoading={loading} />
+            <KpiCard label="Resellers"         value={resellerCount}                       isLoading={resellerQuery.isLoading} />
           </div>
         </section>
-
-        {/* Backend gap notice */}
-        <div className="bg-amber-950/30 border border-amber-800/40 rounded-xl px-4 py-3">
-          <p className="text-xs text-amber-400 font-medium">Backend gap</p>
-          <p className="text-xs text-amber-300/70 mt-0.5">
-            Platform-wide user count, branch count, and order count require dedicated admin analytics endpoints not yet available.
-          </p>
-        </div>
 
         {/* Quick Actions */}
         <section>
@@ -263,7 +259,7 @@ export default function SuperAdminDashboardPage() {
                     <p className="text-sm font-medium text-zinc-200 truncate">{log.action}</p>
                     <p className="text-xs text-zinc-500 mt-0.5">
                       {log.entity_type ?? 'System'}{log.entity_id ? ` · ${log.entity_id.slice(-8)}` : ''}
-                      {log.actor_user_id ? ` · by ${log.actor_user_id.slice(-8)}` : ''}
+                      {log.actor_name ? ` · by ${log.actor_name}` : log.actor_user_id ? ` · by ${log.actor_user_id.slice(-8)}` : ''}
                     </p>
                   </div>
                   <span className="text-xs text-zinc-600 flex-shrink-0">{timeAgo(log.created_at)}</span>

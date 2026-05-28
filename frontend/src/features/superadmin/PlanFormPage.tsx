@@ -26,7 +26,8 @@ export default function PlanFormPage() {
 
   const [form, setForm] = useState({
     name: '', code: '', description: '', billing_cycle: 'MONTHLY',
-    price: '', currency: 'USD', trial_days: '0', sort_order: '0', is_active: true,
+    price: '', currency: 'MMK', trial_days: '0', sort_order: '0', is_active: true,
+    is_referral_plan: false,
   })
   const [entitlements, setEntitlements] = useState<EntitlementRow[]>(DEFAULT_ENTITLEMENTS)
   const [customFeature, setCustomFeature] = useState('')
@@ -40,15 +41,16 @@ export default function PlanFormPage() {
   useEffect(() => {
     if (existingPlan) {
       setForm({
-        name:          existingPlan.name,
-        code:          existingPlan.code,
-        description:   existingPlan.description ?? '',
-        billing_cycle: existingPlan.billing_cycle,
-        price:         existingPlan.price,
-        currency:      existingPlan.currency,
-        trial_days:    String(existingPlan.trial_days),
-        sort_order:    String(existingPlan.sort_order),
-        is_active:     existingPlan.is_active,
+        name:             existingPlan.name,
+        code:             existingPlan.code,
+        description:      existingPlan.description ?? '',
+        billing_cycle:    existingPlan.billing_cycle,
+        price:            existingPlan.price,
+        currency:         existingPlan.currency,
+        trial_days:       String(existingPlan.trial_days),
+        sort_order:       String(existingPlan.sort_order),
+        is_active:        existingPlan.is_active,
+        is_referral_plan: existingPlan.is_referral_plan,
       })
       if (existingPlan.entitlements.length > 0) {
         setEntitlements(existingPlan.entitlements.map(e => ({
@@ -83,16 +85,17 @@ export default function PlanFormPage() {
 
   function handleSubmit() {
     const payload: PlanCreateRequest = {
-      name:          form.name,
-      code:          form.code,
-      description:   form.description || undefined,
-      billing_cycle: form.billing_cycle,
-      price:         form.price,
-      currency:      form.currency,
-      trial_days:    Number(form.trial_days),
-      sort_order:    Number(form.sort_order),
-      is_active:     form.is_active,
-      entitlements:  entitlements
+      name:             form.name,
+      code:             form.code,
+      description:      form.description || undefined,
+      billing_cycle:    form.billing_cycle,
+      price:            form.price,
+      currency:         form.currency,
+      trial_days:       Number(form.trial_days),
+      sort_order:       Number(form.sort_order),
+      is_active:        form.is_active,
+      is_referral_plan: form.is_referral_plan,
+      entitlements:     entitlements
         .filter(e => e.feature_code.trim())
         .map(e => ({
           feature_code: e.feature_code,
@@ -182,6 +185,19 @@ export default function PlanFormPage() {
                   className="rounded"
                 />
                 <label htmlFor="is_active" className="text-sm text-zinc-300 cursor-pointer select-none">Active</label>
+              </div>
+              <div className="flex items-start gap-2 pt-1 sm:col-span-2">
+                <input
+                  type="checkbox"
+                  id="is_referral_plan"
+                  checked={form.is_referral_plan}
+                  onChange={e => setForm(p => ({ ...p, is_referral_plan: e.target.checked }))}
+                  className="rounded mt-0.5"
+                />
+                <div>
+                  <label htmlFor="is_referral_plan" className="text-sm text-zinc-300 cursor-pointer select-none">Referral Plan</label>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">Users who register with a reseller promo code will be placed on this plan instead of the default trial. Only one plan should have this flag active at a time.</p>
+                </div>
               </div>
             </div>
           </div>

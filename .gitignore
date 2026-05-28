@@ -56,6 +56,10 @@ logs/
 # Database
 *.db
 *.sqlite3
+*.sql
+*.dump
+*.sql.gz
+postgres_data/
 
 # SSL / TLS certificates
 *.pem
@@ -69,6 +73,10 @@ nginx/certs/
 # Docker
 .docker/
 docker-compose.override.yml
+
+# Redis
+dump.rdb
+*.rdb
 
 # Celery runtime files
 celerybeat-schedule
@@ -85,9 +93,18 @@ frontend/build/
 *.tsbuildinfo
 frontend/.vite/
 
+# Temporary / backup files
+*.bak
+*.backup
+*.tmp
+tmp/
+temp/
+
 # OS
 .DS_Store
 Thumbs.db
+.fuse_hidden*
+.~lock.*
 
 # Profiling / benchmark output
 *.prof

@@ -38,6 +38,7 @@ class AuthService:
         self,
         password: str,
         email: str | None = None,
+        phone: str | None = None,
         business_code: str | None = None,
         identifier: str | None = None,
         ip_address: str | None = None,
@@ -56,6 +57,8 @@ class AuthService:
                     user = await self.user_repo.get_by_email_and_tenant(identifier, tenant.id)
         elif email:
             user = await self.user_repo.get_by_email(email)
+        elif phone:
+            user = await self.user_repo.get_by_phone(phone)
 
         if not user or not verify_password(password, user.hashed_password):
             await self.audit_service.log(

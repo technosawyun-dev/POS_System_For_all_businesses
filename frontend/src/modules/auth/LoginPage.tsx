@@ -14,14 +14,23 @@ export default function LoginPage() {
   const { login, isLoading, error, clearError } = useAuthStore()
 
   const [mode, setMode]               = useState<LoginMode>('owner')
-  const [email, setEmail]             = useState('')
+  const [identifier, setIdentifier]   = useState('')  // email or phone for owner/reseller
   const [password, setPassword]       = useState('')
   const [businessCode, setBusinessCode] = useState('')
-  const [identifier, setIdentifier]   = useState('')
+  const [staffIdentifier, setStaffIdentifier] = useState('')
 
   function switchMode(m: LoginMode) {
     setMode(m)
     clearError()
+  }
+
+  function buildOwnerPayload() {
+    const val = identifier.trim()
+    // phone: starts with digit or +, no @
+    if (val && !val.includes('@') && /^[+0-9]/.test(val)) {
+      return { phone: val, password }
+    }
+    return { email: val, password }
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -29,11 +38,11 @@ export default function LoginPage() {
     clearError()
     try {
       if (mode === 'owner') {
-        await login({ email: email.trim(), password })
+        await login(buildOwnerPayload())
       } else {
         await login({
           business_code: businessCode.trim().toUpperCase(),
-          identifier: identifier.trim(),
+          identifier: staffIdentifier.trim(),
           password,
         })
       }
@@ -46,8 +55,8 @@ export default function LoginPage() {
     }
   }
 
-  const ownerReady = !!email && !!password
-  const staffReady = !!businessCode && !!identifier && !!password
+  const ownerReady = !!identifier && !!password
+  const staffReady = !!businessCode && !!staffIdentifier && !!password
   const canSubmit  = !isLoading && (mode === 'owner' ? ownerReady : staffReady)
 
   return (
@@ -76,7 +85,7 @@ export default function LoginPage() {
                   : 'text-zinc-400 hover:text-zinc-100'
               }`}
             >
-              {m === 'owner' ? 'Owner / Admin' : 'Staff'}
+              {m === 'owner' ? 'Owner / Reseller / Admin' : 'Staff'}
             </button>
           ))}
         </div>
@@ -86,14 +95,17 @@ export default function LoginPage() {
             {mode === 'owner' ? (
               <>
                 <Input
-                  label="Email"
-                  type="email"
-                  value={email}
-                  onChange={e => { setEmail(e.target.value); clearError() }}
-                  placeholder="you@company.com"
-                  autoComplete="email"
+                  label="Email or Phone"
+                  type="text"
+                  value={identifier}
+                  onChange={e => { setIdentifier(e.target.value); clearError() }}
+                  placeholder="you@company.com or 09xxxxxxxx"
+                  autoComplete="username"
                   required
                 />
+                <p className="text-[11px] text-zinc-600 -mt-1">
+                  Business owners, resellers, and admins sign in here.
+                </p>
                 <Input
                   label="Password"
                   type="password"
@@ -121,8 +133,8 @@ export default function LoginPage() {
                 <Input
                   label="Phone or Email"
                   type="text"
-                  value={identifier}
-                  onChange={e => { setIdentifier(e.target.value); clearError() }}
+                  value={staffIdentifier}
+                  onChange={e => { setStaffIdentifier(e.target.value); clearError() }}
                   placeholder="09123456789 or you@example.com"
                   autoComplete="username"
                   required

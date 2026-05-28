@@ -8,7 +8,7 @@ import type {
 } from '@/shared/types'
 
 export const usersService = {
-  list: (params?: { page?: number; page_size?: number; tenant_id?: string }) =>
+  list: (params?: { page?: number; page_size?: number; tenant_id?: string; role?: string }) =>
     apiClient.get<PaginatedResponse<User>>('/users', { params }).then(r => r.data),
 
   get: (userId: string) =>

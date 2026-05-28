@@ -62,6 +62,11 @@ export default function PlansPage() {
                       <Badge variant={plan.is_active ? 'success' : 'default'} size="xs">
                         {plan.is_active ? 'Active' : 'Inactive'}
                       </Badge>
+                      {plan.is_referral_plan && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                          Referral Plan
+                        </span>
+                      )}
                       <span className="text-xs text-zinc-600 font-mono">{plan.code}</span>
                     </div>
                     {plan.description && (

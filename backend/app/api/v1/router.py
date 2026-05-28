@@ -24,7 +24,6 @@ api_router = APIRouter()
 # Reusable subscription gate (SUPER_ADMIN bypasses automatically)
 _sub_gate = [Depends(require_subscription_active())]
 
-# Phase 1
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(users.router, prefix="/users", tags=["Users"])
 api_router.include_router(tenants.router, prefix="/tenants", tags=["Tenants"])
@@ -33,27 +32,27 @@ api_router.include_router(resellers.router, prefix="/resellers", tags=["Reseller
 api_router.include_router(reseller_portal.router, prefix="/resellers", tags=["Reseller Portal"])
 api_router.include_router(audit.router, prefix="/audit", tags=["Audit Logs"])
 
-# Phase 2 — Products, Inventory, Suppliers: subscription-gated
+# Products, Inventory, Suppliers: subscription-gated
 api_router.include_router(products.router, prefix="/products", tags=["Products"], dependencies=_sub_gate)
 api_router.include_router(categories.router, prefix="/categories", tags=["Categories"], dependencies=_sub_gate)
 api_router.include_router(brands.router, prefix="/brands", tags=["Brands"], dependencies=_sub_gate)
 api_router.include_router(inventory.router, prefix="/inventory", tags=["Inventory"], dependencies=_sub_gate)
 api_router.include_router(suppliers.router, prefix="/suppliers", tags=["Suppliers"], dependencies=_sub_gate)
 
-# Phase 5 — Customers: subscription-gated
+# Customers: subscription-gated
 api_router.include_router(customer_router, prefix="/customers", tags=["Customers"], dependencies=_sub_gate)
 
-# Phase 3 — Sales Engine: subscription-gated
+# Sales Engine: subscription-gated
 api_router.include_router(cashier_router, prefix="/cashier-sessions", tags=["Cashier Sessions"], dependencies=_sub_gate)
 api_router.include_router(sales_router, prefix="/sales", tags=["Sales"], dependencies=_sub_gate)
 api_router.include_router(payment_router, prefix="/payments", tags=["Payments & Refunds"], dependencies=_sub_gate)
 api_router.include_router(receipt_router, prefix="/receipts", tags=["Receipts"], dependencies=_sub_gate)
 
-# Phase 4 — Offline Sync (not gated: offline devices must sync even when expired)
+# Offline Sync (not gated: offline devices must sync even when expired)
 api_router.include_router(device_router, prefix="/devices", tags=["Devices"])
 api_router.include_router(sync_router, prefix="/sync", tags=["Sync"])
 
-# Phase 6 — Analytics & Reports (Phase 9: feature-gated)
+# Analytics & Reports (feature-gated)
 api_router.include_router(
     analytics_router,
     prefix="/analytics",
@@ -61,7 +60,7 @@ api_router.include_router(
     dependencies=[Depends(require_feature("analytics"))],
 )
 
-# Phase 7 — Procurement & Supplier Payables (Phase 9: feature-gated)
+# Procurement & Supplier Payables (feature-gated)
 api_router.include_router(
     procurement_router,
     prefix="/procurement",
@@ -69,18 +68,33 @@ api_router.include_router(
     dependencies=[Depends(require_feature("procurement"))],
 )
 
-# Phase 8 — Subscriptions & Billing
+# Subscriptions & Billing
 api_router.include_router(subscriptions_router, prefix="/subscriptions", tags=["Subscriptions"])
 
-# Phase 9 — Subscription Admin & Enforcement
+# Subscription Admin & Enforcement
 api_router.include_router(
     subscriptions_admin_router,
     prefix="/subscriptions/admin",
     tags=["Subscription Admin"],
 )
 
-# Phase 10 — Notifications
+# Notifications
 api_router.include_router(notifications_router, prefix="/notifications", tags=["Notifications"])
 
-# Phase F10 — Public endpoints (no authentication required)
+# Public endpoints (no authentication required)
 api_router.include_router(public_routes.router, prefix="/public", tags=["Public"])
+
+# Referral / Commission / Reseller Wallet
+from app.reseller_finance.routes.reseller_routes import router as reseller_finance_router
+from app.reseller_finance.routes.admin_routes import router as reseller_finance_admin_router
+
+api_router.include_router(
+    reseller_finance_router,
+    prefix="/reseller",
+    tags=["Reseller Finance"],
+)
+api_router.include_router(
+    reseller_finance_admin_router,
+    prefix="/admin/reseller-finance",
+    tags=["Reseller Finance Admin"],
+)

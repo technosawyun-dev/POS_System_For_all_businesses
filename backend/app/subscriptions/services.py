@@ -15,7 +15,10 @@ from app.core.constants import (
     SubscriptionStatus,
 )
 from app.core.exceptions import BusinessRuleError, ConflictError, NotFoundError
+from app.core.logging import get_logger
 from app.services.audit_service import AuditService
+
+logger = get_logger(__name__)
 from app.subscriptions.models import (
     PaymentProof,
     PlanEntitlement,
@@ -360,7 +363,24 @@ class SubscriptionService:
             request_id=request_id,
         )
 
-        return await self.sub_repo.get_by_tenant(tenant_id)  # type: ignore[return-value]
+        result = await self.sub_repo.get_by_tenant(tenant_id)
+        try:
+            from app.events.base import DomainEvent
+            from app.events.publisher import event_publisher
+            from app.events.types import EventType
+            await event_publisher.publish(DomainEvent(
+                event_type=EventType.SUBSCRIPTION_ACTIVATED,
+                tenant_id=tenant_id,
+                actor_id=actor_id,
+                payload={
+                    "plan_name": plan.name,
+                    "plan_id": str(data.plan_id),
+                    "expires_at": sub.expires_at.isoformat(),
+                },
+            ))
+        except Exception as exc:
+            logger.warning("subscription_activated_event_failed", error=str(exc))
+        return result  # type: ignore[return-value]
 
     async def renew_subscription(
         self,
@@ -406,7 +426,23 @@ class SubscriptionService:
             request_id=request_id,
         )
 
-        return await self.sub_repo.get_by_tenant(tenant_id)  # type: ignore[return-value]
+        result = await self.sub_repo.get_by_tenant(tenant_id)
+        try:
+            from app.events.base import DomainEvent
+            from app.events.publisher import event_publisher
+            from app.events.types import EventType
+            await event_publisher.publish(DomainEvent(
+                event_type=EventType.SUBSCRIPTION_RENEWED,
+                tenant_id=tenant_id,
+                actor_id=actor_id,
+                payload={
+                    "plan_name": sub.plan.name if sub.plan else "",
+                    "expires_at": sub.expires_at.isoformat(),
+                },
+            ))
+        except Exception as exc:
+            logger.warning("subscription_renewed_event_failed", error=str(exc))
+        return result  # type: ignore[return-value]
 
     async def upgrade_subscription(
         self,
@@ -452,7 +488,25 @@ class SubscriptionService:
             request_id=request_id,
         )
 
-        return await self.sub_repo.get_by_tenant(tenant_id)  # type: ignore[return-value]
+        result = await self.sub_repo.get_by_tenant(tenant_id)
+        try:
+            from app.events.base import DomainEvent
+            from app.events.publisher import event_publisher
+            from app.events.types import EventType
+            old_plan = await self.plan_repo.get_by_id(old_plan_id)
+            await event_publisher.publish(DomainEvent(
+                event_type=EventType.SUBSCRIPTION_UPGRADED,
+                tenant_id=tenant_id,
+                actor_id=actor_id,
+                payload={
+                    "old_plan_name": old_plan.name if old_plan else str(old_plan_id),
+                    "new_plan_name": new_plan.name,
+                    "new_plan_id": str(data.plan_id),
+                },
+            ))
+        except Exception as exc:
+            logger.warning("subscription_upgraded_event_failed", error=str(exc))
+        return result  # type: ignore[return-value]
 
     async def downgrade_subscription(
         self,
@@ -498,7 +552,25 @@ class SubscriptionService:
             request_id=request_id,
         )
 
-        return await self.sub_repo.get_by_tenant(tenant_id)  # type: ignore[return-value]
+        result = await self.sub_repo.get_by_tenant(tenant_id)
+        try:
+            from app.events.base import DomainEvent
+            from app.events.publisher import event_publisher
+            from app.events.types import EventType
+            old_plan = await self.plan_repo.get_by_id(old_plan_id)
+            await event_publisher.publish(DomainEvent(
+                event_type=EventType.SUBSCRIPTION_DOWNGRADED,
+                tenant_id=tenant_id,
+                actor_id=actor_id,
+                payload={
+                    "old_plan_name": old_plan.name if old_plan else str(old_plan_id),
+                    "new_plan_name": new_plan.name,
+                    "new_plan_id": str(data.plan_id),
+                },
+            ))
+        except Exception as exc:
+            logger.warning("subscription_downgraded_event_failed", error=str(exc))
+        return result  # type: ignore[return-value]
 
     async def cancel_subscription(
         self,
@@ -832,6 +904,36 @@ class PaymentProofService:
             request_id=request_id,
         )
 
+        # Commission generation — fail-open so approval is never blocked
+        try:
+            from decimal import Decimal
+            from app.reseller_finance.services.commission_service import CommissionService
+            from app.reseller_finance.services.referral_service import ReferralService
+            commission_svc = CommissionService(self.session)
+            referral_svc = ReferralService(self.session)
+            await commission_svc.try_earn_commission(
+                tenant_id=sub.tenant_id,
+                subscription_id=sub.id,
+                payment_proof_id=proof_id,
+                actual_paid_amount=Decimal(str(proof.amount)),
+                currency_code=proof.currency,
+                actor_id=actor_id,
+                request_id=request_id,
+            )
+            # Lock referral on first paid subscription
+            await referral_svc.lock_referral(
+                tenant_id=sub.tenant_id,
+                first_paid_at=now,
+            )
+        except Exception as exc:
+            from app.core.logging import get_logger as _get_logger
+            _get_logger(__name__).warning(
+                "commission_earn_failed",
+                tenant_id=str(sub.tenant_id),
+                proof_id=str(proof_id),
+                error=str(exc),
+            )
+
         return proof
 
     async def reject_proof(
@@ -879,3 +981,12 @@ class PaymentProofService:
         return await self.proof_repo.get_by_tenant(
             tenant_id, offset=offset, limit=page_size
         )
+
+    async def list_all_proofs(
+        self,
+        status: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[PaymentProof], int]:
+        offset = (page - 1) * page_size
+        return await self.proof_repo.get_all(status=status, offset=offset, limit=page_size)

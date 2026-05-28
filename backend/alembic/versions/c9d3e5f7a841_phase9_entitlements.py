@@ -1,6 +1,6 @@
 """phase9_entitlements
 
-Adds Phase 9 entitlement override table:
+Adds entitlement override table:
   - tenant_entitlement_overrides
 
 Revision ID: c9d3e5f7a841

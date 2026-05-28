@@ -1,6 +1,6 @@
 """phase7_procurement
 
-Adds Phase 7 procurement tables:
+Adds procurement tables:
   - po_counters           (per-tenant PO number sequence)
   - gr_counters           (per-tenant goods receipt number sequence)
   - purchase_orders

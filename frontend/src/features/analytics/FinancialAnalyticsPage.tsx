@@ -3,7 +3,7 @@ import { useQueries } from '@tanstack/react-query'
 import { fmt } from '@/lib/utils'
 import { StatCard, Table, Th, Td } from '@/components/ui'
 import { analyticsService } from '@/services/analytics/analytics.service'
-import { useAnalyticsFilters, AnalyticsFilters, ChartCard, ExportRow } from './analyticsHelpers'
+import { useAnalyticsFilters, AnalyticsFilters, ChartCard } from './analyticsHelpers'
 
 type ProfitBy = 'product' | 'category' | 'branch'
 
@@ -118,7 +118,6 @@ export default function FinancialAnalyticsPage() {
         </Table>
       </ChartCard>
 
-      <ExportRow />
     </div>
   )
 }
