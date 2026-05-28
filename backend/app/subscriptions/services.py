@@ -13,9 +13,11 @@ from app.core.constants import (
     PaymentProofStatus,
     SubscriptionChangeType,
     SubscriptionStatus,
+    TenantStatus,
 )
 from app.core.exceptions import BusinessRuleError, ConflictError, NotFoundError
 from app.core.logging import get_logger
+from app.models.tenant import Tenant
 from app.services.audit_service import AuditService
 
 logger = get_logger(__name__)
@@ -337,6 +339,12 @@ class SubscriptionService:
         sub.status = SubscriptionStatus.ACTIVE
         sub.expires_at = now + timedelta(days=data.extension_days)
         sub.trial_ends_at = None
+
+        # Sync denormalized tenant fields
+        tenant = await self.session.get(Tenant, tenant_id)
+        if tenant:
+            tenant.status = TenantStatus.ACTIVE
+            tenant.subscription_plan = plan.code
 
         self._add_history(
             sub,
@@ -867,6 +875,12 @@ class PaymentProofService:
         sub.expires_at = _expires_at_for_cycle(plan.billing_cycle, base)
         sub.trial_ends_at = None
 
+        # Sync denormalized tenant fields
+        tenant = await self.session.get(Tenant, sub.tenant_id)
+        if tenant:
+            tenant.status = TenantStatus.ACTIVE
+            tenant.subscription_plan = plan.code
+
         # Create subscription history entry
         history = SubscriptionHistory(
             tenant_id=sub.tenant_id,
@@ -987,6 +1001,9 @@ class PaymentProofService:
         status: str | None = None,
         page: int = 1,
         page_size: int = 20,
+        tenant_id: uuid.UUID | None = None,
     ) -> tuple[list[PaymentProof], int]:
         offset = (page - 1) * page_size
-        return await self.proof_repo.get_all(status=status, offset=offset, limit=page_size)
+        return await self.proof_repo.get_all(
+            status=status, offset=offset, limit=page_size, tenant_id=tenant_id
+        )

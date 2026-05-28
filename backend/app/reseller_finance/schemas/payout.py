@@ -53,6 +53,8 @@ class PayoutMarkPaidRequest(BaseSchema):
 
 class PayoutRequestResponse(TimestampedSchema):
     reseller_id: uuid.UUID
+    reseller_name: str | None = None
+    reseller_email: str | None = None
     wallet_id: uuid.UUID
     amount: Decimal
     currency_code: str

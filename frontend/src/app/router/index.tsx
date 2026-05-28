@@ -22,6 +22,7 @@ const TrialExpiredPage = lazy(() => import('@/features/subscription/TrialExpired
 const POSScreen              = lazy(() => import('@/features/pos/POSScreen'))
 const ProductsScreen         = lazy(() => import('@/features/products/ProductsScreen'))
 const BrandsPage             = lazy(() => import('@/features/products/BrandsPage'))
+const CategoriesPage         = lazy(() => import('@/features/products/CategoriesPage'))
 const InventoryScreen        = lazy(() => import('@/features/inventory/InventoryScreen'))
 const SalesScreen            = lazy(() => import('@/features/sales/SalesScreen'))
 const SyncScreen             = lazy(() => import('@/features/sync/SyncScreen'))
@@ -208,6 +209,7 @@ export const router = createBrowserRouter([
           { path: 'profile',         element: S(ProfileSettingsPage) },
           { path: 'products',        element: <SectionGuard section="products">{S(ProductsScreen)}</SectionGuard> },
           { path: 'brands',          element: <SectionGuard section="products">{S(BrandsPage)}</SectionGuard> },
+          { path: 'categories',      element: <SectionGuard section="products">{S(CategoriesPage)}</SectionGuard> },
           { path: 'inventory',       element: <SectionGuard section="inventory">{S(InventoryScreen)}</SectionGuard> },
           { path: 'sales',           element: <SectionGuard section="sales">{S(SalesScreen)}</SectionGuard> },
           { path: 'sync',            element: <SectionGuard section="sync">{S(SyncScreen)}</SectionGuard> },

@@ -32,7 +32,7 @@ export const inventoryService = {
   getBranchInventory: (branchId: string, params?: BranchInventoryParams) =>
     apiClient.get<PaginatedResponse<InventoryItem>>(`/inventory/branches/${branchId}`, { params }).then(r => r.data),
 
-  getBranchMovements: (branchId: string, params?: { page?: number; page_size?: number }) =>
+  getBranchMovements: (branchId: string, params?: { product_id?: string; page?: number; page_size?: number }) =>
     apiClient.get(`/inventory/branches/${branchId}/movements`, { params }).then(r => r.data),
 
   getBranchValuation: (branchId: string) =>

@@ -202,11 +202,18 @@ class PaymentProofRepository:
         return list(result.scalars().all()), total
 
     async def get_all(
-        self, status: str | None = None, offset: int = 0, limit: int = 20
+        self,
+        status: str | None = None,
+        offset: int = 0,
+        limit: int = 20,
+        tenant_id: "uuid.UUID | None" = None,
     ) -> tuple[list[PaymentProof], int]:
+        import uuid as _uuid
         filters = []
         if status:
             filters.append(PaymentProof.status == status)
+        if tenant_id:
+            filters.append(PaymentProof.tenant_id == tenant_id)
         count_stmt = select(func.count()).select_from(PaymentProof)
         stmt = select(PaymentProof).order_by(PaymentProof.created_at.desc()).offset(offset).limit(limit)
         if filters:

@@ -132,7 +132,7 @@ export default function ResellerDetailPage() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
 
-        {/* ── Overview ─────────────────────────────────────────────── */}
+        {/* Overview */}
         {tab === 'overview' && (
           <div className="max-w-xl">
             {userQuery.isLoading ? (
@@ -181,7 +181,7 @@ export default function ResellerDetailPage() {
           </div>
         )}
 
-        {/* ── Referrals ────────────────────────────────────────────── */}
+        {/* Referrals */}
         {tab === 'referrals' && (
           <div className="max-w-2xl">
             {referralsQuery.isLoading ? (
@@ -233,7 +233,7 @@ export default function ResellerDetailPage() {
           </div>
         )}
 
-        {/* ── Finance ──────────────────────────────────────────────── */}
+        {/* Finance */}
         {tab === 'finance' && (
           <div className="max-w-xl space-y-4">
             {walletQuery.isLoading ? (

@@ -82,6 +82,14 @@ export function ActionCenter() {
       severity: 'warning',
       action: { label: 'Upgrade', path: '/app/subscription/current' },
     })
+  } else if (sub?.plan?.is_referral_plan && sub.status === 'ACTIVE') {
+    alerts.push({
+      id: 'referral-plan',
+      label: 'Free referral plan',
+      sub: 'Upgrade to a paid plan to unlock all features',
+      severity: 'info',
+      action: { label: 'View Plans', path: '/app/subscription/current' },
+    })
   } else if (sub?.status === 'EXPIRED') {
     alerts.push({
       id: 'sub-expired',

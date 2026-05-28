@@ -14,6 +14,7 @@ from app.core.constants import (
     EntityType,
     SubscriptionChangeType,
     SubscriptionStatus,
+    TenantStatus,
 )
 from app.core.exceptions import (
     ConflictError,
@@ -489,7 +490,20 @@ class AdminSubscriptionService:
             raise NotFoundError("SubscriptionPlan", plan_id)
 
         old_plan_id = sub.plan_id
+        old_status = sub.status
         sub.plan_id = plan_id
+
+        # Promote TRIAL → ACTIVE when admin assigns a plan
+        if sub.status == SubscriptionStatus.TRIAL:
+            sub.status = SubscriptionStatus.ACTIVE
+            sub.trial_ends_at = None
+
+        # Sync denormalized tenant fields so UI shows the correct plan/status
+        tenant = await self.session.get(Tenant, tenant_id)
+        if tenant:
+            tenant.subscription_plan = plan.code
+            if sub.status == SubscriptionStatus.ACTIVE:
+                tenant.status = TenantStatus.ACTIVE
 
         history = SubscriptionHistory(
             tenant_id=tenant_id,
@@ -497,7 +511,7 @@ class AdminSubscriptionService:
             change_type=SubscriptionChangeType.PLAN_CHANGED,
             old_plan_id=old_plan_id,
             new_plan_id=plan_id,
-            old_status=sub.status,
+            old_status=old_status,
             new_status=sub.status,
             note=f"Admin plan change. Reason: {reason or 'N/A'}",
             changed_by_user_id=actor_id,

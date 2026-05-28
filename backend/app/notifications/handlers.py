@@ -639,7 +639,7 @@ async def handle_subscription_renewed(event: DomainEvent) -> None:
 
 @event_publisher.on(EventType.SUBSCRIPTION_UPGRADED)
 async def handle_subscription_upgraded(event: DomainEvent) -> None:
-    """Notify super admins when a tenant upgrades their plan."""
+    """Notify super admins and the tenant's owners/managers when a plan is upgraded."""
     from app.db.session import AsyncSessionLocal
     from app.notifications.services import NotificationService
     from app.models.tenant import Tenant
@@ -650,27 +650,40 @@ async def handle_subscription_upgraded(event: DomainEvent) -> None:
 
     async with AsyncSessionLocal() as session:
         try:
-            super_admin_ids = await _get_super_admin_ids(session)
-            if not super_admin_ids:
-                return
-
             tenant_name = "Unknown"
             if event.tenant_id:
                 row = await session.execute(select(Tenant.name).where(Tenant.id == event.tenant_id))
                 tenant_name = row.scalar_one_or_none() or "Unknown"
 
             svc = NotificationService(session)
-            await svc.notify_users(
-                tenant_id=None,
-                type=NotificationType.SUBSCRIPTION,
-                priority=NotificationPriority.HIGH,
-                title=f"Plan Upgraded: {tenant_name}",
-                message=(
-                    f"'{tenant_name}' upgraded from '{old_plan}' to '{new_plan}'."
-                ),
-                user_ids=super_admin_ids,
-                metadata=event.payload,
-            )
+
+            # Notify super admins
+            super_admin_ids = await _get_super_admin_ids(session)
+            if super_admin_ids:
+                await svc.notify_users(
+                    tenant_id=None,
+                    type=NotificationType.SUBSCRIPTION,
+                    priority=NotificationPriority.HIGH,
+                    title=f"Plan Upgraded: {tenant_name}",
+                    message=f"'{tenant_name}' upgraded from '{old_plan}' to '{new_plan}'.",
+                    user_ids=super_admin_ids,
+                    metadata=event.payload,
+                )
+
+            # Notify the tenant's own owners/managers
+            if event.tenant_id:
+                tenant_user_ids = await _get_tenant_user_ids(session, event.tenant_id)
+                if tenant_user_ids:
+                    await svc.notify_users(
+                        tenant_id=event.tenant_id,
+                        type=NotificationType.SUBSCRIPTION,
+                        priority=NotificationPriority.HIGH,
+                        title="Plan Upgraded",
+                        message=f"Your plan has been upgraded from '{old_plan}' to '{new_plan}'.",
+                        user_ids=tenant_user_ids,
+                        metadata=event.payload,
+                    )
+
             await session.commit()
         except Exception:
             await session.rollback()
@@ -679,7 +692,7 @@ async def handle_subscription_upgraded(event: DomainEvent) -> None:
 
 @event_publisher.on(EventType.SUBSCRIPTION_DOWNGRADED)
 async def handle_subscription_downgraded(event: DomainEvent) -> None:
-    """Notify super admins when a tenant downgrades their plan."""
+    """Notify super admins and the tenant's owners/managers when a plan is downgraded."""
     from app.db.session import AsyncSessionLocal
     from app.notifications.services import NotificationService
     from app.models.tenant import Tenant
@@ -690,27 +703,40 @@ async def handle_subscription_downgraded(event: DomainEvent) -> None:
 
     async with AsyncSessionLocal() as session:
         try:
-            super_admin_ids = await _get_super_admin_ids(session)
-            if not super_admin_ids:
-                return
-
             tenant_name = "Unknown"
             if event.tenant_id:
                 row = await session.execute(select(Tenant.name).where(Tenant.id == event.tenant_id))
                 tenant_name = row.scalar_one_or_none() or "Unknown"
 
             svc = NotificationService(session)
-            await svc.notify_users(
-                tenant_id=None,
-                type=NotificationType.SUBSCRIPTION,
-                priority=NotificationPriority.MEDIUM,
-                title=f"Plan Downgraded: {tenant_name}",
-                message=(
-                    f"'{tenant_name}' downgraded from '{old_plan}' to '{new_plan}'."
-                ),
-                user_ids=super_admin_ids,
-                metadata=event.payload,
-            )
+
+            # Notify super admins
+            super_admin_ids = await _get_super_admin_ids(session)
+            if super_admin_ids:
+                await svc.notify_users(
+                    tenant_id=None,
+                    type=NotificationType.SUBSCRIPTION,
+                    priority=NotificationPriority.MEDIUM,
+                    title=f"Plan Downgraded: {tenant_name}",
+                    message=f"'{tenant_name}' downgraded from '{old_plan}' to '{new_plan}'.",
+                    user_ids=super_admin_ids,
+                    metadata=event.payload,
+                )
+
+            # Notify the tenant's own owners/managers
+            if event.tenant_id:
+                tenant_user_ids = await _get_tenant_user_ids(session, event.tenant_id)
+                if tenant_user_ids:
+                    await svc.notify_users(
+                        tenant_id=event.tenant_id,
+                        type=NotificationType.SUBSCRIPTION,
+                        priority=NotificationPriority.MEDIUM,
+                        title="Plan Downgraded",
+                        message=f"Your plan has been downgraded from '{old_plan}' to '{new_plan}'.",
+                        user_ids=tenant_user_ids,
+                        metadata=event.payload,
+                    )
+
             await session.commit()
         except Exception:
             await session.rollback()

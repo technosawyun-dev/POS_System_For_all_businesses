@@ -142,8 +142,29 @@ export interface InventoryItem {
   quantity_on_hand: string
   quantity_reserved: string
   quantity_available: string
+  quantity_sold?: string
   reorder_point: number | null
   last_counted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface StockMovement {
+  id: string
+  tenant_id: string
+  branch_id: string
+  product_id: string
+  variant_id: string | null
+  movement_type: string
+  quantity: string
+  previous_quantity: string
+  new_quantity: string
+  reference_type: string | null
+  reference_id: string | null
+  unit_cost: string | null
+  reason: string | null
+  notes: string | null
+  actor_user_id: string
   created_at: string
   updated_at: string
 }
@@ -268,6 +289,22 @@ export interface CheckoutRequest {
 }
 
 
+export interface OrderItem {
+  id: string
+  order_id: string
+  product_id: string
+  variant_id: string | null
+  product_name: string
+  variant_name: string | null
+  sku: string | null
+  quantity: string
+  unit_price: string
+  discount_amount: string
+  tax_rate: string
+  subtotal: string
+  total: string
+}
+
 export interface Order {
   id: string
   tenant_id: string
@@ -281,16 +318,60 @@ export interface Order {
   discount_amount: string
   tax_amount: string
   total_amount: string
+  refunded_amount?: string
   notes: string | null
   voided_at: string | null
   voided_by: string | null
   void_reason: string | null
   created_at: string
   updated_at: string
+  items?: OrderItem[]
 }
 
 export interface VoidOrderRequest {
   reason: string
+}
+
+export interface RefundItemRequest {
+  order_item_id: string
+  quantity: string
+  amount: string
+}
+
+export interface RefundRequest {
+  order_id: string
+  reason: string
+  items: RefundItemRequest[]
+  notes?: string
+  refund_method?: string
+}
+
+export interface RefundItemRecord {
+  id: string
+  refund_id: string
+  order_item_id: string
+  product_id: string
+  variant_id: string | null
+  product_name: string | null
+  variant_name: string | null
+  quantity: string
+  amount: string
+}
+
+export interface RefundRecord {
+  id: string
+  order_id: string
+  tenant_id: string
+  refund_number: string
+  reason: string
+  refund_type: string
+  amount: string
+  notes: string | null
+  processed_by: string
+  processed_at: string
+  items: RefundItemRecord[]
+  created_at: string
+  updated_at: string
 }
 
 

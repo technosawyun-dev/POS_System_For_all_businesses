@@ -123,7 +123,12 @@ function ReviewProofModal({ proofId, action, onClose }: { proofId: string; actio
         : subscriptionsService.adminRejectProof(proofId, notes || undefined),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'sub', tenantId] })
-      toast.success(`Proof ${action}d`)
+      qc.invalidateQueries({ queryKey: ['admin', 'proofs', 'tenant', tenantId] })
+      if (action === 'approve') {
+        toast.success('Proof approved. Use "Change Plan" above to activate the tenant\'s new plan.', { duration: 7000 })
+      } else {
+        toast.success('Proof rejected')
+      }
       onClose()
     },
     onError: err => toast.error(extractApiMsg(err) ?? 'Failed'),
@@ -170,6 +175,12 @@ export default function AdminSubscriptionDetailPage() {
     queryKey: ['admin', 'entitlements', tenantId],
     queryFn: () => subscriptionsService.adminGetEntitlements(tenantId!),
     enabled: !!tenantId && tab === 'entitlements',
+  })
+
+  const proofsQuery = useQuery({
+    queryKey: ['admin', 'proofs', 'tenant', tenantId],
+    queryFn: () => subscriptionsService.adminListProofs({ page_size: 20, tenant_id: tenantId }),
+    enabled: !!tenantId && tab === 'proofs',
   })
 
   const suspendMutation = useMutation({
@@ -303,9 +314,53 @@ export default function AdminSubscriptionDetailPage() {
 
             {tab === 'proofs' && (
               <div className="space-y-3">
-                <p className="text-xs text-zinc-500">
-                  Note: The admin API does not support filtering payment proofs by tenant. Proofs shown here are for the current authenticated context. Use the tenant's account to view their specific proofs.
-                </p>
+                {proofsQuery.isLoading ? (
+                  <div className="flex justify-center py-8"><Spinner size={24} /></div>
+                ) : !proofsQuery.data?.items.length ? (
+                  <p className="text-zinc-500 text-sm text-center py-8">No payment proofs for this tenant.</p>
+                ) : (
+                  proofsQuery.data.items.map(proof => (
+                    <div key={proof.id} className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3.5">
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-zinc-100">
+                              {proof.currency} {Number(proof.amount).toLocaleString()}
+                            </p>
+                            <Badge variant={PROOF_VARIANT[proof.status] ?? 'default'} size="xs">{proof.status}</Badge>
+                          </div>
+                          {proof.reference_number && (
+                            <p className="text-xs text-amber-300/80 mt-0.5">{proof.reference_number}</p>
+                          )}
+                          <p className="text-xs text-zinc-600 mt-0.5">{proof.created_at ? new Date(proof.created_at).toLocaleDateString() : ''}</p>
+                          {proof.review_notes && (
+                            <p className="text-xs text-zinc-500 mt-1 italic">Note: {proof.review_notes}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          {proof.proof_file_url && (
+                            <a href={proof.proof_file_url} target="_blank" rel="noopener noreferrer"
+                              className="text-xs text-amber-400 hover:text-amber-300 transition-colors">
+                              View proof
+                            </a>
+                          )}
+                          {proof.status === 'PENDING' && (
+                            <>
+                              <button onClick={() => setReviewModal({ proofId: proof.id, action: 'approve' })}
+                                className="text-xs text-green-400 hover:text-green-300 font-medium transition-colors">
+                                Approve
+                              </button>
+                              <button onClick={() => setReviewModal({ proofId: proof.id, action: 'reject' })}
+                                className="text-xs text-red-400 hover:text-red-300 transition-colors">
+                                Reject
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
           </div>

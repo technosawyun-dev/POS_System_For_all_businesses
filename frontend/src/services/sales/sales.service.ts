@@ -6,6 +6,8 @@ import type {
   CheckoutRequest,
   Order,
   VoidOrderRequest,
+  RefundRequest,
+  RefundRecord,
   CashierSession,
   OpenSessionRequest,
   CloseSessionRequest,
@@ -41,8 +43,19 @@ export const checkoutService = {
   getOrder: (orderId: string) =>
     apiClient.get<Order>(`/sales/orders/${orderId}`).then(r => r.data),
 
+  getOrderByNumber: (orderNumber: string) =>
+    apiClient.get<Order>(`/sales/orders/by-number/${encodeURIComponent(orderNumber)}`).then(r => r.data),
+
   voidOrder: (orderId: string, payload: VoidOrderRequest) =>
     apiClient.post<Order>(`/sales/orders/${orderId}/void`, payload).then(r => r.data),
+}
+
+export const refundService = {
+  create: (payload: RefundRequest) =>
+    apiClient.post<RefundRecord>('/payments/refunds', payload).then(r => r.data),
+
+  list: (params?: { order_id?: string; page?: number; page_size?: number }) =>
+    apiClient.get<PaginatedResponse<RefundRecord>>('/payments/refunds', { params }).then(r => r.data),
 }
 
 

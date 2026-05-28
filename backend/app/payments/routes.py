@@ -33,6 +33,45 @@ from app.sales.services.refund_service import (
 
 router = APIRouter()
 
+
+async def _enrich_refund_response(refund, db) -> RefundResponse:
+    """Populate product_name / variant_name on each RefundItem from order_items."""
+    from sqlalchemy import select as _select
+    from app.payments.schemas import RefundItemResponse
+    from app.sales.models import OrderItem
+
+    order_item_ids = [ri.order_item_id for ri in refund.items]
+    name_map: dict[uuid.UUID, tuple[str, str | None]] = {}
+    if order_item_ids:
+        rows = await db.execute(
+            _select(OrderItem.id, OrderItem.product_name, OrderItem.variant_name)
+            .where(OrderItem.id.in_(order_item_ids))
+        )
+        for row in rows.all():
+            name_map[row.id] = (row.product_name, row.variant_name)
+
+    item_responses = []
+    for ri in refund.items:
+        pname, vname = name_map.get(ri.id if hasattr(ri, 'id') else ri.order_item_id,
+                                    name_map.get(ri.order_item_id, ("", None)))
+        item_data = {
+            "id": ri.id,
+            "refund_id": ri.refund_id,
+            "order_item_id": ri.order_item_id,
+            "product_id": ri.product_id,
+            "variant_id": ri.variant_id,
+            "product_name": pname or None,
+            "variant_name": vname,
+            "quantity": ri.quantity,
+            "amount": ri.amount,
+            "stock_movement_id": ri.stock_movement_id,
+            "created_at": ri.created_at,
+        }
+        item_responses.append(RefundItemResponse.model_validate(item_data))
+
+    base = RefundResponse.model_validate(refund)
+    return base.model_copy(update={"items": item_responses})
+
 _payment_access = require_roles(
     UserRole.SUPER_ADMIN,
     UserRole.BUSINESS_OWNER,
@@ -159,6 +198,7 @@ async def process_refund(
             for item in data.items
         ],
         notes=data.notes,
+        refund_method=data.refund_method,
     )
     refund = await svc.process_refund(
         tenant_id=tenant_id,
@@ -166,7 +206,7 @@ async def process_refund(
         actor_user_id=current_user.id,
         request_id=request_id,
     )
-    return RefundResponse.model_validate(refund)
+    return await _enrich_refund_response(refund, db)
 
 
 @router.get(
@@ -189,8 +229,9 @@ async def list_refunds(
         page_size=page_size,
         order_id=order_id,
     )
+    enriched = [await _enrich_refund_response(r, db) for r in items]
     return RefundListResponse(
-        items=[RefundResponse.model_validate(r) for r in items],
+        items=enriched,
         total=total,
         page=page,
         page_size=page_size,

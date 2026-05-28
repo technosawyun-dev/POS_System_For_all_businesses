@@ -301,6 +301,22 @@ async def list_orders(
 
 
 @router.get(
+    "/orders/by-number/{order_number}",
+    response_model=OrderResponse,
+    summary="Get order by order number",
+)
+async def get_order_by_number(
+    order_number: str,
+    db: DbSession,
+    current_user: User = _view_access,
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
+) -> OrderResponse:
+    svc = OrderService(db)
+    order = await svc.get_order_by_number(order_number, tenant_id)
+    return OrderResponse.model_validate(order)
+
+
+@router.get(
     "/orders/{order_id}",
     response_model=OrderResponse,
     summary="Get order",

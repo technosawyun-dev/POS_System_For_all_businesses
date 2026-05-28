@@ -1,29 +1,40 @@
-import { cn } from '@/lib/utils'
-
 interface StockBarProps {
-  stock: number
-  max?: number
+  available: number
+  sold?: number
+  reorderPoint?: number
 }
 
-export default function StockBar({ stock, max = 200 }: StockBarProps) {
-  const pct = Math.min(100, (stock / Math.max(max, 1)) * 100)
+export default function StockBar({ available, sold = 0, reorderPoint = 10 }: StockBarProps) {
+  const isOut = available === 0
+  const isLow = available > 0 && available <= reorderPoint
 
-  const isOut  = stock === 0
-  const isLow  = stock > 0 && stock <= 10
+  const total = available + sold
+  const availablePct = total > 0 ? (available / total) * 100 : 0
+  const soldPct      = total > 0 ? (sold      / total) * 100 : 0
 
-  const barColor  = isOut ? 'bg-red-500'   : isLow ? 'bg-amber-500'   : 'bg-green-500'
-  const textColor = isOut ? 'text-red-400'  : isLow ? 'text-amber-400' : 'text-green-400'
+  const availColor = isOut ? 'bg-zinc-700' : isLow ? 'bg-amber-500' : 'bg-green-500'
+  const textColor  = isOut ? 'text-zinc-500' : isLow ? 'text-amber-400' : 'text-green-400'
 
   return (
-    <div className="flex items-center gap-3 w-full">
-      <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
+    <div className="flex items-center gap-2.5 w-full">
+      {/* Bar track */}
+      <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden flex">
+        {/* Available segment — left */}
         <div
-          className={cn('h-full rounded-full transition-all duration-300', barColor)}
-          style={{ width: `${pct}%` }}
+          className={`h-full transition-all duration-300 ${availColor}`}
+          style={{ width: `${availablePct}%` }}
         />
+        {/* Sold segment — right */}
+        {soldPct > 0 && (
+          <div
+            className="h-full bg-zinc-900 transition-all duration-300"
+            style={{ width: `${soldPct}%` }}
+          />
+        )}
       </div>
-      <span className={cn('text-xs font-mono font-semibold w-8 text-right flex-shrink-0', textColor)}>
-        {stock}
+      {/* Available count label */}
+      <span className={`text-xs font-mono font-semibold w-8 text-right flex-shrink-0 ${textColor}`}>
+        {available}
       </span>
     </div>
   )

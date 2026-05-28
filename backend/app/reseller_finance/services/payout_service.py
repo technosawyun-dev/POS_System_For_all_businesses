@@ -461,6 +461,7 @@ class PayoutService:
         amount: Decimal,
         reason: str,
         actor_id: uuid.UUID,
+        request_id: str | None = None,
     ) -> ResellerPayoutRequest:
         """Super admin manually creates a payout request on behalf of a reseller."""
         if amount <= Decimal("0"):
@@ -515,7 +516,37 @@ class PayoutService:
                 "amount": str(amount),
                 "reason": reason,
             },
+            request_id=request_id,
         )
+
+        # Notify reseller that admin has created a payout on their behalf
+        reseller_user_id = await self.payout_repo.get_reseller_user_id(reseller_id)
+        if reseller_user_id is not None:
+            try:
+                await self.notif_svc.notify_users(
+                    tenant_id=None,
+                    type=NotificationType.SYSTEM,
+                    priority=NotificationPriority.HIGH,
+                    title="Payout Created by Admin",
+                    message=(
+                        f"An admin has created a payout of {amount} {wallet.currency_code} "
+                        f"on your behalf. It has been approved and is ready for disbursement."
+                        f"{(' Reason: ' + reason) if reason else ''}"
+                    ),
+                    user_ids=[reseller_user_id],
+                    metadata={
+                        "payout_id": str(payout.id),
+                        "amount": str(amount),
+                        "currency_code": wallet.currency_code,
+                    },
+                )
+            except Exception as notif_exc:  # noqa: BLE001
+                logger.warning(
+                    "admin_payout_notification_failed",
+                    payout_id=str(payout.id),
+                    error=str(notif_exc),
+                )
+
         logger.info(
             "payout_admin_created",
             payout_id=str(payout.id),

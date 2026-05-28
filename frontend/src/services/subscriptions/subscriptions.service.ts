@@ -85,8 +85,11 @@ export const subscriptionsService = {
   adminExpire: (tenantId: string) =>
     apiClient.post<Subscription>(`/subscriptions/admin/tenants/${tenantId}/expire`).then(r => r.data),
 
-  adminListProofs: (params?: { page?: number; page_size?: number; status?: string }) =>
+  adminListProofs: (params?: { page?: number; page_size?: number; status?: string; tenant_id?: string }) =>
     apiClient.get<PaginatedResponse<PaymentProof>>('/subscriptions/admin/payment-proofs', { params }).then(r => r.data),
+
+  adminRepairStatuses: () =>
+    apiClient.post<{ fixed: number; message: string }>('/subscriptions/admin/repair-statuses').then(r => r.data),
 
   adminApproveProof: (proofId: string, review_notes?: string) =>
     apiClient.post<PaymentProof>(`/subscriptions/payment-proofs/${proofId}/approve`, { review_notes }).then(r => r.data),

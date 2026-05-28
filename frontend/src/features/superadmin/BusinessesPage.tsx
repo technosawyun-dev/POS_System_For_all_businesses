@@ -8,7 +8,7 @@ import { cn } from '@/shared/utils'
 import { tenantService } from '@/services/tenant/tenant.service'
 import { usersService } from '@/services/users/users.service'
 
-// ─── Businesses tab ───────────────────────────────────────────────────────────
+// Businesses tab
 
 const BIZ_STATUS_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'default'> = {
   ACTIVE:    'success',
@@ -151,7 +151,7 @@ function BusinessesTab() {
   )
 }
 
-// ─── Users tab ────────────────────────────────────────────────────────────────
+// Users tab
 
 const USER_STATUS_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
   ACTIVE:               'success',
@@ -279,7 +279,7 @@ function UsersTab() {
   )
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// Main page
 
 type Tab = 'businesses' | 'users'
 

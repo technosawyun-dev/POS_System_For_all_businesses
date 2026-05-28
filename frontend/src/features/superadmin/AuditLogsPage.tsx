@@ -6,7 +6,7 @@ import { auditService } from '@/services/audit/audit.service'
 import { tenantService } from '@/services/tenant/tenant.service'
 import type { AuditLog } from '@/shared/types'
 
-// ─── Action metadata ────────────────────────────────────────────────────────
+// Action metadata
 
 type ActionVariant = 'success' | 'warning' | 'danger' | 'info' | 'default' | 'purple' | 'orange'
 
@@ -79,7 +79,7 @@ function humanizeAction(action: string): string {
   return action.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
 
-// ─── State diff panel ────────────────────────────────────────────────────────
+// State diff panel
 
 function StateDiff({ before, after }: { before: Record<string, unknown> | null; after: Record<string, unknown> | null }) {
   const keys = Array.from(new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})]))
@@ -109,7 +109,7 @@ function StateDiff({ before, after }: { before: Record<string, unknown> | null; 
   )
 }
 
-// ─── Log row ─────────────────────────────────────────────────────────────────
+// Log row
 
 function LogRow({ log }: { log: AuditLog }) {
   const [expanded, setExpanded] = useState(false)
@@ -184,7 +184,7 @@ function LogRow({ log }: { log: AuditLog }) {
   )
 }
 
-// ─── Page ────────────────────────────────────────────────────────────────────
+// Page
 
 interface Filters {
   action: string

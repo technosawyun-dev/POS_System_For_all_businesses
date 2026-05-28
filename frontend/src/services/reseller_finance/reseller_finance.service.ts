@@ -1,7 +1,7 @@
 import apiClient from '@/app/lib/axios'
 import type { PaginatedResponse, CommissionRecord } from '@/shared/types'
 
-// ─── Shared ──────────────────────────────────────────────────────────────────
+// Shared
 
 export interface ReferralCodeResponse {
   id: string
@@ -108,7 +108,7 @@ export interface ResellerFinanceOverviewResponse {
   currency_code: string
 }
 
-// ─── Reseller-facing API ─────────────────────────────────────────────────────
+// Reseller-facing API
 
 export const resellerFinanceService = {
   // Referral codes
@@ -154,7 +154,7 @@ export const resellerFinanceService = {
     apiClient.delete<PayoutRequestResponse>(`/reseller/payouts/${payoutId}`).then(r => r.data),
 }
 
-// ─── Super-admin API ─────────────────────────────────────────────────────────
+// Super-admin API
 
 export const resellerFinanceAdminService = {
   // Overview

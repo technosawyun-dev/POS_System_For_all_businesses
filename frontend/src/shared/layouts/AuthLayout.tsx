@@ -17,10 +17,10 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ backgroundColor: '#09090B' }}>
+    <div className="h-full overflow-y-auto" style={{ backgroundColor: '#09090B' }}>
       {/* Grid pattern background */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="fixed inset-0 pointer-events-none"
         style={{
           backgroundImage: `
             linear-gradient(rgba(217,119,6,0.03) 1px, transparent 1px),
@@ -29,8 +29,11 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
           backgroundSize: '40px 40px',
         }}
       />
-      <div className="relative w-full max-w-md">
-        {children}
+      {/* Center content, but allow scroll when content is taller than viewport */}
+      <div className="relative min-h-full flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          {children}
+        </div>
       </div>
     </div>
   )

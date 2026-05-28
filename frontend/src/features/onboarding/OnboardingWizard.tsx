@@ -107,7 +107,8 @@ export default function OnboardingWizard() {
   if (!user) return null
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+    <div className="h-full overflow-y-auto bg-zinc-950">
+      <div className="min-h-full flex items-center justify-center p-4 py-8">
       <div className="w-full max-w-lg">
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-500 shadow-2xl shadow-amber-900/50 mb-3">
@@ -286,6 +287,7 @@ export default function OnboardingWizard() {
           </button>
         </p>
       </div>
+    </div>
     </div>
   )
 }

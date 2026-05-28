@@ -9,7 +9,8 @@ import {
   type ResellerWalletSummary,
 } from '@/services/reseller_finance/reseller_finance.service'
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+// Helpers
 
 function fmt(v: string | number) {
   return Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -24,7 +25,8 @@ const PAYOUT_VARIANT: Record<string, 'default' | 'warning' | 'success' | 'danger
   CANCELLED: 'default',
 }
 
-// ─── Overview cards ───────────────────────────────────────────────────────────
+
+// Overview cards
 
 function OverviewCards() {
   const { data, isLoading } = useQuery({
@@ -62,7 +64,8 @@ function OverviewCards() {
   )
 }
 
-// ─── Wallet settings modal ────────────────────────────────────────────────────
+
+// Wallet settings modal
 
 function WalletSettingsModal({ resellerId, current, onClose }: { resellerId: string; current: ResellerWalletSummary; onClose: () => void }) {
   const qc = useQueryClient()
@@ -113,7 +116,8 @@ function WalletSettingsModal({ resellerId, current, onClose }: { resellerId: str
   )
 }
 
-// ─── Adjustment modal ─────────────────────────────────────────────────────────
+
+// Adjustment modal
 
 function AdjustmentModal({ resellerId, onClose }: { resellerId: string; onClose: () => void }) {
   const qc = useQueryClient()
@@ -163,7 +167,8 @@ function AdjustmentModal({ resellerId, onClose }: { resellerId: string; onClose:
   )
 }
 
-// ─── Payout review modal ──────────────────────────────────────────────────────
+
+// Payout review modal
 
 function ReviewPayoutModal({ payout, onClose }: { payout: PayoutRequestResponse; onClose: () => void }) {
   const qc = useQueryClient()
@@ -236,7 +241,8 @@ function ReviewPayoutModal({ payout, onClose }: { payout: PayoutRequestResponse;
   )
 }
 
-// ─── Wallets tab ──────────────────────────────────────────────────────────────
+
+// Wallets tab
 
 function WalletsTab() {
   const [settingsFor, setSettingsFor] = useState<ResellerWalletSummary | null>(null)
@@ -252,8 +258,8 @@ function WalletsTab() {
 
   return (
     <>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
           <thead>
             <tr className="border-b border-zinc-800">
               <th className="text-left px-4 py-3 text-xs text-zinc-500 font-medium">Reseller</th>
@@ -299,7 +305,8 @@ function WalletsTab() {
   )
 }
 
-// ─── Payouts tab ──────────────────────────────────────────────────────────────
+
+// Payouts tab
 
 function PayoutsTab() {
   const [page, setPage] = useState(1)
@@ -331,8 +338,8 @@ function PayoutsTab() {
       {isLoading ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 animate-pulse h-32" />
       ) : (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-x-auto">
+          <table className="w-full text-sm min-w-[480px]">
             <thead>
               <tr className="border-b border-zinc-800">
                 <th className="text-left px-4 py-3 text-xs text-zinc-500 font-medium">Reseller</th>
@@ -345,7 +352,16 @@ function PayoutsTab() {
             <tbody>
               {data?.items.map(p => (
                 <tr key={p.id} className="border-b border-zinc-800/50 last:border-0">
-                  <td className="px-4 py-3 font-mono text-zinc-400 text-xs">{p.reseller_id.slice(0, 12)}…</td>
+                  <td className="px-4 py-3">
+                    {p.reseller_name ? (
+                      <>
+                        <p className="text-zinc-200 text-sm font-medium">{p.reseller_name}</p>
+                        {p.reseller_email && <p className="text-zinc-500 text-xs">{p.reseller_email}</p>}
+                      </>
+                    ) : (
+                      <span className="font-mono text-zinc-400 text-xs">{p.reseller_id.slice(0, 12)}…</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 font-mono text-right font-bold text-zinc-100">{fmt(p.amount)} <span className="text-zinc-600 font-normal text-xs">{p.currency_code}</span></td>
                   <td className="px-4 py-3">
                     <Badge variant={PAYOUT_VARIANT[p.status] ?? 'default'} size="xs">{p.status}</Badge>
@@ -383,43 +399,86 @@ function AdminCreatePayoutModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
   const [form, setForm] = useState({ reseller_id: '', amount: '', reason: '' })
 
+  const { data: wallets, isLoading: walletsLoading } = useQuery({
+    queryKey: ['admin', 'reseller-finance', 'wallets'],
+    queryFn: () => resellerFinanceAdminService.listWallets(),
+    staleTime: 60_000,
+  })
+
   const mutation = useMutation({
-    mutationFn: () => resellerFinanceAdminService.createPayout({ reseller_id: form.reseller_id, amount: form.amount, reason: form.reason || undefined }),
+    mutationFn: () => resellerFinanceAdminService.createPayout({ reseller_id: form.reseller_id, amount: form.amount, reason: form.reason || 'Admin-initiated payout' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'reseller-finance', 'payouts'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'reseller-finance', 'overview'] })
       toast.success('Payout created')
       onClose()
     },
     onError: err => toast.error(extractApiMsg(err) ?? 'Failed'),
   })
 
-  const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(p => ({ ...p, [k]: e.target.value }))
-
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md p-6 space-y-4">
         <h2 className="text-lg font-bold text-zinc-100">Create Payout (Admin)</h2>
-        {[
-          { label: 'Reseller ID', key: 'reseller_id' as const, placeholder: 'UUID' },
-          { label: 'Amount', key: 'amount' as const, placeholder: '0.00', type: 'number' },
-          { label: 'Reason', key: 'reason' as const, placeholder: 'Optional' },
-        ].map(field => (
-          <div key={field.key}>
-            <label className="text-xs text-zinc-400 mb-1 block">{field.label}</label>
-            <input value={form[field.key]} onChange={f(field.key)} type={field.type ?? 'text'} placeholder={field.placeholder}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500" />
-          </div>
-        ))}
+
+        <div>
+          <label className="text-xs text-zinc-400 mb-1 block">Reseller</label>
+          <select
+            value={form.reseller_id}
+            onChange={e => setForm(p => ({ ...p, reseller_id: e.target.value }))}
+            disabled={walletsLoading}
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500 disabled:opacity-50"
+          >
+            <option value="">{walletsLoading ? 'Loading resellers…' : 'Select reseller'}</option>
+            {(wallets ?? []).map(w => (
+              <option key={w.reseller_id} value={w.reseller_id}>
+                {w.reseller_name} — {w.reseller_email}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs text-zinc-400 mb-1 block">Amount</label>
+          <input
+            type="number"
+            value={form.amount}
+            onChange={e => setForm(p => ({ ...p, amount: e.target.value }))}
+            placeholder="0.00"
+            step="0.01"
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-zinc-400 mb-1 block">Reason (optional)</label>
+          <input
+            type="text"
+            value={form.reason}
+            onChange={e => setForm(p => ({ ...p, reason: e.target.value }))}
+            placeholder="e.g. Monthly commission payout"
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
+          />
+        </div>
+
         <div className="flex gap-3 justify-end">
           <Btn variant="ghost" size="sm" onClick={onClose}>Cancel</Btn>
-          <Btn size="sm" onClick={() => mutation.mutate()} loading={mutation.isPending} disabled={!form.reseller_id || !form.amount}>Create</Btn>
+          <Btn
+            size="sm"
+            onClick={() => mutation.mutate()}
+            loading={mutation.isPending}
+            disabled={!form.reseller_id || !form.amount || walletsLoading}
+          >
+            Create
+          </Btn>
         </div>
       </div>
     </div>
   )
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+
+// Main page
 
 type Tab = 'wallets' | 'payouts'
 
@@ -432,7 +491,7 @@ export default function ResellerFinancePage() {
   ]
 
   return (
-    <div className="h-full overflow-y-auto p-6 space-y-8">
+    <div className="h-full overflow-y-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-zinc-100">Reseller Finance</h1>
         <p className="text-zinc-500 text-sm mt-1">Commission wallets and payout management.</p>

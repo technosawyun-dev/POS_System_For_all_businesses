@@ -49,6 +49,7 @@ class RefundRequest(BaseModel):
     reason: str
     items: list[RefundItemRequest] = Field(min_length=1)
     notes: str | None = None
+    refund_method: str = Field(default="CASH", pattern="^(CASH|REPLACEMENT)$")
 
 
 class RefundItemResponse(BaseModel):
@@ -57,12 +58,14 @@ class RefundItemResponse(BaseModel):
     order_item_id: uuid.UUID
     product_id: uuid.UUID
     variant_id: uuid.UUID | None
+    product_name: str | None = None
+    variant_name: str | None = None
     quantity: Decimal
     amount: Decimal
     stock_movement_id: uuid.UUID | None
     created_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
 
 class RefundResponse(BaseModel):

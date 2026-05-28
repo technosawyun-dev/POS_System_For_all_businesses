@@ -1,22 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { fmtDate, extractApiMsg } from '@/lib/utils'
 import { Btn, Spinner, Empty, Badge } from '@/components/ui'
-import { resellersService } from '@/services/resellers/resellers.service'
 import { usersService } from '@/services/users/users.service'
 import { tenantService } from '@/services/tenant/tenant.service'
 import { resellerFinanceAdminService, type TenantReferralResponse } from '@/services/reseller_finance/reseller_finance.service'
-
-const ALL_PERMISSIONS = [
-  'view_revenue', 'view_profit', 'view_analytics',
-  'view_inventory', 'adjust_inventory', 'transfer_inventory',
-  'view_customers', 'view_customer_debt', 'record_customer_payment',
-  'view_procurement', 'create_purchase_order', 'approve_purchase_order',
-  'view_staff', 'manage_staff', 'export_data',
-  'view_subscription_status', 'view_branch_reports',
-]
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
   ACTIVE:               'success',
@@ -25,7 +15,8 @@ const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'default
   PENDING_VERIFICATION: 'default',
 }
 
-// ─── Create Reseller Modal ────────────────────────────────────────────────────
+
+// Create Reseller Modal
 
 function CreateResellerModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
@@ -96,221 +87,12 @@ function CreateResellerModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-// ─── Create Assignment Modal ──────────────────────────────────────────────────
 
-function CreateAssignmentModal({ onClose }: { onClose: () => void }) {
-  const navigate = useNavigate()
-  const qc = useQueryClient()
-  const [form, setForm] = useState({
-    reseller_id: '',
-    tenant_id: '',
-    notes: '',
-    access_starts_at: '',
-    access_expires_at: '',
-    restricted_permissions: [] as string[],
-    allowed_branch_ids: [] as string[],
-  })
-
-  const resellersQuery = useQuery({
-    queryKey: ['admin', 'users', 'resellers-all'],
-    queryFn: () => usersService.list({ role: 'RESELLER', page_size: 200 }),
-    staleTime: 30_000,
-  })
-
-  const tenantsQuery = useQuery({
-    queryKey: ['admin', 'tenants', 'all'],
-    queryFn: () => tenantService.listTenants({ page_size: 200 }),
-    staleTime: 30_000,
-  })
-
-  const resellerUsers = resellersQuery.data?.items ?? []
-  const tenants = tenantsQuery.data?.items ?? []
-
-  const branchesQuery = useQuery({
-    queryKey: ['admin', 'tenants', form.tenant_id, 'branches'],
-    queryFn: () => tenantService.getBranches(form.tenant_id, { page_size: 100 }),
-    enabled: !!form.tenant_id,
-    staleTime: 30_000,
-  })
-  const branches = branchesQuery.data?.items ?? []
-
-  const mutation = useMutation({
-    mutationFn: () =>
-      resellersService.createAssignment({
-        reseller_id: form.reseller_id,
-        tenant_id: form.tenant_id,
-        notes: form.notes || undefined,
-        access_starts_at: form.access_starts_at ? new Date(form.access_starts_at).toISOString() : undefined,
-        access_expires_at: form.access_expires_at ? new Date(form.access_expires_at).toISOString() : undefined,
-        restricted_permissions: form.restricted_permissions.length > 0 ? form.restricted_permissions : undefined,
-        allowed_branch_ids: form.allowed_branch_ids.length > 0 ? form.allowed_branch_ids : undefined,
-      }),
-    onSuccess: data => {
-      qc.invalidateQueries({ queryKey: ['reseller', 'assignments'] })
-      toast.success('Assignment created')
-      onClose()
-      navigate(`/super-admin/resellers/${data.id}`)
-    },
-    onError: err => toast.error(extractApiMsg(err) ?? 'Failed to create assignment'),
-  })
-
-  const selectCls = 'w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-amber-500 disabled:opacity-50'
-  const inputCls = 'w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-amber-500'
-
-  function togglePerm(perm: string) {
-    setForm(p => ({
-      ...p,
-      restricted_permissions: p.restricted_permissions.includes(perm)
-        ? p.restricted_permissions.filter(x => x !== perm)
-        : [...p.restricted_permissions, perm],
-    }))
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 overflow-y-auto">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg shadow-2xl my-4">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-          <h3 className="text-base font-semibold text-zinc-100">New Reseller Assignment</h3>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-zinc-800">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-        <div className="p-5 space-y-3 max-h-[70vh] overflow-y-auto">
-          {/* Reseller dropdown */}
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1">Reseller *</label>
-            <select
-              value={form.reseller_id}
-              onChange={e => setForm(p => ({ ...p, reseller_id: e.target.value }))}
-              className={selectCls}
-              disabled={resellersQuery.isLoading}
-            >
-              <option value="">
-                {resellersQuery.isLoading ? 'Loading resellers…' : resellerUsers.length === 0 ? 'No resellers found — create one first' : 'Select a reseller…'}
-              </option>
-              {resellerUsers.map(u => (
-                <option key={u.id} value={u.id}>{u.full_name} · {u.email}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Business dropdown */}
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1">Business *</label>
-            <select
-              value={form.tenant_id}
-              onChange={e => setForm(p => ({ ...p, tenant_id: e.target.value, allowed_branch_ids: [] }))}
-              className={selectCls}
-              disabled={tenantsQuery.isLoading}
-            >
-              <option value="">
-                {tenantsQuery.isLoading ? 'Loading businesses…' : tenants.length === 0 ? 'No businesses found' : 'Select a business…'}
-              </option>
-              {tenants.map(t => (
-                <option key={t.id} value={t.id}>{t.name} ({t.status})</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-zinc-400 mb-1">Access Starts</label>
-              <input type="date" value={form.access_starts_at} onChange={e => setForm(p => ({ ...p, access_starts_at: e.target.value }))} className={inputCls} />
-            </div>
-            <div>
-              <label className="block text-xs text-zinc-400 mb-1">Access Expires</label>
-              <input type="date" value={form.access_expires_at} onChange={e => setForm(p => ({ ...p, access_expires_at: e.target.value }))} className={inputCls} />
-            </div>
-          </div>
-
-          {/* Branch access */}
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1">
-              Allowed Branches <span className="text-zinc-600">(empty = all branches)</span>
-            </label>
-            {!form.tenant_id ? (
-              <p className="text-xs text-zinc-600 italic">Select a business first</p>
-            ) : branchesQuery.isLoading ? (
-              <p className="text-xs text-zinc-600 italic">Loading branches…</p>
-            ) : branches.length === 0 ? (
-              <p className="text-xs text-zinc-600 italic">No branches found for this business</p>
-            ) : (
-              <div className="space-y-1.5 mt-1">
-                {branches.map(b => (
-                  <label key={b.id} className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.allowed_branch_ids.includes(b.id)}
-                      onChange={() => setForm(p => ({
-                        ...p,
-                        allowed_branch_ids: p.allowed_branch_ids.includes(b.id)
-                          ? p.allowed_branch_ids.filter(x => x !== b.id)
-                          : [...p.allowed_branch_ids, b.id],
-                      }))}
-                      className="rounded"
-                    />
-                    <span>{b.name}</span>
-                    {b.is_main_branch && <span className="text-[10px] text-amber-400 border border-amber-700/50 rounded px-1">Main</span>}
-                    <span className="text-zinc-600 font-mono">{b.code}</span>
-                  </label>
-                ))}
-                {form.allowed_branch_ids.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setForm(p => ({ ...p, allowed_branch_ids: [] }))}
-                    className="text-xs text-zinc-500 hover:text-zinc-300 mt-1"
-                  >
-                    Clear selection (grant all branches)
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-xs text-zinc-400 mb-2">Restricted Permissions</label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {ALL_PERMISSIONS.map(perm => (
-                <label key={perm} className="flex items-center gap-2 text-xs text-zinc-400 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.restricted_permissions.includes(perm)}
-                    onChange={() => togglePerm(perm)}
-                    className="rounded"
-                  />
-                  <span>{perm.replace(/_/g, ' ')}</span>
-                </label>
-              ))}
-            </div>
-            <p className="text-xs text-zinc-600 mt-1">Checked = denied to this reseller</p>
-          </div>
-
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1">Notes</label>
-            <input value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} className={inputCls} />
-          </div>
-        </div>
-        <div className="px-5 py-4 border-t border-zinc-800 flex gap-2 justify-end">
-          <Btn variant="secondary" size="sm" onClick={onClose}>Cancel</Btn>
-          <Btn
-            size="sm"
-            disabled={!form.reseller_id || !form.tenant_id || mutation.isPending}
-            onClick={() => mutation.mutate()}
-          >
-            {mutation.isPending ? 'Creating…' : 'Create Assignment'}
-          </Btn>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// Main Page
 
 export default function ResellersPage() {
   const navigate = useNavigate()
   const [showCreateReseller, setShowCreateReseller] = useState(false)
-  const [showCreateAssignment, setShowCreateAssignment] = useState(false)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
 
@@ -319,11 +101,6 @@ export default function ResellersPage() {
       {
         queryKey: ['admin', 'users', 'resellers', page],
         queryFn: () => usersService.list({ role: 'RESELLER', page_size: 20, page }),
-      },
-      {
-        queryKey: ['reseller', 'assignments', 'all'],
-        queryFn: () => resellersService.listAssignments({ page_size: 200 }),
-        staleTime: 60_000,
       },
       {
         queryKey: ['admin', 'reseller-finance', 'referrals', 'all'],
@@ -343,22 +120,13 @@ export default function ResellersPage() {
     ],
   })
 
-  const [resellersResult, assignmentsResult, referralsResult, tenantsResult, walletsResult] = results
+  const [resellersResult, referralsResult, tenantsResult, walletsResult] = results
   const resellers = resellersResult.data?.items ?? []
   const total = resellersResult.data?.total ?? 0
   const totalPages = resellersResult.data?.total_pages ?? 1
-  const allAssignments = assignmentsResult.data?.items ?? []
   const allReferrals = referralsResult.data?.items ?? []
   const allTenants = tenantsResult.data?.items ?? []
   const allWallets = walletsResult.data ?? []
-
-  // Build a map of reseller_id -> active assignment count
-  const assignmentCounts = allAssignments.reduce<Record<string, number>>((acc, a) => {
-    if (a.is_active) {
-      acc[a.reseller_id] = (acc[a.reseller_id] ?? 0) + 1
-    }
-    return acc
-  }, {})
 
   // Build referral map: reseller_id -> referral records
   const referralMap = allReferrals.reduce<Record<string, TenantReferralResponse[]>>((acc, r) => {
@@ -395,7 +163,6 @@ export default function ResellersPage() {
   return (
     <>
       {showCreateReseller && <CreateResellerModal onClose={() => setShowCreateReseller(false)} />}
-      {showCreateAssignment && <CreateAssignmentModal onClose={() => setShowCreateAssignment(false)} />}
 
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
@@ -405,7 +172,6 @@ export default function ResellersPage() {
             <p className="text-xs text-zinc-500 mt-0.5">{total} reseller{total !== 1 ? 's' : ''}</p>
           </div>
           <div className="flex gap-2">
-            <Btn variant="secondary" size="sm" onClick={() => setShowCreateAssignment(true)}>+ New Assignment</Btn>
             <Btn size="sm" onClick={() => setShowCreateReseller(true)}>+ New Reseller</Btn>
           </div>
         </div>
@@ -432,7 +198,6 @@ export default function ResellersPage() {
           ) : (
             <div className="max-w-4xl space-y-2">
               {filtered.map(user => {
-                const businessCount = assignmentCounts[user.id] ?? 0
                 const promoCode = promoCodeMap[user.id]
                 return (
                   <div
@@ -459,8 +224,6 @@ export default function ResellersPage() {
                         </div>
                         <p className="text-xs text-zinc-500 mt-0.5">{user.email}</p>
                         <p className="text-xs text-zinc-600 mt-0.5">
-                          {businessCount} {businessCount === 1 ? 'business' : 'businesses'} assigned
-                          {' · '}
                           Joined {fmtDate(user.created_at)}
                         </p>
                         {(referralMap[user.id]?.length ?? 0) > 0 && (

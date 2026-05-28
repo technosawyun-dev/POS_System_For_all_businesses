@@ -5,7 +5,7 @@ import { extractApiMsg } from '@/lib/utils'
 import { Badge, Btn, Spinner } from '@/components/ui'
 import { resellerFinanceService, type ReferralCodeResponse } from '@/services/reseller_finance/reseller_finance.service'
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
@@ -19,7 +19,7 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
-// ─── Primary Promo Code Card ──────────────────────────────────────────────────
+// Primary Promo Code Card
 
 function PrimaryCodeCard({ codes }: { codes: ReferralCodeResponse[] }) {
   const qc = useQueryClient()
@@ -141,7 +141,7 @@ function PrimaryCodeCard({ codes }: { codes: ReferralCodeResponse[] }) {
   )
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// Main Page
 
 export default function ResellerReferralPage() {
   const { data: codesData, isLoading: codesLoading } = useQuery({

@@ -49,7 +49,17 @@ export default function LoginPage() {
       const from = (location.state as { from?: { pathname: string } })?.from?.pathname
       const user = useAuthStore.getState().user
       const home = user ? (ROLE_HOME[user.role] ?? '/app/pos') : '/app/pos'
-      navigate(from ?? home, { replace: true })
+      const ROLE_PREFIXES: Record<string, string[]> = {
+        SUPER_ADMIN:     ['/super-admin', '/app'],
+        RESELLER:        ['/reseller'],
+        BUSINESS_OWNER:  ['/app'],
+        MANAGER:         ['/app'],
+        CASHIER:         ['/app'],
+        INVENTORY_STAFF: ['/app'],
+      }
+      const allowed = user ? (ROLE_PREFIXES[user.role] ?? []) : []
+      const safeFrom = from && allowed.some(p => from.startsWith(p)) ? from : null
+      navigate(safeFrom ?? home, { replace: true })
     } catch {
       // error is already set in store
     }

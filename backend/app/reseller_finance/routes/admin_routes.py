@@ -198,8 +198,24 @@ async def list_all_payouts(
         page_size=page_size,
         status=status,
     )
+    reseller_names: dict[uuid.UUID, dict] = {}
+    if items:
+        rows = (await db.execute(
+            select(User.id, User.first_name, User.last_name, User.email)
+            .where(User.id.in_([p.reseller_id for p in items]))
+        )).all()
+        reseller_names = {
+            row.id: {"name": f"{row.first_name} {row.last_name}".strip(), "email": row.email}
+            for row in rows
+        }
     return PaginatedResponse.create(
-        items=[PayoutRequestResponse.model_validate(p) for p in items],
+        items=[
+            PayoutRequestResponse.model_validate(p).model_copy(update={
+                "reseller_name": reseller_names.get(p.reseller_id, {}).get("name"),
+                "reseller_email": reseller_names.get(p.reseller_id, {}).get("email"),
+            })
+            for p in items
+        ],
         total=total,
         page=page,
         page_size=page_size,
@@ -226,7 +242,13 @@ async def admin_create_payout(
         actor_id=current_user.id,
         request_id=request_id,
     )
-    return PayoutRequestResponse.model_validate(payout)
+    reseller = (await db.execute(
+        select(User.first_name, User.last_name, User.email).where(User.id == data.reseller_id)
+    )).first()
+    return PayoutRequestResponse.model_validate(payout).model_copy(update={
+        "reseller_name": f"{reseller.first_name} {reseller.last_name}".strip() if reseller else None,
+        "reseller_email": reseller.email if reseller else None,
+    })
 
 
 @router.get(

@@ -123,7 +123,7 @@ class ProductCreateRequest(BaseSchema):
     name: str = Field(min_length=1, max_length=255)
     product_type: ProductType = ProductType.SIMPLE
     description: str | None = None
-    category_id: uuid.UUID | None = None
+    category_id: uuid.UUID
     brand_id: uuid.UUID | None = None
     sku: str | None = Field(default=None, max_length=100)
     barcode: str | None = Field(default=None, max_length=100)

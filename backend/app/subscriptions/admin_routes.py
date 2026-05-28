@@ -241,13 +241,49 @@ async def admin_list_all_payment_proofs(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     status: str | None = Query(default=None),
+    tenant_id: str | None = Query(default=None),
 ) -> PaginatedPaymentProofs:
     from app.subscriptions.services import PaymentProofService
     svc = PaymentProofService(db)
-    items, total = await svc.list_all_proofs(status=status, page=page, page_size=page_size)
+    tenant_uuid = uuid.UUID(tenant_id) if tenant_id else None
+    items, total = await svc.list_all_proofs(
+        status=status, page=page, page_size=page_size, tenant_id=tenant_uuid
+    )
     return PaginatedResponse.create(
         items=[PaymentProofResponse.model_validate(p) for p in items],
         total=total,
         page=page,
         page_size=page_size,
     )
+
+
+@router.post("/repair-statuses")
+async def repair_subscription_statuses(
+    db: DbSession,
+    _: Annotated[User, Depends(require_super_admin)],
+) -> dict:
+    """One-time repair: promote TRIAL subscriptions on paid plans to ACTIVE and sync tenant fields."""
+    from sqlalchemy import select
+    from app.core.constants import TenantStatus, SubscriptionStatus
+    from app.models.tenant import Tenant
+    from app.subscriptions.models import SubscriptionPlan, TenantSubscription
+
+    result = await db.execute(
+        select(TenantSubscription).where(TenantSubscription.status == SubscriptionStatus.TRIAL)
+    )
+    subs = result.scalars().all()
+
+    fixed = 0
+    for sub in subs:
+        plan = await db.get(SubscriptionPlan, sub.plan_id)
+        if plan and plan.price > 0 and not plan.is_referral_plan:
+            sub.status = SubscriptionStatus.ACTIVE
+            sub.trial_ends_at = None
+            tenant = await db.get(Tenant, sub.tenant_id)
+            if tenant:
+                tenant.status = TenantStatus.ACTIVE
+                tenant.subscription_plan = plan.code
+            fixed += 1
+
+    await db.flush()
+    return {"fixed": fixed, "message": f"Repaired {fixed} subscription(s)"}

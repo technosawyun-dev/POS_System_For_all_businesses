@@ -8,27 +8,18 @@ import type { InventoryItem } from '@/shared/types'
 interface AdjustmentModalProps {
   item: InventoryItem
   branchId: string
+  productName: string
+  productSku: string
   onClose: () => void
   onSuccess: () => void
 }
 
 type AdjustType = 'add' | 'remove'
 
-const REASONS = [
-  { value: 'Recount / Audit',    label: 'Recount / Audit' },
-  { value: 'Damaged / Spoilage', label: 'Damaged / Spoilage' },
-  { value: 'Customer Return',    label: 'Customer Return' },
-  { value: 'Transfer In',        label: 'Transfer In' },
-  { value: 'Transfer Out',       label: 'Transfer Out' },
-  { value: 'Opening Stock',      label: 'Opening Stock' },
-  { value: 'Shrinkage / Loss',   label: 'Shrinkage / Loss' },
-]
-
-export default function AdjustmentModal({ item, branchId, onClose, onSuccess }: AdjustmentModalProps) {
-  const [type, setType]     = useState<AdjustType>('add')
-  const [qty, setQty]       = useState('')
-  const [reason, setReason] = useState(REASONS[0].value)
-  const [notes, setNotes]   = useState('')
+export default function AdjustmentModal({ item, branchId, productName, productSku, onClose, onSuccess }: AdjustmentModalProps) {
+  const [type, setType] = useState<AdjustType>('add')
+  const [qty, setQty]   = useState('')
+  const [notes, setNotes] = useState('')
 
   const currentQty = parseFloat(item.quantity_on_hand)
   const qtyNum     = parseInt(qty, 10) || 0
@@ -44,7 +35,7 @@ export default function AdjustmentModal({ item, branchId, onClose, onSuccess }: 
         variant_id:      item.variant_id ?? undefined,
         quantity_change: delta,
       }],
-      reason: reason,
+      reason: type === 'add' ? 'Manual Addition' : 'Manual Removal',
       notes:  notes || undefined,
     }),
     onSuccess: () => {
@@ -72,8 +63,9 @@ export default function AdjustmentModal({ item, branchId, onClose, onSuccess }: 
         {/* Item info */}
         <div className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3">
           <div>
-            <p className="text-xs font-mono text-zinc-500">{item.product_id.slice(0, 16)}…</p>
-            <p className="text-sm text-zinc-300 mt-0.5">Current stock: <span className="font-bold text-zinc-100">{Math.round(currentQty)}</span></p>
+            <p className="text-sm font-semibold text-zinc-100">{productName || '—'}</p>
+            {productSku && <p className="text-xs font-mono text-zinc-500 mt-0.5">{productSku}</p>}
+            <p className="text-xs text-zinc-500 mt-1">Current stock: <span className="font-bold text-zinc-300">{Math.round(currentQty)}</span></p>
           </div>
           <div className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
             currentQty === 0 ? 'bg-red-950 border-red-800 text-red-400' :
@@ -109,18 +101,6 @@ export default function AdjustmentModal({ item, branchId, onClose, onSuccess }: 
           value={qty}
           onChange={e => setQty(e.target.value)}
         />
-
-        {/* Reason */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Reason</label>
-          <select
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-100 text-sm px-3 py-2.5 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
-            value={reason}
-            onChange={e => setReason(e.target.value)}
-          >
-            {REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-          </select>
-        </div>
 
         {/* Notes */}
         <Input

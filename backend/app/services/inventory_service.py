@@ -252,7 +252,7 @@ class InventoryService:
                 reference_id=str(adjustment.id),
                 unit_cost=item_req.unit_cost,
                 reason=data.reason,
-                notes=item_req.notes,
+                notes=item_req.notes or data.notes,
             )
 
             adj_item = InventoryAdjustmentItem(

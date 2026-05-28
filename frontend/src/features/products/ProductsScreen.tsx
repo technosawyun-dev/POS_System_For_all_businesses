@@ -1,8 +1,10 @@
 import { useState, useMemo, useEffect, useRef, useCallback, type FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { productsService } from '@/services/products/products.service'
 import { categoriesService } from '@/services/categories/categories.service'
+import { brandsService } from '@/services/brands/brands.service'
 import { inventoryService } from '@/services/inventory/inventory.service'
 import { useTenantStore } from '@/store/tenant.store'
 import { fmt } from '@/lib/utils'
@@ -16,12 +18,13 @@ import type { Product as BackendProduct } from '@/shared/types'
 interface ProductFormModalProps {
   product?: BackendProduct
   categories: { id: string; name: string }[]
+  brands: { id: string; name: string }[]
   onClose: () => void
   onSaved: () => void
 }
 
 
-function ProductFormModal({ product, categories, onClose, onSaved }: ProductFormModalProps) {
+function ProductFormModal({ product, categories, brands, onClose, onSaved }: ProductFormModalProps) {
   const isEdit = !!product
   const selectedBranch = useTenantStore(s => s.selectedBranch)
   const [form, setForm] = useState({
@@ -30,6 +33,7 @@ function ProductFormModal({ product, categories, onClose, onSaved }: ProductForm
     description:   product?.description   ?? '',
     product_type:  'SIMPLE' as const,
     category_id:   product?.category_id   ?? '',
+    brand_id:      product?.brand_id      ?? '',
     barcode:       product?.barcode        ?? '',
     cost_price:    product?.cost_price     ?? '',
     selling_price: product?.selling_price  ?? '',
@@ -105,6 +109,7 @@ function ProductFormModal({ product, categories, onClose, onSaved }: ProductForm
     form.name.trim() &&
     form.cost_price &&
     form.selling_price &&
+    (isEdit || !!form.category_id) &&
     !saving
 
   async function handleSubmit(e: FormEvent) {
@@ -119,6 +124,7 @@ function ProductFormModal({ product, categories, onClose, onSaved }: ProductForm
         description:   form.description.trim() || undefined,
         product_type:  form.product_type,
         category_id:   form.category_id || undefined,
+        brand_id:      form.brand_id || undefined,
         barcode:       form.barcode.trim() || undefined,
         cost_price:    form.cost_price,
         selling_price: form.selling_price,
@@ -210,13 +216,42 @@ function ProductFormModal({ product, categories, onClose, onSaved }: ProductForm
             />
           </div>
 
-          <div>
-            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider block mb-1.5">Category</label>
-            <select value={form.category_id} onChange={set('category_id')}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl text-zinc-100 text-sm px-3 py-2.5 focus:outline-none focus:border-amber-500">
-              <option value="">— None —</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                  Category <span className="text-red-400 normal-case">*</span>
+                </label>
+                {categories.length === 0 && (
+                  <Link to="/app/categories" onClick={onClose} className="text-[10px] text-amber-400 hover:text-amber-300">+ Create one</Link>
+                )}
+              </div>
+              <select
+                value={form.category_id}
+                onChange={set('category_id')}
+                required
+                className={`w-full bg-zinc-800 border rounded-xl text-sm px-3 py-2.5 focus:outline-none focus:border-amber-500 ${
+                  !isEdit && !form.category_id ? 'border-zinc-600 text-zinc-500' : 'border-zinc-700 text-zinc-100'
+                }`}
+              >
+                <option value="">— Select Category —</option>
+                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Brand</label>
+                {brands.length === 0 && (
+                  <Link to="/app/brands" onClick={onClose} className="text-[10px] text-amber-400 hover:text-amber-300">+ Create one</Link>
+                )}
+              </div>
+              <select value={form.brand_id} onChange={set('brand_id')}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl text-zinc-100 text-sm px-3 py-2.5 focus:outline-none focus:border-amber-500">
+                <option value="">— None —</option>
+                {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -323,6 +358,12 @@ export default function ProductsScreen() {
     staleTime: 5 * 60 * 1000,
   })
 
+  const { data: brandsData } = useQuery({
+    queryKey: ['brands'],
+    queryFn: () => brandsService.list({ page_size: 100 }),
+    staleTime: 5 * 60 * 1000,
+  })
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => productsService.delete(id),
     onSuccess: () => {
@@ -335,6 +376,7 @@ export default function ProductsScreen() {
 
   const products = productsData?.items ?? []
   const categories = categoriesData?.items ?? []
+  const brands = brandsData?.items ?? []
 
   const categoryMap = useMemo(() => {
     const m = new Map<string, string>()
@@ -350,18 +392,26 @@ export default function ProductsScreen() {
       <ProductFormModal
         product={editProduct ?? undefined}
         categories={categories}
+        brands={brands}
         onClose={() => setShowForm(false)}
         onSaved={() => qc.invalidateQueries({ queryKey: ['products'] })}
       />
     )}
-    <div className="flex h-full overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-full overflow-y-auto lg:overflow-hidden">
       {/* Main area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 lg:overflow-hidden">
+        {/* Sub-navigation */}
+        <div className="flex-shrink-0 flex items-center gap-1 px-4 sm:px-6 pt-3 sm:pt-4 border-b border-zinc-800 pb-0">
+          <span className="px-3 py-1.5 text-xs font-semibold text-amber-400 border-b-2 border-amber-500 -mb-px">Products</span>
+          <Link to="/app/categories" className="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-100 border-b-2 border-transparent -mb-px transition-colors">Categories</Link>
+          <Link to="/app/brands" className="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-100 border-b-2 border-transparent -mb-px transition-colors">Brands</Link>
+        </div>
+
         {/* Page header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
-          <h2 className="text-base font-semibold text-zinc-100">Products</h2>
-          <div className="flex items-center gap-3">
-            <div className="relative">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-zinc-800 flex-shrink-0">
+          <h2 className="text-base font-semibold text-zinc-100 flex-shrink-0">Products</h2>
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 justify-end">
+            <div className="relative flex-1 sm:flex-none">
               <IconSearch width="14" height="14" className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
               <input
                 type="text"
@@ -370,19 +420,20 @@ export default function ProductsScreen() {
                 placeholder="Search products…"
                 className="bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-600 text-sm
                   focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 transition-all
-                  py-2 pl-8 pr-4 w-56"
+                  py-2 pl-8 pr-4 w-full sm:w-56"
               />
             </div>
             <Btn size="sm" onClick={() => { setEditProduct(null); setShowForm(true) }}>
               <IconPlus width="14" height="14" />
-              New Product
+              <span className="hidden sm:inline">New Product</span>
+              <span className="sm:hidden">New</span>
             </Btn>
           </div>
         </div>
 
-        <div className="p-6 flex flex-col gap-5 overflow-auto h-full">
+        <div className="p-4 sm:p-6 flex flex-col gap-4 sm:gap-5 lg:overflow-auto lg:flex-1 lg:min-h-0">
           {/* Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
             <StatCard label="Total SKUs"  value={products.length} />
             <StatCard label="Active"      value={products.filter(p => p.is_active).length} accent />
             <StatCard label="Inactive"    value={products.filter(p => !p.is_active).length} />
@@ -412,7 +463,7 @@ export default function ProductsScreen() {
           </div>
 
           {/* Table */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex-1 flex flex-col min-h-0">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-x-auto flex-1 flex flex-col min-h-0">
             {isLoading ? (
               <div className="flex items-center justify-center h-40"><Spinner size={32} /></div>
             ) : (
@@ -509,7 +560,7 @@ function ProductDetailPanel({
         onClose={() => setShowLabelPrint(false)}
       />
     )}
-    <div className="w-80 flex-shrink-0 border-l border-zinc-800 bg-zinc-950 flex flex-col overflow-y-auto">
+    <div className="w-full lg:w-80 flex-shrink-0 border-t lg:border-t-0 lg:border-l border-zinc-800 bg-zinc-950 flex flex-col overflow-y-auto">
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
         <span className="text-sm font-semibold text-zinc-100">Product Detail</span>
         <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 text-lg leading-none">×</button>

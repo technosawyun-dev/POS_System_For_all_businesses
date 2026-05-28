@@ -56,8 +56,8 @@ const BTN_SIZES: Record<BtnSize, string> = {
   xl: 'px-6 py-3.5 text-base h-14 rounded-xl',
 }
 
-export function Btn({ children, variant = 'primary', size = 'md', fullWidth = false, className = '', ...rest }: {
-  variant?: BtnVariant; size?: BtnSize; fullWidth?: boolean; className?: string
+export function Btn({ children, variant = 'primary', size = 'md', fullWidth = false, loading = false, className = '', ...rest }: {
+  variant?: BtnVariant; size?: BtnSize; fullWidth?: boolean; loading?: boolean; className?: string
 } & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
@@ -65,12 +65,21 @@ export function Btn({ children, variant = 'primary', size = 'md', fullWidth = fa
         'inline-flex items-center justify-center gap-2 transition-all duration-150 select-none',
         BTN_VARIANTS[variant], BTN_SIZES[size],
         fullWidth && 'w-full',
-        rest.disabled && 'opacity-40 cursor-not-allowed pointer-events-none',
+        (rest.disabled || loading) && 'opacity-40 cursor-not-allowed pointer-events-none',
         className,
       )}
+      disabled={rest.disabled || loading}
       {...rest}
     >
-      {children}
+      {loading ? (
+        <>
+          <svg className="animate-spin w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          {children}
+        </>
+      ) : children}
     </button>
   )
 }

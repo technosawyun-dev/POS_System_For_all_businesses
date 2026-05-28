@@ -124,7 +124,7 @@ export default function RegisterPage() {
               required
             />
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
               <Input
                 label="First Name"
                 value={form.first_name}

@@ -31,7 +31,8 @@ export default function TrialExpiredPage() {
   const isLoading = subLoading || plansLoading
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+    <div className="h-full overflow-y-auto bg-zinc-950">
+      <div className="min-h-full flex items-center justify-center p-4 py-8">
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">
@@ -141,6 +142,7 @@ export default function TrialExpiredPage() {
           </a>
         </div>
       </div>
+    </div>
     </div>
   )
 }

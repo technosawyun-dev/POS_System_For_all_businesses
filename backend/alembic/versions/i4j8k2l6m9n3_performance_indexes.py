@@ -33,7 +33,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # ── orders ──────────────────────────────────────────────────────────────
+    # orders
     # Time-range analytics (all 4 order-stats calls in the dashboard)
     op.create_index(
         "ix_orders_tenant_created_at",
@@ -47,14 +47,14 @@ def upgrade() -> None:
         ["tenant_id", "order_status", "created_at"],
     )
 
-    # ── refunds ─────────────────────────────────────────────────────────────
+    # refunds
     op.create_index(
         "ix_refunds_tenant_created_at",
         "refunds",
         ["tenant_id", "created_at"],
     )
 
-    # ── stock_movements ─────────────────────────────────────────────────────
+    # stock_movements
     op.create_index(
         "ix_stock_movements_tenant_created_at",
         "stock_movements",
@@ -66,7 +66,7 @@ def upgrade() -> None:
         ["tenant_id", "movement_type", "created_at"],
     )
 
-    # ── branch_inventory ────────────────────────────────────────────────────
+    # branch_inventory
     # Inventory-valuation query joins BranchInventory → Product on product_id
     op.create_index(
         "ix_branch_inventory_tenant_product",
@@ -74,14 +74,14 @@ def upgrade() -> None:
         ["tenant_id", "product_id"],
     )
 
-    # ── customers ───────────────────────────────────────────────────────────
+    # customers
     op.create_index(
         "ix_customers_tenant_created_at",
         "customers",
         ["tenant_id", "created_at"],
     )
 
-    # ── customer_ledger ─────────────────────────────────────────────────────
+    # customer_ledger
     # Ledger is queried per customer ordered by time
     op.create_index(
         "ix_customer_ledger_customer_created_at",

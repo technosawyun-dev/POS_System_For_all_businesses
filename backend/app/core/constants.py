@@ -16,6 +16,7 @@ class StockMovementType(str, Enum):
     PURCHASE_RECEIPT = "PURCHASE_RECEIPT"
     SALE = "SALE"
     REFUND = "REFUND"
+    REPLACEMENT = "REPLACEMENT"
     TRANSFER_IN = "TRANSFER_IN"
     TRANSFER_OUT = "TRANSFER_OUT"
     DAMAGE = "DAMAGE"
@@ -38,6 +39,7 @@ STOCK_INBOUND_TYPES: frozenset[str] = frozenset({
 # Movement types that DECREASE stock quantity
 STOCK_OUTBOUND_TYPES: frozenset[str] = frozenset({
     StockMovementType.SALE,
+    StockMovementType.REPLACEMENT,
     StockMovementType.TRANSFER_OUT,
     StockMovementType.DAMAGE,
     StockMovementType.ADJUSTMENT_DECREASE,
@@ -258,6 +260,8 @@ class RefundReason(str, Enum):
 class RefundType(str, Enum):
     FULL = "FULL"
     PARTIAL = "PARTIAL"
+    CASH = "CASH"
+    REPLACEMENT = "REPLACEMENT"
 
 
 class DiscountType(str, Enum):

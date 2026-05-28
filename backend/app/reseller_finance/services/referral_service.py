@@ -128,6 +128,7 @@ class ReferralService:
 
         row.is_active = False
         await self.session.flush()
+        await self.session.refresh(row)
 
         await self.audit.log(
             action="REFERRAL_CODE_DEACTIVATED",
@@ -335,6 +336,7 @@ class ReferralService:
 
         row.is_active = True
         await self.session.flush()
+        await self.session.refresh(row)
 
         await self.audit.log(
             action="REFERRAL_CODE_ACTIVATED",

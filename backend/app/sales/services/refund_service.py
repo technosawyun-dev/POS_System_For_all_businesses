@@ -60,7 +60,7 @@ class RefundItemInput:
 
 
 class RefundInput:
-    __slots__ = ("order_id", "reason", "items", "notes")
+    __slots__ = ("order_id", "reason", "items", "notes", "refund_method")
 
     def __init__(
         self,
@@ -68,11 +68,13 @@ class RefundInput:
         reason: str,
         items: list[RefundItemInput],
         notes: str | None = None,
+        refund_method: str = "CASH",
     ) -> None:
         self.order_id = order_id
         self.reason = reason
         self.items = items
         self.notes = notes
+        self.refund_method = refund_method
 
 
 def _derive_order_status_after_refund(
@@ -171,10 +173,8 @@ class RefundService:
         branch_code = str(order.branch_id).replace("-", "")[:8].upper()
         refund_number = f"REF-{branch_code}-{str(data.order_id).replace('-','')[:8].upper()}-{int(now.timestamp())}"
 
-        # 3. Determine refund type
-        from app.core.constants import RefundType
-        is_full = new_refunded_total >= order.total_amount
-        refund_type = RefundType.FULL if is_full else RefundType.PARTIAL
+        # 3. Determine refund type from method (CASH or REPLACEMENT)
+        refund_type = data.refund_method  # "CASH" or "REPLACEMENT"
 
         # 4. Create Refund header
         refund = Refund(
@@ -197,19 +197,27 @@ class RefundService:
             ri: RefundItemInput = entry["input"]
             oi: OrderItem = entry["order_item"]
 
-            # REFUND stock movement restores inventory — THE ONLY WAY
+            # Stock movement: REFUND (restores stock) or REPLACEMENT (reduces stock)
+            if data.refund_method == "REPLACEMENT":
+                mvt_type = StockMovementType.REPLACEMENT
+                mvt_reason = f"Replacement: {refund_number} — {data.reason}"
+            else:
+                mvt_type = StockMovementType.REFUND
+                mvt_reason = f"Refund: {refund_number} — {data.reason}"
+
             movement, _ = await self.inventory_svc.create_stock_movement(
                 tenant_id=tenant_id,
                 branch_id=order.branch_id,
                 product_id=oi.product_id,
                 variant_id=oi.variant_id,
-                movement_type=StockMovementType.REFUND,
+                movement_type=mvt_type,
                 quantity=ri.quantity,
                 actor_user_id=actor_user_id,
                 reference_type="refund",
                 reference_id=str(refund.id),
                 unit_cost=oi.unit_cost_snapshot,
-                reason=f"Refund: {refund_number} — {data.reason}",
+                reason=mvt_reason,
+                notes=data.notes,
             )
 
             refund_item = RefundItem(
