@@ -4,10 +4,12 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.models.audit import AuditLog
+from app.models.user import User
 from app.repositories.base import BaseRepository
 
 
@@ -48,6 +50,33 @@ class AuditRepository(BaseRepository[AuditLog]):
         await self.session.flush()
         return log
 
+    async def _get_enriched(
+        self,
+        filters: list,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[tuple[AuditLog, User | None]], int]:
+        Actor = aliased(User)
+
+        count_stmt = select(func.count()).select_from(AuditLog)
+        for f in filters:
+            count_stmt = count_stmt.where(f)
+        count_result = await self.session.execute(count_stmt)
+        total = count_result.scalar_one()
+
+        stmt = (
+            select(AuditLog, Actor)
+            .outerjoin(Actor, AuditLog.actor_user_id == Actor.id)
+            .order_by(AuditLog.created_at.desc())
+        )
+        for f in filters:
+            stmt = stmt.where(f)
+        stmt = stmt.offset(offset).limit(limit)
+
+        result = await self.session.execute(stmt)
+        rows = result.all()
+        return [(row[0], row[1]) for row in rows], total
+
     async def get_by_tenant(
         self,
         tenant_id: uuid.UUID,
@@ -56,7 +85,7 @@ class AuditRepository(BaseRepository[AuditLog]):
         action: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
-    ) -> tuple[list[AuditLog], int]:
+    ) -> tuple[list[tuple[AuditLog, User | None]], int]:
         filters = [AuditLog.tenant_id == tenant_id]
         if action:
             filters.append(AuditLog.action == action)
@@ -64,4 +93,24 @@ class AuditRepository(BaseRepository[AuditLog]):
             filters.append(AuditLog.created_at >= date_from)
         if date_to:
             filters.append(AuditLog.created_at <= date_to)
-        return await self.get_all(offset=offset, limit=limit, filters=filters)
+        return await self._get_enriched(filters, offset, limit)
+
+    async def get_platform_logs(
+        self,
+        offset: int = 0,
+        limit: int = 20,
+        action: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+        tenant_id: uuid.UUID | None = None,
+    ) -> tuple[list[tuple[AuditLog, User | None]], int]:
+        filters = []
+        if tenant_id:
+            filters.append(AuditLog.tenant_id == tenant_id)
+        if action:
+            filters.append(AuditLog.action == action)
+        if date_from:
+            filters.append(AuditLog.created_at >= date_from)
+        if date_to:
+            filters.append(AuditLog.created_at <= date_to)
+        return await self._get_enriched(filters, offset, limit)

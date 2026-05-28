@@ -16,10 +16,7 @@ export default function CartPanel() {
   if (checkoutStep !== 'cart') return null
 
   return (
-    <div
-      className="flex flex-col bg-zinc-950 border-l border-zinc-800 flex-shrink-0"
-      style={{ width: 'clamp(280px, 320px, 360px)' }}
-    >
+    <div className="flex flex-col bg-zinc-950 border-l border-zinc-800 flex-shrink-0 w-full lg:w-80">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -83,7 +80,7 @@ export default function CartPanel() {
               </div>
             )}
             <div className="flex justify-between text-zinc-500">
-              <span>Tax (10%)</span>
+              <span>Tax</span>
               <span className="font-mono">{fmt(totals.tax)}</span>
             </div>
           </div>

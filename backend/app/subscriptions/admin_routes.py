@@ -18,6 +18,8 @@ from app.subscriptions.schemas import (
     EffectiveEntitlementResponse,
     ExtendSubscriptionRequest,
     PaginatedAdminSubscriptions,
+    PaginatedPaymentProofs,
+    PaymentProofResponse,
     SubscriptionOverviewResponse,
     SubscriptionResponse,
     TenantEntitlementOverrideCreateRequest,
@@ -43,7 +45,7 @@ async def list_all_subscriptions(
     db: DbSession,
     _: Annotated[User, Depends(require_super_admin)],
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> PaginatedAdminSubscriptions:
     svc = AdminSubscriptionService(db)
     items, total = await svc.list_all_subscriptions(page=page, page_size=page_size)
@@ -164,6 +166,36 @@ async def remove_override(
     return Response(status_code=204)
 
 
+@router.post("/tenants/{tenant_id}/suspend", response_model=SubscriptionResponse)
+async def admin_suspend_subscription(
+    tenant_id: uuid.UUID,
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_super_admin)],
+    request_id: RequestId,
+) -> SubscriptionResponse:
+    from app.subscriptions.services import SubscriptionService
+    svc = SubscriptionService(db)
+    sub = await svc.suspend_subscription(
+        tenant_id=tenant_id, actor_id=current_user.id, request_id=request_id
+    )
+    return SubscriptionResponse.model_validate(sub)
+
+
+@router.post("/tenants/{tenant_id}/expire", response_model=SubscriptionResponse)
+async def admin_expire_subscription(
+    tenant_id: uuid.UUID,
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_super_admin)],
+    request_id: RequestId,
+) -> SubscriptionResponse:
+    from app.subscriptions.services import SubscriptionService
+    svc = SubscriptionService(db)
+    sub = await svc.expire_subscription(
+        tenant_id=tenant_id, actor_id=current_user.id, request_id=request_id
+    )
+    return SubscriptionResponse.model_validate(sub)
+
+
 @router.post("/tenants/{tenant_id}/extend", response_model=SubscriptionResponse)
 async def extend_subscription(
     tenant_id: uuid.UUID,
@@ -200,3 +232,22 @@ async def admin_change_plan(
         request_id=request_id,
     )
     return SubscriptionResponse.model_validate(sub)
+
+
+@router.get("/payment-proofs", response_model=PaginatedPaymentProofs)
+async def admin_list_all_payment_proofs(
+    db: DbSession,
+    _: Annotated[User, Depends(require_super_admin)],
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    status: str | None = Query(default=None),
+) -> PaginatedPaymentProofs:
+    from app.subscriptions.services import PaymentProofService
+    svc = PaymentProofService(db)
+    items, total = await svc.list_all_proofs(status=status, page=page, page_size=page_size)
+    return PaginatedResponse.create(
+        items=[PaymentProofResponse.model_validate(p) for p in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )

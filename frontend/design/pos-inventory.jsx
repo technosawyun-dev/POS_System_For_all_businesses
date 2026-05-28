@@ -1,11 +1,9 @@
-// ============================================================
 // pos-inventory.jsx — Inventory dashboard + stock adjustment
-// ============================================================
 
 const { useApp: invUseApp, fmt: invFmt } = window;
 const { useState: invUseState, useMemo: invUseMemo } = React;
 
-// ─── Stock Level Bar ──────────────────────────────────────────
+// Stock Level Bar
 function StockBar({ stock, max = 200 }) {
   const pct = Math.min(100, (stock / max) * 100);
   const color = stock === 0 ? '#EF4444' : stock <= 10 ? '#F59E0B' : '#22C55E';
@@ -19,7 +17,7 @@ function StockBar({ stock, max = 200 }) {
   );
 }
 
-// ─── Adjustment Modal ─────────────────────────────────────────
+// Adjustment Modal
 function AdjustmentModal({ product, onClose }) {
   const { dispatch } = invUseApp();
   const [type,   setType]   = invUseState('add');
@@ -115,7 +113,7 @@ function AdjustmentModal({ product, onClose }) {
   );
 }
 
-// ─── Inventory Screen ─────────────────────────────────────────
+// Inventory Screen
 function InventoryScreen() {
   const { state, dispatch } = invUseApp();
   const [search, setSearch]     = invUseState('');

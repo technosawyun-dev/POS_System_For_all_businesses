@@ -382,6 +382,7 @@ class InventoryService:
         transfer.approved_by_id = actor_user_id
         transfer.approved_at = datetime.now(timezone.utc)
         await self.session.flush()
+        await self.session.refresh(transfer)
 
         await self.audit.log(
             action=AuditAction.INVENTORY_TRANSFER_APPROVED,
@@ -452,6 +453,7 @@ class InventoryService:
         transfer.status = TransferStatus.COMPLETED
         transfer.completed_at = datetime.now(timezone.utc)
         await self.session.flush()
+        await self.session.refresh(transfer)
 
         await self.audit.log(
             action=AuditAction.INVENTORY_TRANSFER_COMPLETED,
@@ -486,6 +488,7 @@ class InventoryService:
         transfer.cancelled_by_id = actor_user_id
         transfer.cancel_reason = reason
         await self.session.flush()
+        await self.session.refresh(transfer)
 
         await self.audit.log(
             action=AuditAction.INVENTORY_TRANSFER_CANCELLED,

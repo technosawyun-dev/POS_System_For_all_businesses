@@ -1,12 +1,10 @@
-// ============================================================
 // pos-products.jsx — Product management screen
-// ============================================================
 
 const { useApp: prodUseApp, fmt: prodFmt } = window;
 const { useState: prodUseState, useMemo: prodUseMemo } = React;
 const { ROLE_BADGE_STYLES: prodRoleStyles } = window;
 
-// ─── Product Form Modal ───────────────────────────────────────
+// Product Form Modal
 function ProductFormModal({ product, onSave, onClose }) {
   const [form, setForm] = prodUseState(product ? { ...product } : {
     sku:'', name:'', category:'beverages', price:'', cost:'',
@@ -83,7 +81,7 @@ function ProductFormModal({ product, onSave, onClose }) {
   );
 }
 
-// ─── Product Detail Panel ─────────────────────────────────────
+// Product Detail Panel
 function ProductDetailPanel({ product, onEdit, onClose }) {
   const { dispatch } = prodUseApp();
   const margin = product.price > 0 ? ((product.price - product.cost) / product.price * 100).toFixed(1) : '0';
@@ -158,7 +156,7 @@ function ProductDetailPanel({ product, onEdit, onClose }) {
   );
 }
 
-// ─── Products Screen ──────────────────────────────────────────
+// Products Screen
 function ProductsScreen() {
   const { state, dispatch } = prodUseApp();
   const [search, setSearch]       = prodUseState('');

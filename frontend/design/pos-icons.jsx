@@ -1,6 +1,4 @@
-// ============================================================
 // pos-icons.jsx — SVG icon library (stroke-based, 18×18)
-// ============================================================
 
 const IC = { w:'18', h:'18', viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:'1.8', strokeLinecap:'round', strokeLinejoin:'round' };
 

@@ -11,11 +11,11 @@ Measures latency for critical POS backend operations:
 
 Usage:
     python scripts/benchmark.py --url http://localhost:8000 \\
-        --email admin@pos.test --password Secret@123 \\
+        --email <admin-email> --password <admin-password> \\
         --tenant-id <uuid> --branch-id <uuid> --product-id <uuid>
 
     python scripts/benchmark.py --url http://localhost:8000 \\
-        --email admin@pos.test --password Secret@123 \\
+        --email <admin-email> --password <admin-password> \\
         --tenant-id <uuid> --branch-id <uuid> --product-id <uuid> \\
         --iterations 100 --concurrency 10
 

@@ -1,0 +1,286 @@
+import { useEffect, useState, type ReactNode } from 'react'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { cn } from '@/shared/utils'
+import { useAuthStore } from '@/store/auth.store'
+import { useUIStore } from '@/store/ui.store'
+import { canAccess, ROLE_LABELS, ROLE_BADGE_STYLES } from '@/shared/constants/rbac'
+import BranchSelector from '@/shared/components/BranchSelector'
+import NotificationBell from '@/shared/components/NotificationBell'
+import GlobalSearch from '@/shared/components/GlobalSearch'
+import TrialBanner from '@/shared/components/TrialBanner'
+import { notificationsService } from '@/services/notifications/notifications.service'
+import {
+  IconMenu, IconX, IconPOS, IconProducts, IconInventory,
+  IconSales, IconSync, IconLogout,
+} from '@/components/icons'
+
+interface NavItem {
+  to: string
+  label: string
+  section: string
+  icon: ReactNode
+}
+
+const APP_NAV: NavItem[] = [
+  { to: '/app/dashboard',     section: 'dashboard',     label: 'Dashboard',     icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏠</span> },
+  { to: '/app/pos',           section: 'pos',           label: 'Checkout',      icon: <IconPOS       width="18" height="18" /> },
+  { to: '/app/sales',         section: 'sales',         label: 'Sales',         icon: <IconSales     width="18" height="18" /> },
+  { to: '/app/products',      section: 'products',      label: 'Products',      icon: <IconProducts  width="18" height="18" /> },
+  { to: '/app/inventory',     section: 'inventory',     label: 'Inventory',     icon: <IconInventory width="18" height="18" /> },
+  { to: '/app/customers',     section: 'customers',     label: 'Customers',     icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">👥</span> },
+  { to: '/app/procurement',   section: 'procurement',   label: 'Procurement',   icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📦</span> },
+  { to: '/app/analytics',     section: 'analytics',     label: 'Analytics',     icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📊</span> },
+  { to: '/app/notifications', section: 'notifications', label: 'Notifications', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🔔</span> },
+  { to: '/app/subscription',  section: 'subscription',  label: 'Subscription',  icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">💳</span> },
+  { to: '/app/settings',      section: 'settings',      label: 'Settings',      icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">⚙️</span> },
+  { to: '/app/sync',          section: 'sync',          label: 'Sync',          icon: <IconSync      width="18" height="18" /> },
+]
+
+const SUPER_ADMIN_NAV: NavItem[] = [
+  { to: '/super-admin/dashboard',     section: 'dashboard',     label: 'Dashboard',     icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏠</span> },
+  { to: '/super-admin/businesses',    section: 'businesses',    label: 'Businesses & Users', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏢</span> },
+  { to: '/super-admin/resellers',     section: 'resellers',     label: 'Resellers',     icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🤝</span> },
+  { to: '/super-admin/plans',         section: 'plans',         label: 'Plans',         icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📋</span> },
+  { to: '/super-admin/notifications', section: 'notifications', label: 'Notifications', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🔔</span> },
+  { to: '/super-admin/audit-logs',       section: 'audit-logs',       label: 'Audit Logs',       icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📝</span> },
+  { to: '/super-admin/reseller-finance', section: 'reseller-finance', label: 'Reseller Finance', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">💰</span> },
+]
+
+const RESELLER_NAV: NavItem[] = [
+  { to: '/reseller/dashboard',  section: 'dashboard',  label: 'Dashboard',  icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏠</span> },
+  { to: '/reseller/businesses', section: 'businesses', label: 'Businesses', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏢</span> },
+  { to: '/reseller/analytics',  section: 'analytics',  label: 'Analytics',  icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📊</span> },
+]
+
+interface DashboardLayoutProps {
+  navGroup?: 'app' | 'super-admin' | 'reseller'
+}
+
+function SidebarContent({ navGroup, onClose, onSearch }: { navGroup: string; onClose?: () => void; onSearch?: () => void }) {
+  const { user, logout } = useAuthStore()
+  const navigate = useNavigate()
+
+  const { data: unreadData } = useQuery({
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: notificationsService.getUnreadCount,
+    enabled: !!user && navGroup === 'app',
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+  })
+  const unreadCount = unreadData?.unread_count ?? 0
+
+  if (!user) return null
+
+  const roleStyle = ROLE_BADGE_STYLES[user.role]
+
+  let navItems: NavItem[] = APP_NAV
+  if (navGroup === 'super-admin') navItems = SUPER_ADMIN_NAV
+  if (navGroup === 'reseller') navItems = RESELLER_NAV
+
+  const filtered = navItems.filter(item => canAccess(user.role, item.section))
+
+  async function handleLogout() {
+    await logout()
+    navigate('/login')
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-zinc-950 border-r border-zinc-800">
+      {/* Logo */}
+      <div className="px-4 py-5 border-b border-zinc-800 flex-shrink-0">
+        <Link to="/" className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center text-black font-black text-lg flex-shrink-0 shadow-lg shadow-amber-900/40">
+            N
+          </div>
+          <div>
+            <p className="font-bold text-zinc-100 text-sm leading-tight">NexusPOS</p>
+            <p className="text-zinc-500 text-[10px] leading-tight tracking-wider uppercase">Enterprise</p>
+          </div>
+        </Link>
+        {navGroup === 'app' && (
+          <div className="mt-3 space-y-2">
+            <BranchSelector compact />
+            {onSearch && (
+              <button
+                onClick={onSearch}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 transition-all duration-150"
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="flex-shrink-0">
+                  <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M10 10L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                <span className="flex-1 text-left">Search…</span>
+                <kbd className="text-[9px] bg-zinc-800 border border-zinc-700 rounded px-1">⌘K</kbd>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        {filtered.map(item => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.to.endsWith('/pos')}
+            onClick={onClose}
+            className={({ isActive }) => cn(
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left',
+              isActive
+                ? 'bg-amber-500/15 border border-amber-500/30 text-amber-400'
+                : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 border border-transparent',
+            )}
+          >
+            {({ isActive }) => (
+              <>
+                <span className={cn('flex-shrink-0', isActive ? 'text-amber-400' : 'text-zinc-500')}>
+                  {item.icon}
+                </span>
+                <span className="flex-1">{item.label}</span>
+                {item.section === 'notifications' && unreadCount > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </>
+            )}
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      <div className="px-3 pb-4 pt-3 border-t border-zinc-800 flex-shrink-0 space-y-3">
+        <Link
+          to={navGroup === 'app' ? '/app/profile' : '#'}
+          onClick={onClose}
+          className="flex items-center gap-3 px-2 py-1.5 rounded-xl hover:bg-zinc-800 transition-colors group"
+        >
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 border"
+            style={{ background: roleStyle.bg, color: roleStyle.text, borderColor: roleStyle.border }}
+          >
+            {user.first_name[0]}{user.last_name[0]}
+          </div>
+          <div className="min-w-0">
+            <p className="text-zinc-100 text-sm font-medium truncate leading-tight group-hover:text-amber-300 transition-colors">{user.full_name}</p>
+            <p className="text-zinc-500 text-xs leading-tight">{ROLE_LABELS[user.role]}</p>
+          </div>
+        </Link>
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-zinc-500 hover:text-red-400 hover:bg-red-950 border border-transparent hover:border-red-900 transition-all duration-150"
+        >
+          <IconLogout width="14" height="14" />
+          Sign Out
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export default function DashboardLayout({ navGroup = 'app' }: DashboardLayoutProps) {
+  const { sidebarOpen, closeSidebar, toggleSidebar } = useUIStore()
+  const { isOnline } = useUIStore()
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen(open => !open)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  useEffect(() => {
+    const onResize = () => { if (window.innerWidth >= 1024) closeSidebar() }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [closeSidebar])
+
+  return (
+    <div className="h-full flex overflow-hidden bg-zinc-950">
+      {/* Global search modal */}
+      {navGroup === 'app' && (
+        <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
+      )}
+
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex w-56 flex-shrink-0 flex-col h-full">
+        <SidebarContent navGroup={navGroup} onSearch={navGroup === 'app' ? () => setSearchOpen(true) : undefined} />
+      </aside>
+
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" onClick={closeSidebar} />
+      )}
+
+      {/* Mobile sidebar */}
+      <aside className={cn(
+        'lg:hidden fixed top-0 left-0 h-full w-64 z-50 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out',
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+      )}>
+        <div className="flex items-center justify-between px-4 py-3 bg-zinc-950 border-b border-zinc-800 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center text-black font-black text-sm">N</div>
+            <span className="font-bold text-zinc-100 text-sm">NexusPOS</span>
+          </div>
+          <button onClick={closeSidebar} className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800">
+            <IconX width="16" height="16" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <SidebarContent
+            navGroup={navGroup}
+            onClose={closeSidebar}
+            onSearch={navGroup === 'app' ? () => { setSearchOpen(true); closeSidebar() } : undefined}
+          />
+        </div>
+      </aside>
+
+      {/* Main area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {!isOnline && (
+          <div className="flex-shrink-0 bg-amber-950 border-b border-amber-800 px-4 py-1.5">
+            <span className="text-amber-400 text-xs font-medium">Working offline — changes will sync when reconnected</span>
+          </div>
+        )}
+        {navGroup === 'app' && <TrialBanner />}
+        {/* Mobile top bar */}
+        <header className="lg:hidden flex items-center gap-3 px-4 py-2.5 border-b border-zinc-800 bg-zinc-950 flex-shrink-0">
+          <button onClick={toggleSidebar} className="text-zinc-500 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors">
+            <IconMenu width="16" height="16" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-amber-500 flex items-center justify-center flex-shrink-0">
+              <span className="text-black font-black text-xs">N</span>
+            </div>
+            <span className="text-xs font-semibold text-zinc-400">NexusPOS</span>
+          </div>
+          <div className="flex-1" />
+          {navGroup === 'app' && (
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="text-zinc-500 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+              title="Search (Ctrl+K)"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M10 10L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
+          <NotificationBell />
+        </header>
+        {/* Child route renders here */}
+        <main className="flex-1 overflow-hidden">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  )
+}

@@ -15,7 +15,10 @@ from app.core.constants import (
     SubscriptionStatus,
 )
 from app.core.exceptions import BusinessRuleError, ConflictError, NotFoundError
+from app.core.logging import get_logger
 from app.services.audit_service import AuditService
+
+logger = get_logger(__name__)
 from app.subscriptions.models import (
     PaymentProof,
     PlanEntitlement,
@@ -65,6 +68,11 @@ class PlanService:
         if existing:
             raise ConflictError(f"Plan with code '{data.code}' already exists")
 
+        if data.is_trial:
+            existing_count = await self.plan_repo.count_trial_plans()
+            if existing_count > 0:
+                raise ConflictError("Only one active trial plan is allowed")
+
         plan = SubscriptionPlan(
             name=data.name,
             code=data.code,
@@ -74,6 +82,8 @@ class PlanService:
             currency=data.currency,
             trial_days=data.trial_days,
             is_active=data.is_active,
+            is_trial=data.is_trial,
+            is_public=data.is_public,
             sort_order=data.sort_order,
         )
         self.session.add(plan)
@@ -126,8 +136,23 @@ class PlanService:
             plan.trial_days = data.trial_days
         if data.is_active is not None:
             plan.is_active = data.is_active
+        if data.is_trial is not None:
+            plan.is_trial = data.is_trial
+        if data.is_public is not None:
+            plan.is_public = data.is_public
         if data.sort_order is not None:
             plan.sort_order = data.sort_order
+
+        # Guard: still only one active trial plan allowed after update
+        becoming_trial = data.is_trial is True and not plan.is_trial
+        becoming_active = data.is_active is True and not plan.is_active
+        if (becoming_trial or (data.is_trial is True and (becoming_active or plan.is_active))):
+            existing_count = await self.plan_repo.count_trial_plans()
+            # Exclude the plan being updated from the count
+            if plan.is_trial and plan.is_active:
+                existing_count -= 1
+            if existing_count > 0:
+                raise ConflictError("Only one active trial plan is allowed")
 
         if data.entitlements is not None:
             for ent in list(plan.entitlements):
@@ -193,6 +218,12 @@ class PlanService:
         return await self.plan_repo.get_all(
             offset=offset, limit=page_size, include_inactive=include_inactive
         )
+
+    async def get_trial_plan(self) -> SubscriptionPlan | None:
+        return await self.plan_repo.get_trial_plan()
+
+    async def list_public_plans(self) -> list[SubscriptionPlan]:
+        return await self.plan_repo.get_public_plans()
 
 
 
@@ -332,7 +363,24 @@ class SubscriptionService:
             request_id=request_id,
         )
 
-        return await self.sub_repo.get_by_tenant(tenant_id)  # type: ignore[return-value]
+        result = await self.sub_repo.get_by_tenant(tenant_id)
+        try:
+            from app.events.base import DomainEvent
+            from app.events.publisher import event_publisher
+            from app.events.types import EventType
+            await event_publisher.publish(DomainEvent(
+                event_type=EventType.SUBSCRIPTION_ACTIVATED,
+                tenant_id=tenant_id,
+                actor_id=actor_id,
+                payload={
+                    "plan_name": plan.name,
+                    "plan_id": str(data.plan_id),
+                    "expires_at": sub.expires_at.isoformat(),
+                },
+            ))
+        except Exception as exc:
+            logger.warning("subscription_activated_event_failed", error=str(exc))
+        return result  # type: ignore[return-value]
 
     async def renew_subscription(
         self,
@@ -378,7 +426,23 @@ class SubscriptionService:
             request_id=request_id,
         )
 
-        return await self.sub_repo.get_by_tenant(tenant_id)  # type: ignore[return-value]
+        result = await self.sub_repo.get_by_tenant(tenant_id)
+        try:
+            from app.events.base import DomainEvent
+            from app.events.publisher import event_publisher
+            from app.events.types import EventType
+            await event_publisher.publish(DomainEvent(
+                event_type=EventType.SUBSCRIPTION_RENEWED,
+                tenant_id=tenant_id,
+                actor_id=actor_id,
+                payload={
+                    "plan_name": sub.plan.name if sub.plan else "",
+                    "expires_at": sub.expires_at.isoformat(),
+                },
+            ))
+        except Exception as exc:
+            logger.warning("subscription_renewed_event_failed", error=str(exc))
+        return result  # type: ignore[return-value]
 
     async def upgrade_subscription(
         self,
@@ -424,7 +488,25 @@ class SubscriptionService:
             request_id=request_id,
         )
 
-        return await self.sub_repo.get_by_tenant(tenant_id)  # type: ignore[return-value]
+        result = await self.sub_repo.get_by_tenant(tenant_id)
+        try:
+            from app.events.base import DomainEvent
+            from app.events.publisher import event_publisher
+            from app.events.types import EventType
+            old_plan = await self.plan_repo.get_by_id(old_plan_id)
+            await event_publisher.publish(DomainEvent(
+                event_type=EventType.SUBSCRIPTION_UPGRADED,
+                tenant_id=tenant_id,
+                actor_id=actor_id,
+                payload={
+                    "old_plan_name": old_plan.name if old_plan else str(old_plan_id),
+                    "new_plan_name": new_plan.name,
+                    "new_plan_id": str(data.plan_id),
+                },
+            ))
+        except Exception as exc:
+            logger.warning("subscription_upgraded_event_failed", error=str(exc))
+        return result  # type: ignore[return-value]
 
     async def downgrade_subscription(
         self,
@@ -470,7 +552,25 @@ class SubscriptionService:
             request_id=request_id,
         )
 
-        return await self.sub_repo.get_by_tenant(tenant_id)  # type: ignore[return-value]
+        result = await self.sub_repo.get_by_tenant(tenant_id)
+        try:
+            from app.events.base import DomainEvent
+            from app.events.publisher import event_publisher
+            from app.events.types import EventType
+            old_plan = await self.plan_repo.get_by_id(old_plan_id)
+            await event_publisher.publish(DomainEvent(
+                event_type=EventType.SUBSCRIPTION_DOWNGRADED,
+                tenant_id=tenant_id,
+                actor_id=actor_id,
+                payload={
+                    "old_plan_name": old_plan.name if old_plan else str(old_plan_id),
+                    "new_plan_name": new_plan.name,
+                    "new_plan_id": str(data.plan_id),
+                },
+            ))
+        except Exception as exc:
+            logger.warning("subscription_downgraded_event_failed", error=str(exc))
+        return result  # type: ignore[return-value]
 
     async def cancel_subscription(
         self,
@@ -623,6 +723,62 @@ class SubscriptionService:
 
 
 
+class TrialStatusService:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+        self.sub_repo = TenantSubscriptionRepository(session)
+
+    async def get_status(self, tenant_id: uuid.UUID) -> Any:
+        from sqlalchemy import func, select
+        from app.models.branch import Branch
+        from app.models.user import User
+        from app.customers.models import Customer
+        from app.subscriptions.entitlements import EntitlementService
+
+        sub = await self.sub_repo.get_by_tenant(tenant_id)
+        if not sub:
+            raise NotFoundError("TenantSubscription", tenant_id)
+
+        now = _now()
+        expires_at = sub.expires_at
+        delta = expires_at - now
+        days_remaining = max(0, delta.days)
+        is_expired = now >= expires_at
+
+        async def _count(model: Any, *filters: Any) -> int:
+            stmt = select(func.count()).select_from(model).where(*filters)
+            result = await self.session.execute(stmt)
+            return result.scalar_one()
+
+        from app.models.product import Product
+        product_count = await _count(Product, Product.tenant_id == tenant_id, Product.is_deleted.is_(False))
+        staff_count   = await _count(User,    User.tenant_id == tenant_id,    User.is_deleted.is_(False))
+        branch_count  = await _count(Branch,  Branch.tenant_id == tenant_id)
+        customer_count = await _count(Customer, Customer.tenant_id == tenant_id, Customer.is_active.is_(True))
+
+        # Use effective limits (respects super_admin overrides)
+        ent_svc = EntitlementService(self.session)
+        async def _eff_limit(feature_code: str) -> int | None:
+            return await ent_svc.get_effective_limit(tenant_id, feature_code)
+
+        from app.subscriptions.schemas import TrialStatusResponse
+        return TrialStatusResponse(
+            status=sub.status,
+            plan_name=sub.plan.name,
+            plan_code=sub.plan.code,
+            started_at=sub.started_at.isoformat(),
+            expires_at=sub.expires_at.isoformat(),
+            days_remaining=days_remaining,
+            is_expired=is_expired,
+            usage={
+                "products":  {"used": product_count,  "limit": await _eff_limit("products")},
+                "staff":     {"used": staff_count,     "limit": await _eff_limit("users")},
+                "branches":  {"used": branch_count,    "limit": await _eff_limit("branches")},
+                "customers": {"used": customer_count,  "limit": await _eff_limit("customers")},
+            },
+        )
+
+
 class PaymentProofService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -748,6 +904,36 @@ class PaymentProofService:
             request_id=request_id,
         )
 
+        # Commission generation — fail-open so approval is never blocked
+        try:
+            from decimal import Decimal
+            from app.reseller_finance.services.commission_service import CommissionService
+            from app.reseller_finance.services.referral_service import ReferralService
+            commission_svc = CommissionService(self.session)
+            referral_svc = ReferralService(self.session)
+            await commission_svc.try_earn_commission(
+                tenant_id=sub.tenant_id,
+                subscription_id=sub.id,
+                payment_proof_id=proof_id,
+                actual_paid_amount=Decimal(str(proof.amount)),
+                currency_code=proof.currency,
+                actor_id=actor_id,
+                request_id=request_id,
+            )
+            # Lock referral on first paid subscription
+            await referral_svc.lock_referral(
+                tenant_id=sub.tenant_id,
+                first_paid_at=now,
+            )
+        except Exception as exc:
+            from app.core.logging import get_logger as _get_logger
+            _get_logger(__name__).warning(
+                "commission_earn_failed",
+                tenant_id=str(sub.tenant_id),
+                proof_id=str(proof_id),
+                error=str(exc),
+            )
+
         return proof
 
     async def reject_proof(
@@ -795,3 +981,12 @@ class PaymentProofService:
         return await self.proof_repo.get_by_tenant(
             tenant_id, offset=offset, limit=page_size
         )
+
+    async def list_all_proofs(
+        self,
+        status: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[PaymentProof], int]:
+        offset = (page - 1) * page_size
+        return await self.proof_repo.get_all(status=status, offset=offset, limit=page_size)

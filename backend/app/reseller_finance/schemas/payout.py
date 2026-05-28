@@ -1,0 +1,72 @@
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+from decimal import Decimal
+
+from pydantic import Field
+
+from app.schemas.common import BaseSchema, PaginatedResponse, TimestampedSchema
+
+
+# Request schemas
+
+
+class PayoutRequestCreate(BaseSchema):
+    """Reseller self-service payout request.
+
+    Amount must be positive and will be validated against the wallet's
+    ``available_balance`` and ``min_payout_amount`` by the service layer.
+    """
+
+    amount: Decimal = Field(gt=0)
+    reason: str | None = None
+
+
+class AdminPayoutCreate(BaseSchema):
+    """Super-admin initiated payout on behalf of a reseller."""
+
+    reseller_id: uuid.UUID
+    amount: Decimal = Field(gt=0)
+    reason: str
+
+
+class PayoutReviewRequest(BaseSchema):
+    """Optional notes when approving or rejecting a payout."""
+
+    notes: str | None = None
+
+
+class PayoutMarkPaidRequest(BaseSchema):
+    """Mark an approved payout as disbursed.
+
+    All fields are optional audit metadata; at least one is recommended.
+    """
+
+    payout_method: str | None = None      # e.g. "bank_transfer", "mobile_money"
+    payout_reference: str | None = None   # external transaction / receipt number
+    payout_notes: str | None = None
+
+
+# Response schemas
+
+
+class PayoutRequestResponse(TimestampedSchema):
+    reseller_id: uuid.UUID
+    wallet_id: uuid.UUID
+    amount: Decimal
+    currency_code: str
+    status: str                            # PENDING | UNDER_REVIEW | APPROVED | REJECTED | PAID | CANCELLED
+    reason: str | None
+    payout_method: str | None
+    payout_reference: str | None
+    payout_notes: str | None
+    requested_at: datetime
+    reviewed_at: datetime | None
+    paid_at: datetime | None
+    reviewed_by: uuid.UUID | None
+
+
+# Paginated type aliases
+
+PaginatedPayoutRequests = PaginatedResponse[PayoutRequestResponse]

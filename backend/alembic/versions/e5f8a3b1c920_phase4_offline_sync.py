@@ -1,6 +1,6 @@
 """phase4_offline_sync
 
-Adds Phase 4 device registration and offline sync tables:
+Adds device registration and offline sync tables:
   - pos_devices
   - sync_checkpoints
   - sync_operations

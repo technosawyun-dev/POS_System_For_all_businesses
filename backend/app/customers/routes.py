@@ -10,6 +10,7 @@ from app.api.deps import (
     DbSession,
     EffectiveTenantId,
     RequestId,
+    check_reseller_access,
     require_cashier_or_above,
     require_manager_or_above,
     require_tenant_admin,
@@ -31,6 +32,7 @@ from app.customers.schemas import (
 )
 from app.customers.services import CustomerService
 from app.schemas.common import PaginatedResponse, SuccessResponse
+from app.subscriptions.gates import validate_customer_limit
 
 router = APIRouter()
 
@@ -40,7 +42,7 @@ router = APIRouter()
     response_model=CustomerResponse,
     status_code=201,
     summary="Create customer",
-    dependencies=[Depends(require_cashier_or_above)],
+    dependencies=[Depends(require_cashier_or_above), Depends(validate_customer_limit), check_reseller_access("customer:view", check_branch=False)],
 )
 async def create_customer(
     payload: CreateCustomerRequest,
@@ -63,14 +65,14 @@ async def create_customer(
     "",
     response_model=PaginatedCustomerResponse,
     summary="List customers",
-    dependencies=[Depends(require_cashier_or_above)],
+    dependencies=[Depends(require_cashier_or_above), check_reseller_access("customer:view", check_branch=False)],
 )
 async def list_customers(
     db: DbSession,
     current_user: CurrentUser,
     tenant_id: EffectiveTenantId,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
     is_active: bool | None = Query(default=None),
 ) -> PaginatedCustomerResponse:
     service = CustomerService(db)
@@ -94,7 +96,7 @@ async def list_customers(
     "/search",
     response_model=PaginatedCustomerResponse,
     summary="Search customers by name, phone, code or email",
-    dependencies=[Depends(require_cashier_or_above)],
+    dependencies=[Depends(require_cashier_or_above), check_reseller_access("customer:view", check_branch=False)],
 )
 async def search_customers(
     db: DbSession,
@@ -102,7 +104,7 @@ async def search_customers(
     tenant_id: EffectiveTenantId,
     q: str = Query(min_length=1, description="Search term"),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> PaginatedCustomerResponse:
     service = CustomerService(db)
     customers, total = await service.search_customers(
@@ -123,7 +125,7 @@ async def search_customers(
     "/{customer_id}",
     response_model=CustomerResponse,
     summary="Get customer with contacts",
-    dependencies=[Depends(require_cashier_or_above)],
+    dependencies=[Depends(require_cashier_or_above), check_reseller_access("customer:view", check_branch=False)],
 )
 async def get_customer(
     customer_id: uuid.UUID,
@@ -140,7 +142,7 @@ async def get_customer(
     "/{customer_id}",
     response_model=CustomerResponse,
     summary="Update customer",
-    dependencies=[Depends(require_cashier_or_above)],
+    dependencies=[Depends(require_cashier_or_above), check_reseller_access("customer:view", check_branch=False)],
 )
 async def update_customer(
     customer_id: uuid.UUID,
@@ -244,7 +246,7 @@ async def add_note(
     response_model=CustomerLedgerResponse,
     status_code=201,
     summary="Record a customer payment (reduces outstanding balance)",
-    dependencies=[Depends(require_cashier_or_above)],
+    dependencies=[Depends(require_cashier_or_above), check_reseller_access("customer:payment", check_branch=False)],
 )
 async def record_payment(
     customer_id: uuid.UUID,
@@ -296,7 +298,7 @@ async def adjust_balance(
     "/{customer_id}/ledger",
     response_model=list[CustomerLedgerResponse],
     summary="Get customer ledger entries",
-    dependencies=[Depends(require_cashier_or_above)],
+    dependencies=[Depends(require_cashier_or_above), check_reseller_access("customer:view", check_branch=False)],
 )
 async def get_ledger(
     customer_id: uuid.UUID,

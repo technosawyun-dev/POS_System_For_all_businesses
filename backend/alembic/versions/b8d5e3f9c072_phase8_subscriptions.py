@@ -1,6 +1,6 @@
 """phase8_subscriptions
 
-Adds Phase 8 subscription & billing tables:
+Adds subscription & billing tables:
   - subscription_plans
   - plan_entitlements
   - tenant_subscriptions
@@ -24,7 +24,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # ── subscription_plans ────────────────────────────────────────────────────
+    # subscription_plans
     op.create_table(
         "subscription_plans",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
@@ -46,7 +46,7 @@ def upgrade() -> None:
     op.create_index("ix_subscription_plans_code", "subscription_plans", ["code"])
     op.create_index("ix_subscription_plans_is_active", "subscription_plans", ["is_active"])
 
-    # ── plan_entitlements ─────────────────────────────────────────────────────
+    # plan_entitlements
     op.create_table(
         "plan_entitlements",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
@@ -63,7 +63,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_plan_entitlements_plan_id", "plan_entitlements", ["plan_id"])
 
-    # ── tenant_subscriptions ──────────────────────────────────────────────────
+    # tenant_subscriptions
     op.create_table(
         "tenant_subscriptions",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
@@ -89,7 +89,7 @@ def upgrade() -> None:
     op.create_index("ix_tenant_subscriptions_status", "tenant_subscriptions", ["status"])
     op.create_index("ix_tenant_subscriptions_expires_at", "tenant_subscriptions", ["expires_at"])
 
-    # ── subscription_histories ────────────────────────────────────────────────
+    # subscription_histories
     op.create_table(
         "subscription_histories",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
@@ -119,7 +119,7 @@ def upgrade() -> None:
     op.create_index("ix_subscription_histories_tenant_id", "subscription_histories", ["tenant_id"])
     op.create_index("ix_subscription_histories_subscription_id", "subscription_histories", ["subscription_id"])
 
-    # ── payment_proofs ────────────────────────────────────────────────────────
+    # payment_proofs
     op.create_table(
         "payment_proofs",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),

@@ -23,8 +23,8 @@ export class POSDatabase extends Dexie {
 }
 
 export const db = new POSDatabase()
+// Seed helpers
 
-// ─── Seed helpers ─────────────────────────────────────────────────────────────
 
 export async function seedProducts(products: Product[]) {
   const count = await db.products.count()
@@ -35,8 +35,8 @@ export async function seedCategories(categories: Category[]) {
   const count = await db.categories.count()
   if (count === 0) await db.categories.bulkPut(categories)
 }
+// Cart helpers
 
-// ─── Cart helpers ─────────────────────────────────────────────────────────────
 
 export async function saveCartToDB(items: CartItem[]) {
   await db.cart.clear()
@@ -46,8 +46,8 @@ export async function saveCartToDB(items: CartItem[]) {
 export async function loadCartFromDB(): Promise<CartItem[]> {
   return db.cart.toArray()
 }
+// Sync queue helpers
 
-// ─── Sync queue helpers ───────────────────────────────────────────────────────
 
 export async function enqueueSyncOp(op: SyncOperation) {
   await db.syncQueue.put(op)

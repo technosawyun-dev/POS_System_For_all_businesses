@@ -1,11 +1,6 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 import { useMemo } from 'react'
-import type {
-  CartItem, Product, CheckoutStep, PaymentMethod,
-  SplitPayment, Sale, CartTotals,
-} from '@/types'
-import { TAX_RATE } from '@/lib/utils'
+import type { CartItem, Product, CheckoutStep, PaymentMethod, SplitPayment, CartTotals } from '@/types'
 
 interface CartState {
   items: CartItem[]
@@ -17,7 +12,9 @@ interface CartState {
   paymentMethod: PaymentMethod
   paymentAmount: string
   splitPayments: SplitPayment[]
-  completedSale: Sale | null
+
+  // Completed order tracking (replaces completedSale)
+  completedOrderId: string | null
 
   // Actions — cart
   addItem: (product: Product) => void
@@ -34,92 +31,91 @@ interface CartState {
   setPaymentAmount: (amount: string) => void
   addSplitPayment: (p: SplitPayment) => void
   removeSplitPayment: (index: number) => void
-  completeSale: (sale: Sale) => void
+  completeOrder: (orderId: string) => void
   newSale: () => void
 }
 
-export const useCartStore = create<CartState>()(
-  persist(
-    (set) => ({
-      items: [],
-      discount: 0,
-      note: '',
-      checkoutStep: 'cart',
-      paymentMethod: 'cash',
-      paymentAmount: '',
-      splitPayments: [],
-      completedSale: null,
+// Derived totals hook
+export const useCartStore = create<CartState>()((set) => ({
+  items: [],
+  discount: 0,
+  note: '',
+  checkoutStep: 'cart',
+  paymentMethod: 'cash',
+  paymentAmount: '',
+  splitPayments: [],
+  completedOrderId: null,
 
-      addItem: (product) => set(state => {
-        const existing = state.items.find(i => i.id === product.id)
-        if (existing) {
-          return {
-            items: state.items.map(i =>
-              i.id === product.id ? { ...i, qty: i.qty + 1 } : i
-            ),
-          }
-        }
-        return { items: [...state.items, { ...product, qty: 1, lineDiscount: 0 }] }
-      }),
+  addItem: (product) => set(state => {
+    const existing = state.items.find(i => i.id === product.id)
+    if (existing) {
+      return { items: state.items.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i) }
+    }
+    return { items: [...state.items, { ...product, qty: 1, lineDiscount: 0 }] }
+  }),
 
-      removeItem: (id) => set(state => ({ items: state.items.filter(i => i.id !== id) })),
+  removeItem: (id) => set(state => ({ items: state.items.filter(i => i.id !== id) })),
 
-      updateQty: (id, qty) => set(state => {
-        if (qty <= 0) return { items: state.items.filter(i => i.id !== id) }
-        return { items: state.items.map(i => i.id === id ? { ...i, qty } : i) }
-      }),
+  updateQty: (id, qty) => set(state => {
+    if (qty <= 0) return { items: state.items.filter(i => i.id !== id) }
+    return { items: state.items.map(i => i.id === id ? { ...i, qty } : i) }
+  }),
 
-      updateLineDiscount: (id, discount) => set(state => ({
-        items: state.items.map(i => i.id === id ? { ...i, lineDiscount: discount } : i),
-      })),
+  updateLineDiscount: (id, discount) => set(state => ({
+    items: state.items.map(i => i.id === id ? { ...i, lineDiscount: discount } : i),
+  })),
 
-      setDiscount: (discount) => set({ discount }),
-      setNote: (note) => set({ note }),
+  setDiscount: (discount) => set({ discount }),
+  setNote: (note) => set({ note }),
 
-      clearCart: () => set({
-        items: [], discount: 0, note: '',
-        checkoutStep: 'cart', paymentAmount: '', splitPayments: [],
-      }),
+  clearCart: () => set({
+    items: [], discount: 0, note: '',
+    checkoutStep: 'cart', paymentAmount: '', splitPayments: [],
+    completedOrderId: null,
+  }),
 
-      setCheckoutStep: (checkoutStep) => set({ checkoutStep }),
-      setPaymentMethod: (paymentMethod) => set({ paymentMethod, paymentAmount: '', splitPayments: [] }),
-      setPaymentAmount: (paymentAmount) => set({ paymentAmount }),
-      addSplitPayment: (p) => set(state => ({ splitPayments: [...state.splitPayments, p] })),
-      removeSplitPayment: (index) => set(state => ({
-        splitPayments: state.splitPayments.filter((_, i) => i !== index),
-      })),
+  setCheckoutStep: (checkoutStep) => set({ checkoutStep }),
+  setPaymentMethod: (paymentMethod) => set({ paymentMethod, paymentAmount: '', splitPayments: [] }),
+  setPaymentAmount: (paymentAmount) => set({ paymentAmount }),
+  addSplitPayment: (p) => set(state => ({ splitPayments: [...state.splitPayments, p] })),
+  removeSplitPayment: (index) => set(state => ({
+    splitPayments: state.splitPayments.filter((_, i) => i !== index),
+  })),
 
-      completeSale: (sale) => set({ completedSale: sale, checkoutStep: 'receipt' }),
+  completeOrder: (orderId) => set({ completedOrderId: orderId, checkoutStep: 'receipt' }),
 
-      newSale: () => set({
-        items: [], discount: 0, note: '',
-        checkoutStep: 'cart', paymentAmount: '', splitPayments: [],
-        completedSale: null,
-      }),
-    }),
-    {
-      name: 'nexuspos-cart',
-      partialize: (s) => ({ items: s.items, discount: s.discount, note: s.note }),
-    },
-  ),
-)
+  newSale: () => set({
+    items: [], discount: 0, note: '',
+    checkoutStep: 'cart', paymentAmount: '', splitPayments: [],
+    completedOrderId: null,
+  }),
+}))
 
-// ─── Derived totals hook ──────────────────────────────────────────────────────
 export function useCartTotals(): CartTotals {
   const items = useCartStore(s => s.items)
   const discount = useCartStore(s => s.discount)
 
   return useMemo(() => {
-    const itemSubtotal = items.reduce((sum, item) => {
+    let itemSubtotal = 0
+    let rawTax = 0
+    let itemCount = 0
+
+    for (const item of items) {
       const lineTotal = item.price * item.qty
       const lineDisc = (item.lineDiscount || 0) / 100 * lineTotal
-      return sum + lineTotal - lineDisc
-    }, 0)
+      const lineNet = lineTotal - lineDisc
+      itemSubtotal += lineNet
+      rawTax += lineNet * (item.taxRate || 0)
+      itemCount += item.qty
+    }
+
     const orderDiscAmt = (discount || 0) / 100 * itemSubtotal
     const afterDiscount = itemSubtotal - orderDiscAmt
-    const tax = Math.max(0, afterDiscount * TAX_RATE)
+    // Distribute order-level discount proportionally across tax
+    const taxMultiplier = itemSubtotal > 0 ? afterDiscount / itemSubtotal : 1
+    const tax = Math.max(0, rawTax * taxMultiplier)
     const total = Math.max(0, afterDiscount + tax)
-    const itemCount = items.reduce((s, i) => s + i.qty, 0)
+
     return {
       itemSubtotal: Math.round(itemSubtotal * 100) / 100,
       orderDiscAmt: Math.round(orderDiscAmt * 100) / 100,

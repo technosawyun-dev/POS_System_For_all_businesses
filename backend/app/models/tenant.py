@@ -21,6 +21,7 @@ class Tenant(Base):
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    business_code: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default=TenantStatus.TRIAL)
 
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -30,7 +31,7 @@ class Tenant(Base):
     city: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     timezone: Mapped[str] = mapped_column(String(100), nullable=False, default="UTC")
-    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="USD")
+    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="MMK")
     locale: Mapped[str] = mapped_column(String(20), nullable=False, default="en-US")
 
     owner_id: Mapped[uuid.UUID | None] = mapped_column(

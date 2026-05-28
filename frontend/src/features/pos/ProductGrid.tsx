@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import type { Product, CartItem } from '@/types'
 import { Empty } from '@/components/ui'
 import { IconProducts } from '@/components/icons'
@@ -10,6 +11,13 @@ interface ProductGridProps {
 }
 
 export default function ProductGrid({ products, cartItems, onAdd }: ProductGridProps) {
+  // O(1) qty lookup instead of O(n) Array.find per card
+  const cartQtyMap = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const item of cartItems) m.set(item.id, item.qty)
+    return m
+  }, [cartItems])
+
   if (products.length === 0) {
     return (
       <Empty
@@ -25,17 +33,14 @@ export default function ProductGrid({ products, cartItems, onAdd }: ProductGridP
       className="grid gap-2 p-2"
       style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))' }}
     >
-      {products.map(product => {
-        const cartItem = cartItems.find(i => i.id === product.id)
-        return (
-          <ProductCard
-            key={product.id}
-            product={product}
-            cartQty={cartItem?.qty ?? 0}
-            onAdd={onAdd}
-          />
-        )
-      })}
+      {products.map(product => (
+        <ProductCard
+          key={product.id}
+          product={product}
+          cartQty={cartQtyMap.get(product.id) ?? 0}
+          onAdd={onAdd}
+        />
+      ))}
     </div>
   )
 }

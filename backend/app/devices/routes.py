@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query, status
 from app.api.deps import (
     DbSession,
     EffectiveTenantId,
+    get_effective_tenant_id,
     require_roles,
 )
 from app.core.constants import UserRole
@@ -51,7 +52,7 @@ async def register_device(
     data: DeviceRegisterRequest,
     db: DbSession,
     current_user: User = _manage_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> DeviceResponse:
     svc = DeviceService(db)
     device = await svc.register_device(
@@ -74,11 +75,11 @@ async def register_device(
 async def list_devices(
     db: DbSession,
     current_user: User = _view_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
     branch_id: uuid.UUID | None = Query(default=None),
     is_active: bool | None = Query(default=None),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> DeviceListResponse:
     svc = DeviceService(db)
     items, total = await svc.list_devices(
@@ -105,7 +106,7 @@ async def get_device(
     device_id: uuid.UUID,
     db: DbSession,
     current_user: User = _view_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> DeviceResponse:
     svc = DeviceService(db)
     device = await svc.get_device(device_id, tenant_id)
@@ -122,7 +123,7 @@ async def update_device(
     data: DeviceUpdateRequest,
     db: DbSession,
     current_user: User = _manage_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> DeviceResponse:
     svc = DeviceService(db)
     device = await svc.update_device(
@@ -144,7 +145,7 @@ async def deactivate_device(
     device_id: uuid.UUID,
     db: DbSession,
     current_user: User = _admin_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> DeviceResponse:
     svc = DeviceService(db)
     device = await svc.deactivate_device(
@@ -164,7 +165,7 @@ async def device_heartbeat(
     device_id: uuid.UUID,
     db: DbSession,
     current_user: User = _manage_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> DeviceResponse:
     svc = DeviceService(db)
     device = await svc.touch_heartbeat(device_id, tenant_id)

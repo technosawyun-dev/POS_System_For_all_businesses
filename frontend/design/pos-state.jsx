@@ -1,6 +1,4 @@
-// ============================================================
 // pos-state.jsx — Global app state via React Context + useReducer
-// ============================================================
 
 const {
   useState, useReducer, useContext, createContext,
@@ -343,7 +341,7 @@ function useApp() {
   return useContext(AppContext);
 }
 
-// ─── Formatters ─────────────────────────────────────────────
+// Formatters
 function fmt(amount) {
   return `${CURRENCY_SYMBOL}${Number(amount || 0).toFixed(2)}`;
 }

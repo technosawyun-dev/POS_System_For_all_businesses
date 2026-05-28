@@ -3,7 +3,8 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
+from pydantic import BaseModel as _BaseModel
 
 from app.api.deps import (
     CurrentUser,
@@ -18,6 +19,7 @@ from app.models.user import User
 from app.subscriptions.schemas import (
     ActivateSubscriptionRequest,
     ChangePlanRequest,
+    EffectiveEntitlementResponse,
     PaginatedPaymentProofs,
     PaginatedPlans,
     PaginatedSubscriptionHistory,
@@ -29,8 +31,10 @@ from app.subscriptions.schemas import (
     ReviewProofRequest,
     SubscriptionResponse,
     SubscriptionHistoryResponse,
+    TrialStatusResponse,
 )
-from app.subscriptions.services import PaymentProofService, PlanService, SubscriptionService
+from app.subscriptions.entitlements import EntitlementService
+from app.subscriptions.services import PaymentProofService, PlanService, SubscriptionService, TrialStatusService
 from app.schemas.common import PaginatedResponse
 
 router = APIRouter()
@@ -54,7 +58,7 @@ async def list_plans(
     db: DbSession,
     current_user: CurrentUser,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
     include_inactive: bool = Query(default=False),
 ) -> PaginatedPlans:
     svc = PlanService(db)
@@ -96,6 +100,16 @@ async def update_plan(
 
 
 
+@router.get("/status", response_model=TrialStatusResponse, summary="Get trial/subscription status with usage metrics")
+async def get_subscription_status(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+) -> TrialStatusResponse:
+    svc = TrialStatusService(db)
+    return await svc.get_status(tenant_id=tenant_id)
+
+
 @router.get("/me", response_model=SubscriptionResponse)
 async def get_my_subscription(
     db: DbSession,
@@ -105,6 +119,25 @@ async def get_my_subscription(
     svc = SubscriptionService(db)
     sub = await svc.get_subscription(tenant_id)
     return SubscriptionResponse.model_validate(sub)
+
+
+@router.get("/entitlements", response_model=list[EffectiveEntitlementResponse])
+async def get_my_effective_entitlements(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+) -> list[EffectiveEntitlementResponse]:
+    svc = EntitlementService(db)
+    entitlements = await svc.get_all_effective_entitlements(tenant_id)
+    return [
+        EffectiveEntitlementResponse(
+            feature_code=e.feature_code,
+            enabled=e.enabled,
+            limit_value=e.limit_value,
+            source=e.source,
+        )
+        for e in entitlements
+    ]
 
 
 @router.post("/activate", response_model=SubscriptionResponse)
@@ -215,7 +248,7 @@ async def list_subscription_history(
     current_user: Annotated[User, Depends(require_manager_or_above)],
     tenant_id: EffectiveTenantId,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> PaginatedSubscriptionHistory:
     svc = SubscriptionService(db)
     items, total = await svc.get_history(tenant_id=tenant_id, page=page, page_size=page_size)
@@ -226,6 +259,26 @@ async def list_subscription_history(
         page_size=page_size,
     )
 
+
+
+class _UploadResponse(_BaseModel):
+    url: str
+
+
+@router.post(
+    "/payment-proofs/upload",
+    summary="Upload a payment proof file (jpg/png/pdf, max configurable MB)",
+    response_model=_UploadResponse,
+    status_code=201,
+)
+async def upload_payment_proof_file(
+    current_user: Annotated[User, Depends(require_tenant_admin)],
+    tenant_id: EffectiveTenantId,
+    file: UploadFile = File(..., description="Payment receipt (jpg/png/pdf)"),
+) -> _UploadResponse:
+    from app.core.upload import save_payment_proof
+    url = await save_payment_proof(file=file, tenant_id=tenant_id)
+    return _UploadResponse(url=url)
 
 
 @router.post("/payment-proofs", response_model=PaymentProofResponse, status_code=201)
@@ -249,7 +302,7 @@ async def list_payment_proofs(
     current_user: Annotated[User, Depends(require_manager_or_above)],
     tenant_id: EffectiveTenantId,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> PaginatedPaymentProofs:
     svc = PaymentProofService(db)
     items, total = await svc.list_proofs(tenant_id=tenant_id, page=page, page_size=page_size)

@@ -1,9 +1,8 @@
 import { useEffect, type ReactNode, type ButtonHTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
-import { IconX, IconCheck, IconAlert, IconSync } from '@/components/icons'
-import type { Toast } from '@/types'
+import { IconX } from '@/components/icons'
 
-// ─── Badge ────────────────────────────────────────────────────────────────────
+// Badge
 type BadgeVariant = 'default' | 'success' | 'danger' | 'warning' | 'info' | 'purple' | 'orange'
 type BadgeSize = 'xs' | 'sm' | 'md'
 
@@ -37,7 +36,7 @@ export function Badge({ children, variant = 'default', size = 'sm', dot = false 
   )
 }
 
-// ─── Button ───────────────────────────────────────────────────────────────────
+// Button
 type BtnVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success' | 'outline'
 type BtnSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 
@@ -76,16 +75,18 @@ export function Btn({ children, variant = 'primary', size = 'md', fullWidth = fa
   )
 }
 
-// ─── Input ────────────────────────────────────────────────────────────────────
+// Input
 export function Input({ label, prefix, suffix, className = '', ...rest }: {
   label?: string; prefix?: ReactNode; suffix?: ReactNode; className?: string
 } & React.InputHTMLAttributes<HTMLInputElement>) {
+  const inputId = rest.id ?? (rest.name ?? (label ? `input-${label.toLowerCase().replace(/\s+/g, '-')}` : undefined))
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
-      {label && <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">{label}</label>}
+      {label && <label htmlFor={inputId} className="text-xs font-medium text-zinc-500 uppercase tracking-wider">{label}</label>}
       <div className="relative flex items-center">
         {prefix && <span className="absolute left-3 text-zinc-500 pointer-events-none flex items-center">{prefix}</span>}
         <input
+          id={inputId}
           className={cn(
             'w-full bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-100 placeholder-zinc-600',
             'focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 transition-all duration-150',
@@ -102,7 +103,7 @@ export function Input({ label, prefix, suffix, className = '', ...rest }: {
   )
 }
 
-// ─── Modal ────────────────────────────────────────────────────────────────────
+// Modal
 const MODAL_SIZES: Record<string, string> = {
   sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg', xl: 'max-w-xl', '2xl': 'max-w-2xl',
 }
@@ -135,25 +136,7 @@ export function Modal({ open, onClose, title, children, size = 'md', noPad = fal
   )
 }
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
-export function ToastNotification({ toast }: { toast: Toast | null }) {
-  if (!toast) return null
-  const T = {
-    success: { bg: 'bg-green-950 border-green-800', text: 'text-green-300', icon: <IconCheck width="14" height="14" /> },
-    error:   { bg: 'bg-red-950 border-red-800',     text: 'text-red-300',   icon: <IconX width="14" height="14" /> },
-    warning: { bg: 'bg-amber-950 border-amber-800', text: 'text-amber-300', icon: <IconAlert width="14" height="14" /> },
-    info:    { bg: 'bg-blue-950 border-blue-800',   text: 'text-blue-300',  icon: <IconSync width="14" height="14" /> },
-  }
-  const t = T[toast.type] ?? T.info
-  return (
-    <div className={cn('fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-2xl text-sm font-medium min-w-[240px] max-w-xs animate-fadeIn', t.bg, t.text)}>
-      <span className="flex-shrink-0">{t.icon}</span>
-      <span>{toast.message}</span>
-    </div>
-  )
-}
-
-// ─── Spinner ──────────────────────────────────────────────────────────────────
+// Spinner
 export function Spinner({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="animate-spin">
@@ -163,7 +146,7 @@ export function Spinner({ size = 20 }: { size?: number }) {
   )
 }
 
-// ─── Empty state ──────────────────────────────────────────────────────────────
+// Empty state
 export function Empty({ icon, title, subtitle, action }: {
   icon?: ReactNode; title: string; subtitle?: string; action?: ReactNode
 }) {
@@ -177,7 +160,7 @@ export function Empty({ icon, title, subtitle, action }: {
   )
 }
 
-// ─── Kbd ──────────────────────────────────────────────────────────────────────
+// Kbd
 export function Kbd({ keys }: { keys: string }) {
   return (
     <span className="inline-flex items-center gap-px">
@@ -191,14 +174,14 @@ export function Kbd({ keys }: { keys: string }) {
   )
 }
 
-// ─── StockBadge ───────────────────────────────────────────────────────────────
+// StockBadge
 export function StockBadge({ stock, reorder = 10 }: { stock: number; reorder?: number }) {
   if (stock === 0) return <Badge variant="danger" dot>Out of stock</Badge>
   if (stock <= reorder) return <Badge variant="warning" dot>Low: {stock}</Badge>
   return <Badge variant="success" dot>{stock} in stock</Badge>
 }
 
-// ─── StatCard ─────────────────────────────────────────────────────────────────
+// StatCard
 export function StatCard({ label, value, sub, accent = false, icon }: {
   label: string; value: ReactNode; sub?: string; accent?: boolean; icon?: ReactNode
 }) {
@@ -214,7 +197,7 @@ export function StatCard({ label, value, sub, accent = false, icon }: {
   )
 }
 
-// ─── Divider ──────────────────────────────────────────────────────────────────
+// Divider
 export function Divider({ label }: { label?: string }) {
   if (!label) return <div className="border-t border-zinc-800 my-1" />
   return (
@@ -226,7 +209,7 @@ export function Divider({ label }: { label?: string }) {
   )
 }
 
-// ─── SectionHeader ────────────────────────────────────────────────────────────
+// SectionHeader
 export function SectionHeader({ title, subtitle, action }: {
   title: string; subtitle?: string; action?: ReactNode
 }) {
@@ -241,7 +224,7 @@ export function SectionHeader({ title, subtitle, action }: {
   )
 }
 
-// ─── Table ────────────────────────────────────────────────────────────────────
+// Table
 export function Table({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <div className={cn('overflow-x-auto', className)}>

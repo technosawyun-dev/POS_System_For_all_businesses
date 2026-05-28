@@ -73,7 +73,7 @@ class SubscriptionExpiredException(AppBaseException):
 
 class SubscriptionSuspendedException(AppBaseException):
     def __init__(self, message: str = "Subscription is suspended. Contact support.") -> None:
-        super().__init__(message=message, code="SUBSCRIPTION_SUSPENDED", status_code=403)
+        super().__init__(message=message, code="SUBSCRIPTION_SUSPENDED", status_code=402)
 
 
 class FeatureDisabledException(AppBaseException):

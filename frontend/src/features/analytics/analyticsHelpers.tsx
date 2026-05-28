@@ -1,0 +1,192 @@
+import { type ReactNode, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { format, subDays, startOfMonth } from 'date-fns'
+import { useTenantStore } from '@/store/tenant.store'
+import { Spinner } from '@/components/ui'
+
+export function useAnalyticsFilters() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { selectedBranch } = useTenantStore()
+  const from   = searchParams.get('from')   ?? ''
+  const to     = searchParams.get('to')     ?? ''
+  const branch = searchParams.get('branch') ?? selectedBranch?.id ?? ''
+
+  // Whenever the globally selected branch changes, sync it to the URL so all
+  // analytics queries immediately refetch for the new branch.
+  useEffect(() => {
+    if (!selectedBranch?.id) return
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (next.get('branch') === selectedBranch.id) return prev
+      next.set('branch', selectedBranch.id)
+      return next
+    }, { replace: true })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBranch?.id])
+
+  const apiParams = {
+    ...(from   && { start_date: from }),
+    ...(to     && { end_date: to }),
+    ...(branch && { branch_id: branch }),
+  }
+
+  function setFilters(updates: Partial<{ from: string; to: string; branch: string }>) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      for (const [k, v] of Object.entries(updates) as [string, string][]) {
+        if (v) next.set(k, v); else next.delete(k)
+      }
+      return next
+    }, { replace: true })
+  }
+
+  return { from, to, branch, apiParams, setFilters }
+}
+
+const today = () => format(new Date(), 'yyyy-MM-dd')
+
+export const DATE_PRESETS = [
+  { label: 'Today',      from: today, to: today },
+  { label: '7 days',     from: () => format(subDays(new Date(), 6), 'yyyy-MM-dd'),        to: today },
+  { label: '30 days',    from: () => format(subDays(new Date(), 29), 'yyyy-MM-dd'),       to: today },
+  { label: 'This month', from: () => format(startOfMonth(new Date()), 'yyyy-MM-dd'),      to: today },
+  { label: 'Last 90d',   from: () => format(subDays(new Date(), 89), 'yyyy-MM-dd'),       to: today },
+]
+
+export function AnalyticsFilters({
+  from, to, branch, setFilters, showBranch = true, showDateRange = true,
+}: ReturnType<typeof useAnalyticsFilters> & { showBranch?: boolean; showDateRange?: boolean }) {
+  const { availableBranches } = useTenantStore()
+
+  return (
+    <div className="flex flex-wrap gap-2 items-center">
+      {showDateRange && (
+        <>
+          <input
+            type="date"
+            value={from}
+            onChange={e => setFilters({ from: e.target.value })}
+            className="bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-200 text-sm px-3 py-1.5 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+          />
+          <span className="text-zinc-600 text-sm">→</span>
+          <input
+            type="date"
+            value={to}
+            onChange={e => setFilters({ to: e.target.value })}
+            className="bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-200 text-sm px-3 py-1.5 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+          />
+          <div className="flex gap-1 flex-wrap">
+            {DATE_PRESETS.map(p => (
+              <button
+                key={p.label}
+                onClick={() => setFilters({ from: p.from(), to: p.to() })}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700 border border-zinc-700 transition-all duration-150"
+              >
+                {p.label}
+              </button>
+            ))}
+            {(from || to) && (
+              <button
+                onClick={() => setFilters({ from: '', to: '' })}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium text-zinc-500 hover:text-red-400 hover:bg-red-950 border border-zinc-700 hover:border-red-900 transition-all duration-150"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </>
+      )}
+      {showBranch && availableBranches.length > 0 && (
+        <select
+          value={branch}
+          onChange={e => setFilters({ branch: e.target.value })}
+          className="bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-200 text-sm px-3 py-1.5 focus:outline-none focus:border-amber-500"
+        >
+          <option value="">All Branches</option>
+          {availableBranches.map(b => (
+            <option key={b.id} value={b.id}>{b.name}</option>
+          ))}
+        </select>
+      )}
+    </div>
+  )
+}
+
+export function ChartCard({
+  title, isLoading, isEmpty, emptyMessage = 'No data for this period', children, action,
+}: {
+  title: string
+  isLoading?: boolean
+  isEmpty?: boolean
+  emptyMessage?: string
+  children: ReactNode
+  action?: ReactNode
+}) {
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-zinc-200">{title}</h3>
+        {action && <div className="flex items-center gap-2">{action}</div>}
+      </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center h-44">
+          <Spinner size={28} />
+        </div>
+      ) : isEmpty ? (
+        <div className="flex items-center justify-center h-44 text-zinc-600 text-sm">
+          {emptyMessage}
+        </div>
+      ) : (
+        children
+      )}
+    </div>
+  )
+}
+
+export function ExportRow() {
+  return (
+    <div className="flex flex-wrap items-center gap-3 py-1">
+      <span className="text-xs text-zinc-600 font-medium uppercase tracking-wider">Export</span>
+      {(['CSV', 'Excel', 'PDF'] as const).map(type => (
+        <button
+          key={type}
+          disabled
+          title="Export endpoint not yet available"
+          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed opacity-60"
+        >
+          {type}
+        </button>
+      ))}
+      <span className="text-xs text-zinc-600 italic">Export endpoints not yet available</span>
+    </div>
+  )
+}
+
+export const CHART_COLORS = {
+  amber:  '#f59e0b',
+  blue:   '#60a5fa',
+  green:  '#4ade80',
+  violet: '#a78bfa',
+  rose:   '#fb7185',
+  orange: '#fb923c',
+}
+
+export const PIE_COLORS = [
+  '#f59e0b', '#60a5fa', '#4ade80', '#a78bfa', '#fb7185', '#fb923c',
+]
+
+export const CHART_AXIS_TICK = { fill: '#71717a', fontSize: 11 }
+
+export const CHART_TOOLTIP_STYLE = {
+  contentStyle: {
+    backgroundColor: '#18181b',
+    border: '1px solid #3f3f46',
+    borderRadius: '12px',
+    color: '#f4f4f5',
+    fontSize: '12px',
+    padding: '8px 12px',
+  },
+  labelStyle: { color: '#a1a1aa' },
+}
+
+export const CHART_GRID_STROKE = '#27272a'

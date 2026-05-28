@@ -46,7 +46,7 @@ class Branch(Base):
     )
 
     timezone: Mapped[str] = mapped_column(String(100), nullable=False, default="UTC")
-    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="USD")
+    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="MMK")
 
     is_main_branch: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 

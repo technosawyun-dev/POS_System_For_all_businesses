@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field, field_validator
 
 class OpenSessionRequest(BaseModel):
     branch_id: uuid.UUID
-    cashier_user_id: uuid.UUID
     opening_balance: Decimal = Field(default=Decimal("0"), ge=0)
     notes: str | None = None
 

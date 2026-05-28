@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import (
     CurrentUser,
@@ -14,8 +14,9 @@ from app.core.constants import AuditAction, EntityType
 from app.core.exceptions import ConflictError, NotFoundError
 from app.models.reseller import ResellerAssignment
 from app.repositories.reseller_repository import ResellerRepository
-from app.schemas.common import SuccessResponse
+from app.schemas.common import PaginatedResponse, SuccessResponse
 from app.schemas.reseller import (
+    PaginatedResellerAssignments,
     ResellerAssignmentCreateRequest,
     ResellerAssignmentResponse,
     ResellerAssignmentUpdateRequest,
@@ -61,8 +62,51 @@ async def create_reseller_assignment(
         entity_type=EntityType.RESELLER_ASSIGNMENT,
         entity_id=assignment.id,
         request_id=request_id,
+        metadata={
+            "reseller_id": str(payload.reseller_id),
+            "allowed_branch_ids": [str(b) for b in payload.allowed_branch_ids],
+            "restricted_permissions": payload.restricted_permissions,
+        },
     )
     return ResellerAssignmentResponse.model_validate(assignment)
+
+
+@router.get(
+    "/assignments",
+    response_model=PaginatedResellerAssignments,
+    summary="List reseller assignments",
+    dependencies=[Depends(require_super_admin)],
+)
+async def list_reseller_assignments(
+    db: DbSession,
+    reseller_id: uuid.UUID | None = Query(default=None),
+    tenant_id: uuid.UUID | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=500),
+) -> PaginatedResellerAssignments:
+    from sqlalchemy import select, func
+    from app.models.reseller import ResellerAssignment
+
+    stmt = select(ResellerAssignment)
+    if reseller_id:
+        stmt = stmt.where(ResellerAssignment.reseller_id == reseller_id)
+    if tenant_id:
+        stmt = stmt.where(ResellerAssignment.tenant_id == tenant_id)
+
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total_result = await db.execute(count_stmt)
+    total = total_result.scalar_one()
+
+    stmt = stmt.offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(stmt)
+    assignments = list(result.scalars().all())
+
+    return PaginatedResponse.create(
+        items=[ResellerAssignmentResponse.model_validate(a) for a in assignments],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.get(
@@ -104,7 +148,27 @@ async def update_reseller_assignment(
     if "allowed_branch_ids" in update_data:
         update_data["allowed_branch_ids"] = [str(b) for b in update_data["allowed_branch_ids"]]
 
+    audit = AuditService(db)
     assignment = await repo.update(assignment, **update_data)
+
+    # Determine which specific audit action to emit
+    changed_fields = list(update_data.keys())
+    if "restricted_permissions" in changed_fields:
+        action = AuditAction.RESELLER_PERMISSIONS_CHANGED
+    elif "allowed_branch_ids" in changed_fields:
+        action = AuditAction.RESELLER_BRANCH_VISIBILITY_CHANGED
+    else:
+        action = AuditAction.RESELLER_ASSIGNMENT_UPDATED
+
+    await audit.log(
+        action=action,
+        actor_user_id=current_user.id,
+        tenant_id=assignment.tenant_id,
+        entity_type=EntityType.RESELLER_ASSIGNMENT,
+        entity_id=assignment_id,
+        request_id=request_id,
+        metadata={"changed_fields": changed_fields},
+    )
     return ResellerAssignmentResponse.model_validate(assignment)
 
 
@@ -134,5 +198,6 @@ async def revoke_reseller_assignment(
         entity_type=EntityType.RESELLER_ASSIGNMENT,
         entity_id=assignment_id,
         request_id=request_id,
+        metadata={"reseller_id": str(assignment.reseller_id)},
     )
     return SuccessResponse(message="Reseller assignment revoked successfully")

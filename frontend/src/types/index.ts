@@ -1,4 +1,4 @@
-// ─── Auth & Users ─────────────────────────────────────────────────────────────
+// Auth & Users
 
 export type UserRole =
   | 'SUPER_ADMIN'
@@ -27,8 +27,8 @@ export interface LoginCredentials {
   email: string
   password: string
 }
+// Products & Categories
 
-// ─── Products & Categories ────────────────────────────────────────────────────
 
 export interface Category {
   id: string
@@ -49,8 +49,8 @@ export interface Product {
   barcode: string
   color: string
 }
+// Cart
 
-// ─── Cart ─────────────────────────────────────────────────────────────────────
 
 export interface CartItem extends Product {
   qty: number
@@ -70,8 +70,8 @@ export interface CartTotals {
   total: number
   itemCount: number
 }
+// Session
 
-// ─── Session ──────────────────────────────────────────────────────────────────
 
 export interface Session {
   id: string
@@ -81,8 +81,8 @@ export interface Session {
   cashier: User
   endTime?: Date
 }
+// Sales & Payments
 
-// ─── Sales & Payments ─────────────────────────────────────────────────────────
 
 export type PaymentMethod = 'cash' | 'card' | 'split'
 export type SaleStatus = 'completed' | 'refunded' | 'voided'
@@ -126,8 +126,8 @@ export interface CompleteSalePayload {
   amountTendered: number
   change: number
 }
+// Sync & Offline
 
-// ─── Sync & Offline ───────────────────────────────────────────────────────────
 
 export type SyncOperationType =
   | 'SALE_CREATE'
@@ -145,12 +145,12 @@ export interface SyncOperation {
   createdAt: Date
   retries: number
 }
+// Checkout flow
 
-// ─── Checkout flow ────────────────────────────────────────────────────────────
 
 export type CheckoutStep = 'cart' | 'payment' | 'processing' | 'receipt'
+// App screen routing
 
-// ─── App screen routing ───────────────────────────────────────────────────────
 
 export type AppScreen =
   | 'login'
@@ -161,8 +161,8 @@ export type AppScreen =
   | 'inventory'
   | 'sales'
   | 'sync'
+// Toast
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
@@ -170,12 +170,12 @@ export interface Toast {
   message: string
   type: ToastType
 }
+// RBAC
 
-// ─── RBAC ─────────────────────────────────────────────────────────────────────
 
 export type RBACSection = 'pos' | 'products' | 'inventory' | 'sales' | 'sync'
+// API response wrappers
 
-// ─── API response wrappers ────────────────────────────────────────────────────
 
 export interface ApiResponse<T> {
   data: T

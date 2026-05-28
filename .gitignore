@@ -20,8 +20,11 @@ ENV/
 .env
 .env.local
 .env.*.local
+.env.development
+.env.test
 .env.production
 .env.staging
+*.env
 
 # IDE
 .idea/
@@ -53,6 +56,10 @@ logs/
 # Database
 *.db
 *.sqlite3
+*.sql
+*.dump
+*.sql.gz
+postgres_data/
 
 # SSL / TLS certificates
 *.pem
@@ -67,6 +74,18 @@ nginx/certs/
 .docker/
 docker-compose.override.yml
 
+# Redis
+dump.rdb
+*.rdb
+
+# Celery runtime files
+celerybeat-schedule
+celerybeat.pid
+
+# User-uploaded files (payment proofs, etc.)
+uploads/
+backend/uploads/
+
 # Frontend
 node_modules/
 frontend/dist/
@@ -74,9 +93,18 @@ frontend/build/
 *.tsbuildinfo
 frontend/.vite/
 
+# Temporary / backup files
+*.bak
+*.backup
+*.tmp
+tmp/
+temp/
+
 # OS
 .DS_Store
 Thumbs.db
+.fuse_hidden*
+.~lock.*
 
 # Profiling / benchmark output
 *.prof

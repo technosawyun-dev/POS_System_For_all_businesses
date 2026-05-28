@@ -1,12 +1,10 @@
-// ============================================================
 // pos-login.jsx — Login, Session Open, Session Close screens
-// ============================================================
 
 const { USERS_DATA: loginUsers, ROLE_LABELS: loginRoleLabels, ROLE_BADGE_STYLES: loginRoleStyles, fmt: loginFmt } = window;
 const { useApp: loginUseApp, fmtDateTime: loginFmtDT } = window;
 const { useState: loginUseState } = React;
 
-// ─── Login Screen ────────────────────────────────────────────
+// Login Screen
 function LoginScreen() {
   const { dispatch } = loginUseApp();
   const [email, setEmail]         = loginUseState('alex@nexuspos.io');
@@ -128,7 +126,7 @@ function LoginScreen() {
   );
 }
 
-// ─── Session Open Screen ─────────────────────────────────────
+// Session Open Screen
 function SessionOpenScreen() {
   const { state, dispatch } = loginUseApp();
   const { user } = state;
@@ -232,7 +230,7 @@ function SessionOpenScreen() {
   );
 }
 
-// ─── Session Close Screen (modal-style) ──────────────────────
+// Session Close Screen (modal-style)
 function SessionCloseScreen() {
   const { state, dispatch } = loginUseApp();
   const { session, sales } = state;

@@ -11,9 +11,11 @@ from app.api.deps import (
     require_manager_or_above,
     require_tenant_admin,
 )
+from app.subscriptions.entitlements import EntitlementService, TenantSubscriptionValidator
 from app.schemas.branch import (
     BranchCreateRequest,
     BranchResponse,
+    BranchStatusUpdateRequest,
     BranchUpdateRequest,
 )
 from app.schemas.common import PaginatedResponse, SuccessResponse
@@ -36,6 +38,23 @@ async def create_branch(
     current_user: CurrentUser,
     request_id: RequestId,
 ) -> BranchResponse:
+    from app.core.constants import BranchStatus, UserRole
+    from app.models.branch import Branch
+    from sqlalchemy import func, select
+
+    if current_user.role != UserRole.SUPER_ADMIN.value:
+        # Validate subscription is active
+        await TenantSubscriptionValidator(db).validate_subscription_active(tenant_id)
+        # Validate branch limit
+        result = await db.execute(
+            select(func.count()).select_from(Branch).where(
+                Branch.tenant_id == tenant_id,
+                Branch.status != BranchStatus.CLOSED,
+            )
+        )
+        count = result.scalar_one()
+        await EntitlementService(db).validate_limit(tenant_id, "branches", count)
+
     service = BranchService(db)
     branch = await service.create_branch(
         tenant_id=tenant_id, data=payload, actor_id=current_user.id, request_id=request_id
@@ -47,13 +66,13 @@ async def create_branch(
     "",
     response_model=PaginatedResponse[BranchResponse],
     summary="List branches",
-    dependencies=[Depends(require_manager_or_above)],
 )
 async def list_branches(
     tenant_id: uuid.UUID,
     db: DbSession,
+    current_user: CurrentUser,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> PaginatedResponse[BranchResponse]:
     service = BranchService(db)
     branches, total = await service.list_branches(tenant_id=tenant_id, page=page, page_size=page_size)
@@ -69,12 +88,12 @@ async def list_branches(
     "/{branch_id}",
     response_model=BranchResponse,
     summary="Get branch by ID",
-    dependencies=[Depends(require_manager_or_above)],
 )
 async def get_branch(
     tenant_id: uuid.UUID,
     branch_id: uuid.UUID,
     db: DbSession,
+    current_user: CurrentUser,
 ) -> BranchResponse:
     service = BranchService(db)
     branch = await service.get_branch(branch_id=branch_id, tenant_id=tenant_id)
@@ -100,6 +119,31 @@ async def update_branch(
         branch_id=branch_id,
         tenant_id=tenant_id,
         data=payload,
+        actor_id=current_user.id,
+        request_id=request_id,
+    )
+    return BranchResponse.model_validate(branch)
+
+
+@router.patch(
+    "/{branch_id}/status",
+    response_model=BranchResponse,
+    summary="Update branch status (activate/deactivate)",
+    dependencies=[Depends(require_tenant_admin)],
+)
+async def update_branch_status(
+    tenant_id: uuid.UUID,
+    branch_id: uuid.UUID,
+    payload: BranchStatusUpdateRequest,
+    db: DbSession,
+    current_user: CurrentUser,
+    request_id: RequestId,
+) -> BranchResponse:
+    service = BranchService(db)
+    branch = await service.update_branch_status(
+        branch_id=branch_id,
+        tenant_id=tenant_id,
+        status=payload.status,
         actor_id=current_user.id,
         request_id=request_id,
     )

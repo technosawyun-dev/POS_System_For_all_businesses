@@ -1,6 +1,6 @@
 """phase7_procurement
 
-Adds Phase 7 procurement tables:
+Adds procurement tables:
   - po_counters           (per-tenant PO number sequence)
   - gr_counters           (per-tenant goods receipt number sequence)
   - purchase_orders
@@ -27,7 +27,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # ── po_counters ───────────────────────────────────────────────────────────
+    # po_counters
     op.create_table(
         "po_counters",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
@@ -41,7 +41,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("tenant_id", name="uq_po_counters_tenant_id"),
     )
 
-    # ── gr_counters ───────────────────────────────────────────────────────────
+    # gr_counters
     op.create_table(
         "gr_counters",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
@@ -55,7 +55,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("tenant_id", name="uq_gr_counters_tenant_id"),
     )
 
-    # ── purchase_orders ───────────────────────────────────────────────────────
+    # purchase_orders
     op.create_table(
         "purchase_orders",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
@@ -96,7 +96,7 @@ def upgrade() -> None:
     op.create_index("ix_purchase_orders_status", "purchase_orders", ["status"])
     op.create_index("ix_purchase_orders_po_number", "purchase_orders", ["po_number"])
 
-    # ── purchase_order_items ──────────────────────────────────────────────────
+    # purchase_order_items
     op.create_table(
         "purchase_order_items",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
@@ -120,7 +120,7 @@ def upgrade() -> None:
     op.create_index("ix_purchase_order_items_purchase_order_id", "purchase_order_items", ["purchase_order_id"])
     op.create_index("ix_purchase_order_items_product_id", "purchase_order_items", ["product_id"])
 
-    # ── goods_receipts ────────────────────────────────────────────────────────
+    # goods_receipts
     op.create_table(
         "goods_receipts",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
@@ -150,7 +150,7 @@ def upgrade() -> None:
     op.create_index("ix_goods_receipts_purchase_order_id", "goods_receipts", ["purchase_order_id"])
     op.create_index("ix_goods_receipts_status", "goods_receipts", ["status"])
 
-    # ── goods_receipt_items ───────────────────────────────────────────────────
+    # goods_receipt_items
     op.create_table(
         "goods_receipt_items",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
@@ -164,13 +164,13 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["goods_receipt_id"], ["goods_receipts.id"], ondelete="CASCADE",
                                 name="fk_goods_receipt_items_goods_receipt_id_goods_receipts"),
         sa.ForeignKeyConstraint(["purchase_order_item_id"], ["purchase_order_items.id"], ondelete="RESTRICT",
-                                name="fk_goods_receipt_items_purchase_order_item_id_purchase_order_items"),
+                                name="fk_gri_purchase_order_item_id_poi"),
         sa.PrimaryKeyConstraint("id", name="pk_goods_receipt_items"),
     )
     op.create_index("ix_goods_receipt_items_goods_receipt_id", "goods_receipt_items", ["goods_receipt_id"])
     op.create_index("ix_goods_receipt_items_purchase_order_item_id", "goods_receipt_items", ["purchase_order_item_id"])
 
-    # ── supplier_payables ─────────────────────────────────────────────────────
+    # supplier_payables
     op.create_table(
         "supplier_payables",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
@@ -196,7 +196,7 @@ def upgrade() -> None:
     op.create_index("ix_supplier_payables_supplier_id", "supplier_payables", ["supplier_id"])
     op.create_index("ix_supplier_payables_status", "supplier_payables", ["status"])
 
-    # ── supplier_payments ─────────────────────────────────────────────────────
+    # supplier_payments
     op.create_table(
         "supplier_payments",
         sa.Column("id", postgresql.UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),

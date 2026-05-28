@@ -97,6 +97,32 @@ class BranchService:
         )
         return branch
 
+    async def update_branch_status(
+        self,
+        branch_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        status: BranchStatus,
+        actor_id: uuid.UUID,
+        request_id: str | None = None,
+    ) -> Branch:
+        branch = await self.branch_repo.get_active_by_id_and_tenant(branch_id, tenant_id)
+        if not branch:
+            raise NotFoundError("Branch", branch_id)
+        old_status = branch.status
+        branch = await self.branch_repo.update(branch, status=status.value)
+        await self.audit_service.log(
+            action=AuditAction.BRANCH_UPDATED,
+            actor_user_id=actor_id,
+            tenant_id=tenant_id,
+            branch_id=branch_id,
+            entity_type=EntityType.BRANCH,
+            entity_id=branch_id,
+            before_state={"status": old_status},
+            after_state={"status": status.value},
+            request_id=request_id,
+        )
+        return branch
+
     async def soft_delete_branch(
         self,
         branch_id: uuid.UUID,

@@ -76,12 +76,13 @@ class PurchaseOrderService:
         )
         total_amount = subtotal - data.discount_amount + data.tax_amount
 
+        now = _now()
         po = PurchaseOrder(
             tenant_id=tenant_id,
             branch_id=data.branch_id,
             supplier_id=data.supplier_id,
             po_number=po_number,
-            status=PurchaseOrderStatus.DRAFT,
+            status=PurchaseOrderStatus.APPROVED,
             order_date=data.order_date,
             expected_date=data.expected_date,
             subtotal=subtotal,
@@ -90,6 +91,8 @@ class PurchaseOrderService:
             total_amount=total_amount,
             notes=data.notes,
             created_by=actor_id,
+            approved_by=actor_id,
+            approved_at=now,
         )
         self.session.add(po)
         await self.session.flush()
@@ -108,6 +111,19 @@ class PurchaseOrderService:
             )
             self.session.add(item)
 
+        await self.session.flush()
+
+        # Auto-create payable so owner can pay immediately (before or after receiving)
+        payable = SupplierPayable(
+            tenant_id=tenant_id,
+            supplier_id=data.supplier_id,
+            purchase_order_id=po.id,
+            total_amount=total_amount,
+            paid_amount=Decimal("0"),
+            remaining_amount=total_amount,
+            status=SupplierPayableStatus.OPEN,
+        )
+        self.session.add(payable)
         await self.session.flush()
 
         await self.audit.log(
@@ -275,6 +291,10 @@ class PurchaseOrderService:
             )
 
         po.status = PurchaseOrderStatus.CANCELLED
+
+        if po.payable and po.payable.status != SupplierPayableStatus.PAID:
+            po.payable.status = SupplierPayableStatus.VOIDED
+
         await self.session.flush()
 
         await self.audit.log(

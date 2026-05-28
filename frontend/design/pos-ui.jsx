@@ -1,8 +1,6 @@
-// ============================================================
 // pos-ui.jsx — Shared UI primitives
-// ============================================================
 
-// ─── Badge ───────────────────────────────────────────────────
+// Badge
 function Badge({ children, variant='default', size='sm', dot=false }) {
   const V = {
     default:  'bg-zinc-800 text-zinc-300 border-zinc-700',
@@ -32,7 +30,7 @@ function Badge({ children, variant='default', size='sm', dot=false }) {
   );
 }
 
-// ─── Button ──────────────────────────────────────────────────
+// Button
 function Btn({ children, variant='primary', size='md', onClick, disabled, className='', type='button', fullWidth=false, ...rest }) {
   const V = {
     primary:   'bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-black font-semibold shadow-lg shadow-amber-900/30',
@@ -62,7 +60,7 @@ function Btn({ children, variant='primary', size='md', onClick, disabled, classN
   );
 }
 
-// ─── Input ───────────────────────────────────────────────────
+// Input
 function Input({ label, value, onChange, placeholder, type='text', className='', prefix, suffix, autoFocus, readOnly, onKeyDown, ...rest }) {
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
@@ -86,7 +84,7 @@ function Input({ label, value, onChange, placeholder, type='text', className='',
   );
 }
 
-// ─── Modal ───────────────────────────────────────────────────
+// Modal
 function Modal({ open, onClose, title, children, size='md', noPad=false }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape' && onClose) onClose(); };
@@ -114,7 +112,7 @@ function Modal({ open, onClose, title, children, size='md', noPad=false }) {
   );
 }
 
-// ─── Toast ───────────────────────────────────────────────────
+// Toast
 function Toast({ toast }) {
   if (!toast) return null;
   const T = {
@@ -132,7 +130,7 @@ function Toast({ toast }) {
   );
 }
 
-// ─── Spinner ─────────────────────────────────────────────────
+// Spinner
 function Spinner({ size=20 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="animate-spin">
@@ -142,7 +140,7 @@ function Spinner({ size=20 }) {
   );
 }
 
-// ─── Empty state ─────────────────────────────────────────────
+// Empty state
 function Empty({ icon, title, subtitle, action }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
@@ -154,7 +152,7 @@ function Empty({ icon, title, subtitle, action }) {
   );
 }
 
-// ─── Kbd ─────────────────────────────────────────────────────
+// Kbd
 function Kbd({ keys }) {
   return (
     <span className="inline-flex items-center gap-px">
@@ -168,14 +166,14 @@ function Kbd({ keys }) {
   );
 }
 
-// ─── Stock Badge ─────────────────────────────────────────────
+// Stock Badge
 function StockBadge({ stock, reorder=10 }) {
   if (stock === 0)       return <Badge variant="danger" dot>Out of stock</Badge>;
   if (stock <= reorder)  return <Badge variant="warning" dot>Low: {stock}</Badge>;
   return <Badge variant="success" dot>{stock} in stock</Badge>;
 }
 
-// ─── Stat Card ───────────────────────────────────────────────
+// Stat Card
 function StatCard({ label, value, sub, accent=false, icon }) {
   return (
     <div className={`rounded-2xl border p-4 flex flex-col gap-1 ${accent ? 'bg-amber-500/10 border-amber-500/30' : 'bg-zinc-900 border-zinc-800'}`}>
@@ -189,7 +187,7 @@ function StatCard({ label, value, sub, accent=false, icon }) {
   );
 }
 
-// ─── Divider ─────────────────────────────────────────────────
+// Divider
 function Divider({ label }) {
   if (!label) return <div className="border-t border-zinc-800 my-1" />;
   return (
@@ -201,7 +199,7 @@ function Divider({ label }) {
   );
 }
 
-// ─── Section Header ──────────────────────────────────────────
+// Section Header
 function SectionHeader({ title, subtitle, action }) {
   return (
     <div className="flex items-start justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
@@ -214,7 +212,7 @@ function SectionHeader({ title, subtitle, action }) {
   );
 }
 
-// ─── Table components ────────────────────────────────────────
+// Table components
 function Table({ children, className='' }) {
   return (
     <div className={`overflow-x-auto ${className}`}>

@@ -20,6 +20,40 @@ class UserRepository(BaseRepository[User]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_phone_and_tenant(self, phone: str, tenant_id: uuid.UUID) -> User | None:
+        stmt = select(User).where(
+            User.phone == phone,
+            User.tenant_id == tenant_id,
+            User.is_deleted.is_(False),
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_by_email_and_tenant(self, email: str, tenant_id: uuid.UUID) -> User | None:
+        stmt = select(User).where(
+            User.email == email,
+            User.tenant_id == tenant_id,
+            User.is_deleted.is_(False),
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_by_phone(self, phone: str) -> User | None:
+        """Global phone lookup for platform-level login (no business code).
+        Matches SUPER_ADMIN, RESELLER, or BUSINESS_OWNER only — not tenant staff."""
+        from app.core.constants import UserRole
+        stmt = select(User).where(
+            User.phone == phone,
+            User.is_deleted.is_(False),
+            User.role.in_([
+                UserRole.SUPER_ADMIN,
+                UserRole.RESELLER,
+                UserRole.BUSINESS_OWNER,
+            ]),
+        ).limit(1)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_by_id_active(self, user_id: uuid.UUID) -> User | None:
         stmt = select(User).where(User.id == user_id, User.is_deleted.is_(False))
         result = await self.session.execute(stmt)
@@ -32,6 +66,18 @@ class UserRepository(BaseRepository[User]):
         limit: int = 20,
     ) -> tuple[list[User], int]:
         filters = [User.tenant_id == tenant_id, User.is_deleted.is_(False)]
+        return await self.get_all(offset=offset, limit=limit, filters=filters)
+
+    async def get_all_users(
+        self,
+        offset: int = 0,
+        limit: int = 20,
+        role: str | None = None,
+    ) -> tuple[list[User], int]:
+        from app.core.constants import UserRole
+        filters = [User.is_deleted.is_(False), User.role != UserRole.SUPER_ADMIN]
+        if role:
+            filters.append(User.role == role)
         return await self.get_all(offset=offset, limit=limit, filters=filters)
 
     async def soft_delete(self, user: User) -> User:

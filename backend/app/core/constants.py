@@ -314,6 +314,7 @@ class AuditAction(str, Enum):
     USER_DELETED = "USER_DELETED"
     USER_ACTIVATED = "USER_ACTIVATED"
     USER_DEACTIVATED = "USER_DEACTIVATED"
+    USER_SUSPENDED = "USER_SUSPENDED"
     USER_ROLE_CHANGED = "USER_ROLE_CHANGED"
     USER_BRANCH_ASSIGNED = "USER_BRANCH_ASSIGNED"
 
@@ -337,6 +338,10 @@ class AuditAction(str, Enum):
     # Reseller management
     RESELLER_ASSIGNED = "RESELLER_ASSIGNED"
     RESELLER_ACCESS_REVOKED = "RESELLER_ACCESS_REVOKED"
+    RESELLER_ASSIGNMENT_UPDATED = "RESELLER_ASSIGNMENT_UPDATED"
+    RESELLER_PERMISSIONS_CHANGED = "RESELLER_PERMISSIONS_CHANGED"
+    RESELLER_BRANCH_VISIBILITY_CHANGED = "RESELLER_BRANCH_VISIBILITY_CHANGED"
+    RESELLER_ACCESS_DENIED = "RESELLER_ACCESS_DENIED"
 
     # Product management
     PRODUCT_CREATED = "PRODUCT_CREATED"
@@ -404,23 +409,23 @@ class AuditAction(str, Enum):
     # Discounts
     DISCOUNT_APPLIED = "DISCOUNT_APPLIED"
 
-    # Devices (Phase 4)
+    # Devices
     DEVICE_REGISTERED = "DEVICE_REGISTERED"
     DEVICE_UPDATED = "DEVICE_UPDATED"
     DEVICE_DEACTIVATED = "DEVICE_DEACTIVATED"
 
-    # Sync (Phase 4)
+    # Sync
     SYNC_PUSH_COMPLETED = "SYNC_PUSH_COMPLETED"
     SYNC_OPERATION_REPLAYED = "SYNC_OPERATION_REPLAYED"
     SYNC_OPERATION_FAILED = "SYNC_OPERATION_FAILED"
 
-    # Analytics (Phase 6)
+    # Analytics
     DASHBOARD_VIEWED = "DASHBOARD_VIEWED"
     SALES_REPORT_VIEWED = "SALES_REPORT_VIEWED"
     INVENTORY_REPORT_VIEWED = "INVENTORY_REPORT_VIEWED"
     FINANCIAL_REPORT_VIEWED = "FINANCIAL_REPORT_VIEWED"
 
-    # Procurement (Phase 7)
+    # Procurement
     PURCHASE_ORDER_CREATED = "PURCHASE_ORDER_CREATED"
     PURCHASE_ORDER_SUBMITTED = "PURCHASE_ORDER_SUBMITTED"
     PURCHASE_ORDER_APPROVED = "PURCHASE_ORDER_APPROVED"
@@ -429,7 +434,7 @@ class AuditAction(str, Enum):
     SUPPLIER_PAYMENT_RECORDED = "SUPPLIER_PAYMENT_RECORDED"
     PAYABLE_CREATED = "PAYABLE_CREATED"
 
-    # Subscriptions (Phase 8)
+    # Subscriptions
     SUBSCRIPTION_CREATED = "SUBSCRIPTION_CREATED"
     SUBSCRIPTION_ACTIVATED = "SUBSCRIPTION_ACTIVATED"
     SUBSCRIPTION_RENEWED = "SUBSCRIPTION_RENEWED"
@@ -444,7 +449,7 @@ class AuditAction(str, Enum):
     PLAN_CREATED = "PLAN_CREATED"
     PLAN_UPDATED = "PLAN_UPDATED"
 
-    # Subscriptions (Phase 9)
+    # Subscriptions
     ENTITLEMENT_OVERRIDE_CREATED = "ENTITLEMENT_OVERRIDE_CREATED"
     ENTITLEMENT_OVERRIDE_UPDATED = "ENTITLEMENT_OVERRIDE_UPDATED"
     ENTITLEMENT_OVERRIDE_REMOVED = "ENTITLEMENT_OVERRIDE_REMOVED"
@@ -453,13 +458,30 @@ class AuditAction(str, Enum):
     FEATURE_GATE_BLOCKED = "FEATURE_GATE_BLOCKED"
     LIMIT_EXCEEDED = "LIMIT_EXCEEDED"
 
-    # Notifications (Phase 10)
+    # Notifications
     NOTIFICATION_CREATED = "NOTIFICATION_CREATED"
     NOTIFICATION_READ = "NOTIFICATION_READ"
     NOTIFICATION_READ_ALL = "NOTIFICATION_READ_ALL"
     NOTIFICATION_PREFERENCE_UPDATED = "NOTIFICATION_PREFERENCE_UPDATED"
     EVENT_PUBLISHED = "EVENT_PUBLISHED"
     EMAIL_NOTIFICATION_QUEUED = "EMAIL_NOTIFICATION_QUEUED"
+
+    # Referral / Commission / Wallet
+    REFERRAL_CODE_CREATED = "REFERRAL_CODE_CREATED"
+    REFERRAL_CODE_DEACTIVATED = "REFERRAL_CODE_DEACTIVATED"
+    TENANT_REFERRAL_CREATED = "TENANT_REFERRAL_CREATED"
+    TENANT_REFERRAL_LOCKED = "TENANT_REFERRAL_LOCKED"
+    COMMISSION_EARNED = "COMMISSION_EARNED"
+    COMMISSION_REVERSED = "COMMISSION_REVERSED"
+    WALLET_MANUAL_ADJUSTMENT = "WALLET_MANUAL_ADJUSTMENT"
+    WALLET_SETTINGS_UPDATED = "WALLET_SETTINGS_UPDATED"
+    PAYOUT_REQUESTED = "PAYOUT_REQUESTED"
+    PAYOUT_UNDER_REVIEW = "PAYOUT_UNDER_REVIEW"
+    PAYOUT_APPROVED = "PAYOUT_APPROVED"
+    PAYOUT_REJECTED = "PAYOUT_REJECTED"
+    PAYOUT_COMPLETED = "PAYOUT_COMPLETED"
+    PAYOUT_CANCELLED = "PAYOUT_CANCELLED"
+    RESELLER_NOTE_ADDED = "RESELLER_NOTE_ADDED"
 
 
 class PermissionScope(str, Enum):
@@ -484,12 +506,11 @@ class EntityType(str, Enum):
     INVENTORY_ADJUSTMENT = "INVENTORY_ADJUSTMENT"
     INVENTORY_TRANSFER = "INVENTORY_TRANSFER"
     SUPPLIER = "SUPPLIER"
-    # Phase 5 — Customers
+    # Customers
     CUSTOMER = "CUSTOMER"
     CUSTOMER_CONTACT = "CUSTOMER_CONTACT"
     CUSTOMER_NOTE = "CUSTOMER_NOTE"
     CUSTOMER_LEDGER = "CUSTOMER_LEDGER"
-    # Phase 3
     ORDER = "ORDER"
     ORDER_ITEM = "ORDER_ITEM"
     PAYMENT = "PAYMENT"
@@ -497,28 +518,55 @@ class EntityType(str, Enum):
     CASHIER_SESSION = "CASHIER_SESSION"
     RECEIPT = "RECEIPT"
     CART = "CART"
-    # Phase 4
     DEVICE = "DEVICE"
     SYNC_OPERATION = "SYNC_OPERATION"
     SYNC_CHECKPOINT = "SYNC_CHECKPOINT"
-    # Phase 6 — Analytics
+    # Analytics
     ANALYTICS_REPORT = "ANALYTICS_REPORT"
-    # Phase 7 — Procurement
+    # Procurement
     PURCHASE_ORDER = "PURCHASE_ORDER"
     PURCHASE_ORDER_ITEM = "PURCHASE_ORDER_ITEM"
     GOODS_RECEIPT = "GOODS_RECEIPT"
     SUPPLIER_PAYABLE = "SUPPLIER_PAYABLE"
     SUPPLIER_PAYMENT = "SUPPLIER_PAYMENT"
-    # Phase 8 — Subscriptions
+    # Subscriptions
     SUBSCRIPTION_PLAN = "SUBSCRIPTION_PLAN"
     TENANT_SUBSCRIPTION = "TENANT_SUBSCRIPTION"
     SUBSCRIPTION_HISTORY = "SUBSCRIPTION_HISTORY"
     PAYMENT_PROOF = "PAYMENT_PROOF"
-    # Phase 9 — Entitlement Overrides
+    # Entitlement Overrides
     ENTITLEMENT_OVERRIDE = "ENTITLEMENT_OVERRIDE"
-    # Phase 10 — Notifications
+    # Notifications
     NOTIFICATION = "NOTIFICATION"
     NOTIFICATION_PREFERENCE = "NOTIFICATION_PREFERENCE"
+    # Referral / Commission / Wallet
+    REFERRAL_CODE = "REFERRAL_CODE"
+    TENANT_REFERRAL = "TENANT_REFERRAL"
+    RESELLER_WALLET = "RESELLER_WALLET"
+    WALLET_TRANSACTION = "WALLET_TRANSACTION"
+    PAYOUT_REQUEST = "PAYOUT_REQUEST"
+    RESELLER_NOTE = "RESELLER_NOTE"
+
+
+class WalletTransactionType(str, Enum):
+    COMMISSION_EARNED = "COMMISSION_EARNED"
+    COMMISSION_REVERSAL = "COMMISSION_REVERSAL"
+    PAYOUT_LOCKED = "PAYOUT_LOCKED"
+    PAYOUT_APPROVED = "PAYOUT_APPROVED"
+    PAYOUT_REJECTED = "PAYOUT_REJECTED"
+    PAYOUT_COMPLETED = "PAYOUT_COMPLETED"
+    MANUAL_ADJUSTMENT = "MANUAL_ADJUSTMENT"
+    BONUS = "BONUS"
+    PENALTY = "PENALTY"
+
+
+class PayoutStatus(str, Enum):
+    PENDING = "PENDING"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    PAID = "PAID"
+    CANCELLED = "CANCELLED"
 
 
 # Permission codes
@@ -602,13 +650,13 @@ class Permission(str, Enum):
     REPORT_PROFIT = "report:profit"
     REPORT_EXPORT = "report:export"
 
-    # Analytics permissions (Phase 6)
+    # Analytics permissions
     ANALYTICS_DASHBOARD = "analytics:dashboard:view"
     ANALYTICS_SALES = "analytics:sales:view"
     ANALYTICS_INVENTORY = "analytics:inventory:view"
     ANALYTICS_FINANCIAL = "analytics:financial:view"
 
-    # Procurement permissions (Phase 7)
+    # Procurement permissions
     PROCUREMENT_VIEW = "procurement:view"
     PROCUREMENT_CREATE = "procurement:create"
     PROCUREMENT_APPROVE = "procurement:approve"
@@ -616,19 +664,19 @@ class Permission(str, Enum):
     PROCUREMENT_PAYABLES = "procurement:payables"
     PROCUREMENT_PAYMENTS = "procurement:payments"
 
-    # Subscription permissions (Phase 8)
+    # Subscription permissions
     SUBSCRIPTION_VIEW = "subscriptions:view"
     SUBSCRIPTION_MANAGE = "subscriptions:manage"
     SUBSCRIPTION_PLANS_MANAGE = "subscriptions:plans:manage"
     SUBSCRIPTION_APPROVE_PAYMENT = "subscriptions:approve_payment"
 
-    # Subscription admin permissions (Phase 9)
+    # Subscription admin permissions
     SUBSCRIPTION_OVERRIDE = "subscriptions:override"
     SUBSCRIPTION_EXTEND = "subscriptions:extend"
     SUBSCRIPTION_VIEW_ALL = "subscriptions:view_all"
     SUBSCRIPTION_CHANGE_PLAN = "subscriptions:change_plan"
 
-    # Notification permissions (Phase 10)
+    # Notification permissions
     NOTIFICATION_VIEW = "notifications:view"
     NOTIFICATION_MANAGE = "notifications:manage"
     NOTIFICATION_PREFERENCES = "notifications:preferences"
@@ -643,11 +691,41 @@ class Permission(str, Enum):
 ROLE_DEFAULT_PERMISSIONS: dict[str, list[str]] = {
     UserRole.SUPER_ADMIN: [p.value for p in Permission],  # All permissions
     UserRole.RESELLER: [
+        # Tenant / Branch (read-only)
         Permission.TENANT_VIEW,
         Permission.BRANCH_VIEW,
+        # Staff visibility / management
         Permission.USER_VIEW,
+        Permission.USER_CREATE,
+        Permission.USER_UPDATE,
+        # Inventory
         Permission.INVENTORY_VIEW,
+        Permission.INVENTORY_ADJUST,
+        Permission.INVENTORY_TRANSFER,
+        Permission.INVENTORY_MOVEMENT_VIEW,
+        # Customers
+        Permission.CUSTOMER_VIEW,
+        Permission.CUSTOMER_PAYMENT,
+        # Sales (read-only)
+        Permission.SALES_VIEW,
+        # Procurement
+        Permission.PROCUREMENT_VIEW,
+        Permission.PROCUREMENT_CREATE,
+        Permission.PROCUREMENT_APPROVE,
+        Permission.PROCUREMENT_RECEIVE,
+        Permission.PROCUREMENT_PAYABLES,
+        # Subscription (read-only)
+        Permission.SUBSCRIPTION_VIEW,
+        # Reports / Analytics
         Permission.REPORT_VIEW,
+        Permission.REPORT_PROFIT,
+        Permission.REPORT_EXPORT,
+        Permission.ANALYTICS_DASHBOARD,
+        Permission.ANALYTICS_SALES,
+        Permission.ANALYTICS_INVENTORY,
+        Permission.ANALYTICS_FINANCIAL,
+        # Notifications
+        Permission.NOTIFICATION_VIEW,
     ],
     UserRole.BUSINESS_OWNER: [
         Permission.USER_VIEW,
@@ -810,6 +888,28 @@ ROLE_DEFAULT_PERMISSIONS: dict[str, list[str]] = {
         Permission.NOTIFICATION_VIEW,
         Permission.NOTIFICATION_PREFERENCES,
     ],
+}
+
+# Maps F9 portal permission names → Permission codes stored in restricted_permissions.
+# A reseller has the permission when its code is NOT in assignment.restricted_permissions.
+RESELLER_PERMISSION_MAP: dict[str, str] = {
+    "view_revenue":             Permission.ANALYTICS_SALES.value,
+    "view_profit":              Permission.REPORT_PROFIT.value,
+    "view_analytics":           Permission.ANALYTICS_DASHBOARD.value,
+    "view_inventory":           Permission.INVENTORY_VIEW.value,
+    "adjust_inventory":         Permission.INVENTORY_ADJUST.value,
+    "transfer_inventory":       Permission.INVENTORY_TRANSFER.value,
+    "view_customers":           Permission.CUSTOMER_VIEW.value,
+    "view_customer_debt":       Permission.CUSTOMER_VIEW.value,
+    "record_customer_payment":  Permission.CUSTOMER_PAYMENT.value,
+    "view_procurement":         Permission.PROCUREMENT_VIEW.value,
+    "create_purchase_order":    Permission.PROCUREMENT_CREATE.value,
+    "approve_purchase_order":   Permission.PROCUREMENT_APPROVE.value,
+    "view_subscription_status": Permission.SUBSCRIPTION_VIEW.value,
+    "view_staff":               Permission.USER_VIEW.value,
+    "manage_staff":             Permission.USER_CREATE.value,
+    "export_data":              Permission.REPORT_EXPORT.value,
+    "view_branch_reports":      Permission.REPORT_VIEW.value,
 }
 
 # API versioning

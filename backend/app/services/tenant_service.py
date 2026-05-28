@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import secrets
 import uuid
 from typing import Any
 
@@ -11,7 +12,15 @@ from app.core.exceptions import ConflictError, NotFoundError
 from app.models.tenant import Tenant
 from app.repositories.tenant_repository import TenantRepository
 from app.services.audit_service import AuditService
-from app.schemas.tenant import TenantCreateRequest, TenantUpdateRequest
+from app.models.tenant import TenantSettings
+from app.schemas.tenant import TenantCreateRequest, TenantSettingsUpdateRequest, TenantUpdateRequest
+
+
+_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def _generate_business_code() -> str:
+    return "".join(secrets.choice(_CODE_CHARS) for _ in range(8))
 
 
 def _generate_slug(name: str) -> str:
@@ -41,9 +50,14 @@ class TenantService:
             slug = f"{base_slug}-{counter}"
             counter += 1
 
+        business_code = _generate_business_code()
+        while await self.tenant_repo.get_by_business_code(business_code):
+            business_code = _generate_business_code()
+
         tenant = await self.tenant_repo.create(
             name=data.name,
             slug=slug,
+            business_code=business_code,
             email=data.email,
             phone=data.phone,
             address=data.address,
@@ -134,6 +148,29 @@ class TenantService:
             request_id=request_id,
         )
         return tenant
+
+    async def get_tenant_settings(self, tenant_id: uuid.UUID) -> TenantSettings:
+        settings = await self.tenant_repo.get_settings(tenant_id)
+        if not settings:
+            settings = await self.tenant_repo.create_settings(tenant_id)
+        return settings
+
+    async def update_tenant_settings(
+        self,
+        tenant_id: uuid.UUID,
+        data: TenantSettingsUpdateRequest,
+    ) -> TenantSettings:
+        update_kwargs: dict[str, object] = {}
+        if data.tax_rate is not None:
+            update_kwargs["tax_rate"] = data.tax_rate
+        if data.tax_inclusive is not None:
+            update_kwargs["tax_inclusive"] = data.tax_inclusive
+        if data.extra_settings is not None:
+            existing = await self.tenant_repo.get_settings(tenant_id)
+            merged = dict(existing.extra_settings) if existing and existing.extra_settings else {}
+            merged.update(data.extra_settings)
+            update_kwargs["extra_settings"] = merged
+        return await self.tenant_repo.update_settings(tenant_id, **update_kwargs)
 
     async def soft_delete_tenant(
         self,

@@ -10,6 +10,7 @@ from app.api.deps import (
     CurrentUser,
     DbSession,
     EffectiveTenantId,
+    get_effective_tenant_id,
     require_roles,
 )
 from app.core.constants import UserRole
@@ -39,10 +40,10 @@ _manager_access = require_roles(
 async def list_receipts(
     db: DbSession,
     current_user: User = _view_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
     branch_id: uuid.UUID | None = Query(default=None),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> ReceiptListResponse:
     svc = ReceiptService(db)
     items, total = await svc.list_receipts(
@@ -68,7 +69,7 @@ async def get_receipt(
     receipt_id: uuid.UUID,
     db: DbSession,
     current_user: User = _view_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> ReceiptResponse:
     svc = ReceiptService(db)
     receipt = await svc.get_receipt(receipt_id, tenant_id)
@@ -84,7 +85,7 @@ async def get_receipt_by_number(
     receipt_number: str,
     db: DbSession,
     current_user: User = _view_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> ReceiptResponse:
     svc = ReceiptService(db)
     receipt = await svc.get_receipt_by_number(receipt_number, tenant_id)
@@ -100,7 +101,7 @@ async def get_receipt_by_order(
     order_id: uuid.UUID,
     db: DbSession,
     current_user: User = _view_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> ReceiptResponse:
     svc = ReceiptService(db)
     receipt = await svc.get_receipt_by_order(order_id, tenant_id)

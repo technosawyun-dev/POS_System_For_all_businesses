@@ -17,7 +17,7 @@ class BranchCreateRequest(BaseSchema):
     phone: str | None = Field(default=None, max_length=50)
     email: EmailStr | None = None
     timezone: str = "UTC"
-    currency: str = Field(default="USD", max_length=10)
+    currency: str = Field(default="MMK", max_length=10)
     is_main_branch: bool = False
 
 

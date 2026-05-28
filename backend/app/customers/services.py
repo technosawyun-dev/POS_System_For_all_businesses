@@ -70,7 +70,7 @@ class CustomerService:
             gender=data.gender,
             address=data.address,
             notes=data.notes,
-            credit_limit=data.credit_limit,
+            credit_limit=Decimal("0"),
             current_balance=Decimal("0"),
         )
 
@@ -424,14 +424,6 @@ class CustomerService:
         customer = await self.repo.get_active_by_id_and_tenant(customer_id, tenant_id)
         if not customer:
             raise NotFoundError("Customer", customer_id)
-        if customer.credit_limit > Decimal("0"):
-            projected = customer.current_balance + amount
-            if projected > customer.credit_limit:
-                raise BusinessRuleError(
-                    f"Credit limit exceeded. Limit: {customer.credit_limit}, "
-                    f"current balance: {customer.current_balance}, "
-                    f"requested: {amount}"
-                )
         return await self._create_ledger_entry(
             customer=customer,
             tenant_id=tenant_id,

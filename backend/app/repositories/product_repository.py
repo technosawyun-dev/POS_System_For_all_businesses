@@ -358,8 +358,15 @@ class ProductVariantRepository(BaseRepository[ProductVariant]):
             self.session.add(vv)
 
         await self.session.flush()
-        await self.session.refresh(variant)
-        return variant
+        # Eagerly load attribute_values so Pydantic can serialize without lazy-load
+        loaded_stmt = (
+            select(ProductVariant)
+            .where(ProductVariant.id == variant.id)
+            .options(selectinload(ProductVariant.attribute_values))
+        )
+        result = await self.session.execute(loaded_stmt)
+        loaded_variant = result.scalar_one()
+        return loaded_variant
 
 
 class ProductPriceHistoryRepository(BaseRepository[ProductPriceHistory]):

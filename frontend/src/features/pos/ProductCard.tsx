@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { cn, fmt } from '@/lib/utils'
 import type { Product } from '@/types'
 
@@ -9,7 +10,8 @@ interface ProductCardProps {
 
 const LOW_STOCK_THRESHOLD = 10
 
-export default function ProductCard({ product, cartQty, onAdd }: ProductCardProps) {
+// Stable product objects + numeric cartQty = pure value comparison → safe to memo
+function ProductCard({ product, cartQty, onAdd }: ProductCardProps) {
   const isOutOfStock = product.stock === 0
   const isLowStock = product.stock > 0 && product.stock <= LOW_STOCK_THRESHOLD
   const inCart = cartQty > 0
@@ -67,3 +69,5 @@ export default function ProductCard({ product, cartQty, onAdd }: ProductCardProp
     </button>
   )
 }
+
+export default memo(ProductCard)

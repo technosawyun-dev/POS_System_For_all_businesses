@@ -19,6 +19,14 @@ class TenantRepository(BaseRepository[Tenant]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_business_code(self, business_code: str) -> Tenant | None:
+        stmt = select(Tenant).where(
+            Tenant.business_code == business_code.upper(),
+            Tenant.is_deleted.is_(False),
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_active_by_id(self, tenant_id: uuid.UUID) -> Tenant | None:
         stmt = select(Tenant).where(Tenant.id == tenant_id, Tenant.is_deleted.is_(False))
         result = await self.session.execute(stmt)
@@ -45,6 +53,17 @@ class TenantRepository(BaseRepository[Tenant]):
     async def create_settings(self, tenant_id: uuid.UUID) -> TenantSettings:
         settings = TenantSettings(tenant_id=tenant_id)
         self.session.add(settings)
+        await self.session.flush()
+        await self.session.refresh(settings)
+        return settings
+
+    async def update_settings(self, tenant_id: uuid.UUID, **kwargs: object) -> TenantSettings:
+        settings = await self.get_settings(tenant_id)
+        if not settings:
+            settings = await self.create_settings(tenant_id)
+        for key, value in kwargs.items():
+            if value is not None or key in ("tax_rate",):
+                setattr(settings, key, value)
         await self.session.flush()
         await self.session.refresh(settings)
         return settings

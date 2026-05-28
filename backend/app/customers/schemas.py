@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import EmailStr, Field, field_validator
+from pydantic import EmailStr, Field, computed_field, field_validator
 
 from app.core.constants import CustomerGender, CustomerLedgerEntryType
 from app.schemas.common import BaseSchema, PaginatedResponse, TimestampedSchema
@@ -19,7 +19,6 @@ class CreateCustomerRequest(BaseSchema):
     gender: CustomerGender | None = None
     address: str | None = None
     notes: str | None = None
-    credit_limit: Decimal = Field(default=Decimal("0"), ge=0)
 
     @field_validator("phone")
     @classmethod
@@ -35,7 +34,6 @@ class UpdateCustomerRequest(BaseSchema):
     gender: CustomerGender | None = None
     address: str | None = None
     notes: str | None = None
-    credit_limit: Decimal | None = Field(default=None, ge=0)
     is_active: bool | None = None
 
     @field_validator("phone")
@@ -115,8 +113,8 @@ class CustomerResponse(TimestampedSchema):
     contacts: list[CustomerContactResponse] = Field(default_factory=list)
 
 
-class CustomerSummaryResponse(BaseSchema):
-    id: uuid.UUID
+class CustomerSummaryResponse(TimestampedSchema):
+    tenant_id: uuid.UUID
     customer_code: str
     name: str
     phone: str
@@ -124,6 +122,11 @@ class CustomerSummaryResponse(BaseSchema):
     current_balance: Decimal
     credit_limit: Decimal
     is_active: bool
+
+    @computed_field
+    @property
+    def balance(self) -> Decimal:
+        return self.current_balance
 
 
 class CustomerStatementResponse(BaseSchema):

@@ -16,6 +16,8 @@ from app.schemas.common import PaginatedResponse, SuccessResponse
 from app.schemas.tenant import (
     TenantCreateRequest,
     TenantResponse,
+    TenantSettingsResponse,
+    TenantSettingsUpdateRequest,
     TenantStatusUpdateRequest,
     TenantUpdateRequest,
 )
@@ -51,7 +53,7 @@ async def create_tenant(
 async def list_tenants(
     db: DbSession,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> PaginatedResponse[TenantResponse]:
     service = TenantService(db)
     tenants, total = await service.list_tenants(page=page, page_size=page_size)
@@ -116,6 +118,37 @@ async def update_tenant_status(
         tenant_id=tenant_id, status=payload.status, actor_id=current_user.id, request_id=request_id
     )
     return TenantResponse.model_validate(tenant)
+
+
+@router.get(
+    "/{tenant_id}/settings",
+    response_model=TenantSettingsResponse,
+    summary="Get tenant settings",
+    dependencies=[Depends(require_tenant_admin)],
+)
+async def get_tenant_settings(
+    tenant_id: uuid.UUID,
+    db: DbSession,
+) -> TenantSettingsResponse:
+    service = TenantService(db)
+    settings = await service.get_tenant_settings(tenant_id)
+    return TenantSettingsResponse.model_validate(settings)
+
+
+@router.patch(
+    "/{tenant_id}/settings",
+    response_model=TenantSettingsResponse,
+    summary="Update tenant settings",
+    dependencies=[Depends(require_tenant_admin)],
+)
+async def update_tenant_settings(
+    tenant_id: uuid.UUID,
+    payload: TenantSettingsUpdateRequest,
+    db: DbSession,
+) -> TenantSettingsResponse:
+    service = TenantService(db)
+    settings = await service.update_tenant_settings(tenant_id, payload)
+    return TenantSettingsResponse.model_validate(settings)
 
 
 @router.delete(

@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from pathlib import Path
+from typing import Annotated, AsyncGenerator
+
+import os
 
 import orjson
-from fastapi import FastAPI, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, ORJSONResponse
+from fastapi.responses import FileResponse, JSONResponse, ORJSONResponse
 
 from app.api.v1.router import api_router
+from app.api.deps import get_current_user
+from app.models.user import User
 from app.core.config import settings
 from app.core.constants import API_V1_PREFIX
 from app.core.exceptions import AppBaseException
@@ -18,6 +23,7 @@ from app.db.redis import close_redis_pool, get_redis_pool
 from app.db.session import engine
 from app.events import handlers as _event_handlers  # noqa: F401 — registers handlers
 from app.notifications import handlers as _notification_handlers  # noqa: F401 — registers notification handlers
+from app.reseller_finance.events import handlers as _reseller_finance_handlers # noqa: F401 — handlers
 from app.middleware.error_handler import ErrorHandlerMiddleware
 from app.middleware.idempotency import IdempotencyMiddleware
 from app.middleware.logging import RequestLoggingMiddleware
@@ -106,6 +112,36 @@ def create_application() -> FastAPI:
     # Routes
     app.include_router(api_router, prefix=API_V1_PREFIX)
 
+    # Ensure upload directory exists
+    upload_dir = settings.UPLOAD_DIR
+    os.makedirs(upload_dir, exist_ok=True)
+
+    # Protected file serving — requires a valid JWT; SUPER_ADMIN can access any file.
+    # Files are validated to stay within the upload root (path traversal prevention).
+    @app.get("/uploads/proofs/{tenant_id}/{filename}", include_in_schema=False)
+    async def serve_upload(
+        tenant_id: str,
+        filename: str,
+        current_user: Annotated[User, Depends(get_current_user)],
+    ) -> FileResponse:
+        from app.core.constants import UserRole
+
+        # Tenant users can only access their own tenant's files
+        if current_user.role != UserRole.SUPER_ADMIN and str(current_user.tenant_id) != tenant_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+        upload_root = Path(settings.UPLOAD_DIR).resolve()
+        file_path = (upload_root / "proofs" / tenant_id / filename).resolve()
+
+        # Prevent path traversal
+        if not str(file_path).startswith(str(upload_root)):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid path")
+
+        if not file_path.is_file():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+        return FileResponse(file_path)
+
     @app.get("/health", tags=["Health"], include_in_schema=False)
     async def health_check() -> dict:
         """Basic liveness probe — returns 200 as long as the process is alive."""
@@ -140,7 +176,8 @@ def create_application() -> FastAPI:
             }
         except Exception as exc:
             overall_ok = False
-            checks["database"] = {"status": "error", "error": str(exc)}
+            logger.error("health_check_db_failed", error=str(exc))
+            checks["database"] = {"status": "error"}
 
         # Redis check
         try:
@@ -155,7 +192,8 @@ def create_application() -> FastAPI:
             }
         except Exception as exc:
             overall_ok = False
-            checks["redis"] = {"status": "error", "error": str(exc)}
+            logger.error("health_check_redis_failed", error=str(exc))
+            checks["redis"] = {"status": "error"}
 
         http_status = status.HTTP_200_OK if overall_ok else status.HTTP_503_SERVICE_UNAVAILABLE
         return JSONResponse(

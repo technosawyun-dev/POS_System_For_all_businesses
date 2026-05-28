@@ -36,6 +36,45 @@ class SubscriptionPlanRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_trial_plan(self) -> SubscriptionPlan | None:
+        stmt = (
+            select(SubscriptionPlan)
+            .options(selectinload(SubscriptionPlan.entitlements))
+            .where(SubscriptionPlan.is_trial.is_(True), SubscriptionPlan.is_active.is_(True))
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_referral_plan(self) -> SubscriptionPlan | None:
+        stmt = (
+            select(SubscriptionPlan)
+            .where(SubscriptionPlan.is_referral_plan.is_(True), SubscriptionPlan.is_active.is_(True))
+            .limit(1)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_public_plans(self) -> list[SubscriptionPlan]:
+        stmt = (
+            select(SubscriptionPlan)
+            .options(selectinload(SubscriptionPlan.entitlements))
+            .where(
+                SubscriptionPlan.is_active.is_(True),
+                SubscriptionPlan.is_public.is_(True),
+                SubscriptionPlan.is_trial.is_(False),
+            )
+            .order_by(SubscriptionPlan.sort_order, SubscriptionPlan.created_at)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def count_trial_plans(self) -> int:
+        stmt = select(func.count()).select_from(SubscriptionPlan).where(
+            SubscriptionPlan.is_trial.is_(True), SubscriptionPlan.is_active.is_(True)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one()
+
     async def get_all(
         self,
         offset: int = 0,
@@ -80,6 +119,19 @@ class TenantSubscriptionRepository:
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_expiring_trials(self, days: int, now: datetime) -> list[TenantSubscription]:
+        from datetime import timedelta
+        from app.core.constants import SubscriptionStatus
+        window_start = now + timedelta(days=days - 1)
+        window_end = now + timedelta(days=days)
+        stmt = select(TenantSubscription).where(
+            TenantSubscription.status == SubscriptionStatus.TRIAL,
+            TenantSubscription.expires_at >= window_start,
+            TenantSubscription.expires_at < window_end,
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
 
     async def get_expired(self, now: datetime) -> list[TenantSubscription]:
         from app.core.constants import SubscriptionStatus
@@ -146,5 +198,20 @@ class PaymentProofRepository:
         )
         total_result = await self.session.execute(count_stmt)
         total = total_result.scalar_one()
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all()), total
+
+    async def get_all(
+        self, status: str | None = None, offset: int = 0, limit: int = 20
+    ) -> tuple[list[PaymentProof], int]:
+        filters = []
+        if status:
+            filters.append(PaymentProof.status == status)
+        count_stmt = select(func.count()).select_from(PaymentProof)
+        stmt = select(PaymentProof).order_by(PaymentProof.created_at.desc()).offset(offset).limit(limit)
+        if filters:
+            count_stmt = count_stmt.where(*filters)
+            stmt = stmt.where(*filters)
+        total = (await self.session.execute(count_stmt)).scalar_one()
         result = await self.session.execute(stmt)
         return list(result.scalars().all()), total

@@ -78,6 +78,7 @@ class PurchaseOrderSummary(TimestampedSchema):
 class PurchaseOrderDetail(PurchaseOrderSummary):
     notes: str | None
     items: list[PurchaseOrderItemResponse]
+    payable: SupplierPayableSummary | None = None
 
 
 PaginatedPurchaseOrders = PaginatedResponse[PurchaseOrderSummary]

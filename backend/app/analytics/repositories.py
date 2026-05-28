@@ -493,30 +493,43 @@ class AnalyticsRepository:
         branch_id: uuid.UUID | None = None,
         limit: int = 10,
     ) -> list[dict[str, Any]]:
-        filters: list = [
+        # Aggregate on product_id only (tighter GROUP BY), then join Product for names.
+        # This lets the planner use the (tenant_id, movement_type, created_at) index
+        # on the inner scan without dragging Product columns into the sort.
+        mv_filters: list = [
             StockMovement.tenant_id == tenant_id,
             StockMovement.movement_type == StockMovementType.SALE.value,
-            Product.is_deleted.is_(False),
         ]
         if start_dt:
-            filters.append(StockMovement.created_at >= start_dt)
+            mv_filters.append(StockMovement.created_at >= start_dt)
         if end_dt:
-            filters.append(StockMovement.created_at < end_dt)
+            mv_filters.append(StockMovement.created_at < end_dt)
         if branch_id:
-            filters.append(StockMovement.branch_id == branch_id)
-        stmt = (
+            mv_filters.append(StockMovement.branch_id == branch_id)
+
+        agg_sq = (
             select(
                 StockMovement.product_id,
-                Product.name.label("product_name"),
-                Product.sku,
                 func.sum(StockMovement.quantity).label("quantity_sold"),
                 func.count(distinct(StockMovement.reference_id)).label("order_count"),
             )
-            .join(Product, Product.id == StockMovement.product_id)
-            .where(and_(*filters))
-            .group_by(StockMovement.product_id, Product.name, Product.sku)
+            .where(and_(*mv_filters))
+            .group_by(StockMovement.product_id)
             .order_by(func.sum(StockMovement.quantity).desc())
             .limit(limit)
+            .subquery()
+        )
+
+        stmt = (
+            select(
+                agg_sq.c.product_id,
+                Product.name.label("product_name"),
+                Product.sku,
+                agg_sq.c.quantity_sold,
+                agg_sq.c.order_count,
+            )
+            .join(Product, and_(Product.id == agg_sq.c.product_id, Product.is_deleted.is_(False)))
+            .order_by(agg_sq.c.quantity_sold.desc())
         )
         result = await self.session.execute(stmt)
         rows = [dict(r) for r in result.mappings().all()]

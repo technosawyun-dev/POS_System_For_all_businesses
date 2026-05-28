@@ -15,6 +15,8 @@ from app.api.deps import (
     EffectiveTenantId,
     RequestId,
     UserAgent,
+    get_effective_tenant_id,
+    get_request_id,
     require_roles,
 )
 from app.core.constants import UserRole
@@ -71,7 +73,7 @@ async def create_cart(
     data: CartCreateRequest,
     db: DbSession,
     current_user: User = _sales_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> CartResponse:
     svc = CartService(db)
     cart = await svc.create_cart(
@@ -96,7 +98,7 @@ async def get_cart(
     cart_id: uuid.UUID,
     db: DbSession,
     current_user: User = _sales_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> CartResponse:
     svc = CartService(db)
     cart = await svc.get_cart(cart_id, tenant_id)
@@ -117,7 +119,7 @@ async def add_cart_item(
     data: CartItemRequest,
     db: DbSession,
     current_user: User = _sales_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> CartResponse:
     svc = CartService(db)
     cart = await svc.add_item(
@@ -148,7 +150,7 @@ async def update_cart_item(
     data: CartItemUpdateRequest,
     db: DbSession,
     current_user: User = _sales_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> CartResponse:
     svc = CartService(db)
     cart = await svc.update_item(
@@ -176,7 +178,7 @@ async def remove_cart_item(
     item_id: uuid.UUID,
     db: DbSession,
     current_user: User = _sales_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> CartResponse:
     svc = CartService(db)
     cart = await svc.remove_item(cart_id, item_id, tenant_id)
@@ -196,7 +198,7 @@ async def delete_cart(
     cart_id: uuid.UUID,
     db: DbSession,
     current_user: User = _sales_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> None:
     svc = CartService(db)
     await svc.delete_cart(cart_id, tenant_id)
@@ -218,8 +220,8 @@ async def checkout(
     data: CheckoutRequest,
     db: DbSession,
     current_user: User = _sales_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
-    request_id: str = Depends(RequestId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
+    request_id: str = Depends(get_request_id),
 ) -> OrderResponse:
     svc = CheckoutService(db)
     checkout_input = CheckoutInput(
@@ -268,7 +270,7 @@ async def checkout(
 async def list_orders(
     db: DbSession,
     current_user: User = _view_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
     branch_id: uuid.UUID | None = Query(default=None),
     cashier_session_id: uuid.UUID | None = Query(default=None),
     order_status: str | None = Query(default=None),
@@ -276,7 +278,7 @@ async def list_orders(
     date_from: datetime | None = Query(default=None),
     date_to: datetime | None = Query(default=None),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> OrderListResponse:
     svc = OrderService(db)
     items, total = await svc.list_orders(
@@ -307,7 +309,7 @@ async def get_order(
     order_id: uuid.UUID,
     db: DbSession,
     current_user: User = _view_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
 ) -> OrderResponse:
     svc = OrderService(db)
     order = await svc.get_order(order_id, tenant_id)
@@ -325,8 +327,8 @@ async def void_order(
     data: VoidOrderRequest,
     db: DbSession,
     current_user: User = _void_access,
-    tenant_id: uuid.UUID = Depends(EffectiveTenantId),
-    request_id: str = Depends(RequestId),
+    tenant_id: uuid.UUID = Depends(get_effective_tenant_id),
+    request_id: str = Depends(get_request_id),
 ) -> OrderResponse:
     svc = CheckoutService(db)
     order = await svc.void_order(

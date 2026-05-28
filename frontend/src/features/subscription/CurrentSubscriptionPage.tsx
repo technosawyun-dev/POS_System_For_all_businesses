@@ -1,0 +1,422 @@
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { fmtDate, extractApiMsg } from '@/lib/utils'
+import { Badge, Btn, Spinner } from '@/components/ui'
+import { cn } from '@/shared/utils'
+import { useAuthStore } from '@/store/auth.store'
+import { subscriptionsService } from '@/services/subscriptions/subscriptions.service'
+
+const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'default'> = {
+  ACTIVE:    'success',
+  TRIAL:     'info',
+  EXPIRED:   'danger',
+  SUSPENDED: 'warning',
+  CANCELLED: 'default',
+}
+
+const FEATURE_LABELS: Record<string, string> = {
+  users:         'Users / Staff',
+  branches:      'Branches',
+  products:      'Products',
+  customers:     'Customers',
+  devices:       'Devices',
+  analytics:     'Analytics',
+  procurement:   'Procurement',
+  sync:          'Offline Sync',
+  notifications: 'Notifications',
+  sales:         'Sales',
+  inventory:     'Inventory',
+  // Plans may use max_* prefixed codes
+  max_users:     'Users / Staff',
+  max_branches:  'Branches',
+  max_products:  'Products',
+  max_customers: 'Customers',
+  max_devices:   'Devices',
+  max_staff:     'Users / Staff',
+}
+
+function featureLabel(code: string) {
+  return FEATURE_LABELS[code] ?? code.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+function UsageRow({
+  featureCode,
+  enabled,
+  limitValue,
+  used,
+  isOverride,
+}: {
+  featureCode: string
+  enabled: boolean
+  limitValue: number | null
+  used: number | null
+  isOverride: boolean
+}) {
+  const isUnlimited = limitValue === null || limitValue === 0
+  const pct = (!isUnlimited && used !== null && limitValue) ? Math.min((used / limitValue) * 100, 100) : 0
+
+  let barColor = 'bg-green-500'
+  if (pct >= 90) barColor = 'bg-red-500'
+  else if (pct >= 75) barColor = 'bg-amber-500'
+
+  return (
+    <div className={cn('px-4 py-3.5', !enabled && 'opacity-40')}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className={cn(
+            'w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0',
+            enabled ? 'bg-green-900 text-green-400' : 'bg-zinc-800 text-zinc-600',
+          )}>
+            {enabled ? (
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+            ) : (
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            )}
+          </span>
+          <span className="text-sm text-zinc-200">{featureLabel(featureCode)}</span>
+          {isOverride && (
+            <span className="text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5 flex-shrink-0">
+              Override
+            </span>
+          )}
+        </div>
+        <span className="text-xs text-zinc-500 flex-shrink-0 tabular-nums">
+          {!enabled
+            ? 'Disabled'
+            : isUnlimited
+            ? (used !== null ? `${used} used · ∞` : '∞ Unlimited')
+            : used !== null
+            ? `${used} / ${limitValue}`
+            : `Limit: ${limitValue}`}
+        </span>
+      </div>
+      {enabled && !isUnlimited && limitValue !== null && used !== null && (
+        <div className="mt-2 ml-6">
+          <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+            <div className={cn('h-full rounded-full transition-all', barColor)} style={{ width: `${pct}%` }} />
+          </div>
+          {pct >= 90 && (
+            <p className="text-[10px] text-red-400 mt-1">Approaching limit</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PlanPickerModal({
+  mode,
+  currentPlanId,
+  onClose,
+  onConfirm,
+}: {
+  mode: 'upgrade' | 'downgrade'
+  currentPlanId: string
+  onClose: () => void
+  onConfirm: (planId: string) => void
+}) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['plans'],
+    queryFn: () => subscriptionsService.listPlans({ page_size: 50 }),
+  })
+  const [selected, setSelected] = useState<string>('')
+
+  const plans = (data?.items ?? []).filter(p => p.id !== currentPlanId && p.is_active)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+          <h3 className="text-base font-semibold text-zinc-100 capitalize">{mode} Plan</h3>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-zinc-800">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div className="p-5 space-y-2 max-h-72 overflow-y-auto">
+          {isLoading ? (
+            <div className="flex justify-center py-8"><Spinner size={24} /></div>
+          ) : plans.length === 0 ? (
+            <p className="text-zinc-500 text-sm text-center py-6">No other plans available</p>
+          ) : (
+            plans.map(plan => (
+              <button
+                key={plan.id}
+                onClick={() => setSelected(plan.id)}
+                className={cn(
+                  'w-full text-left px-4 py-3 rounded-xl border transition-all',
+                  selected === plan.id
+                    ? 'border-amber-500 bg-amber-500/10'
+                    : 'border-zinc-700 hover:border-zinc-600 bg-zinc-800',
+                )}
+              >
+                <p className="text-sm font-medium text-zinc-100">{plan.name}</p>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {plan.currency} {Number(plan.price).toFixed(2)} / {plan.billing_cycle.toLowerCase()}
+                </p>
+              </button>
+            ))
+          )}
+        </div>
+        <div className="px-5 py-4 border-t border-zinc-800 flex gap-2 justify-end">
+          <Btn variant="secondary" size="sm" onClick={onClose}>Cancel</Btn>
+          <Btn size="sm" disabled={!selected} onClick={() => selected && onConfirm(selected)}>
+            Confirm {mode}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function CurrentSubscriptionPage() {
+  const user = useAuthStore(s => s.user)
+  const qc = useQueryClient()
+  const [modal, setModal] = useState<'upgrade' | 'downgrade' | null>(null)
+  const isOwner = user?.role === 'BUSINESS_OWNER'
+
+  const { data: sub, isLoading, error } = useQuery({
+    queryKey: ['subscription', 'current'],
+    queryFn: subscriptionsService.getMySubscription,
+  })
+
+  const { data: effectiveEntitlements } = useQuery({
+    queryKey: ['subscription', 'entitlements'],
+    queryFn: subscriptionsService.getMyEntitlements,
+    enabled: !!sub,
+  })
+
+  const { data: trialStatus } = useQuery({
+    queryKey: ['subscription', 'status'],
+    queryFn: subscriptionsService.getTrialStatus,
+    enabled: !!sub,
+    staleTime: 60_000,
+  })
+
+  const renewMutation = useMutation({
+    mutationFn: subscriptionsService.renew,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['subscription'] })
+      toast.success('Subscription renewed')
+    },
+    onError: err => toast.error(extractApiMsg(err) ?? 'Failed to renew'),
+  })
+
+  const changePlanMutation = useMutation({
+    mutationFn: ({ mode, planId }: { mode: 'upgrade' | 'downgrade'; planId: string }) =>
+      mode === 'upgrade'
+        ? subscriptionsService.upgrade(planId)
+        : subscriptionsService.downgrade(planId),
+    onSuccess: (_, { mode }) => {
+      qc.invalidateQueries({ queryKey: ['subscription'] })
+      toast.success(`Plan ${mode}d successfully`)
+      setModal(null)
+    },
+    onError: err => toast.error(extractApiMsg(err) ?? 'Failed to change plan'),
+  })
+
+  const cancelMutation = useMutation({
+    mutationFn: subscriptionsService.cancel,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['subscription'] })
+      toast.success('Subscription cancelled')
+    },
+    onError: err => toast.error(extractApiMsg(err) ?? 'Failed to cancel'),
+  })
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Spinner size={28} />
+      </div>
+    )
+  }
+
+  if (error || !sub) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 p-6">
+        <p className="text-zinc-400 text-sm">No active subscription found.</p>
+        <p className="text-zinc-600 text-xs text-center max-w-xs">
+          Contact your administrator to activate a subscription for this account.
+        </p>
+      </div>
+    )
+  }
+
+  const isTrial = sub.status === 'TRIAL'
+  const isActive = sub.status === 'ACTIVE'
+  const plan = sub.plan
+
+  // Build usage lookup from trial status (keyed by feature code).
+  // Plans may store codes as 'max_products' or 'products' — populate both keys.
+  const usageMap: Record<string, number> = {}
+  if (trialStatus?.usage) {
+    const u = trialStatus.usage
+    if (u.products?.used !== undefined) {
+      usageMap['products'] = u.products.used
+      usageMap['max_products'] = u.products.used
+    }
+    if (u.staff?.used !== undefined) {
+      usageMap['users'] = u.staff.used
+      usageMap['max_staff'] = u.staff.used
+      usageMap['max_users'] = u.staff.used
+    }
+    if (u.branches?.used !== undefined) {
+      usageMap['branches'] = u.branches.used
+      usageMap['max_branches'] = u.branches.used
+    }
+    if (u.customers?.used !== undefined) {
+      usageMap['customers'] = u.customers.used
+      usageMap['max_customers'] = u.customers.used
+    }
+  }
+
+  // Use effective entitlements (with overrides) if available, else fall back to plan entitlements
+  const entitlementItems = effectiveEntitlements ?? plan.entitlements.map(e => ({
+    feature_code: e.feature_code,
+    enabled: e.enabled,
+    limit_value: e.limit_value,
+    source: 'plan',
+  }))
+
+  return (
+    <>
+      {modal && (
+        <PlanPickerModal
+          mode={modal}
+          currentPlanId={sub.plan_id}
+          onClose={() => setModal(null)}
+          onConfirm={planId => changePlanMutation.mutate({ mode: modal, planId })}
+        />
+      )}
+
+      <div className="h-full overflow-y-auto p-4 sm:p-6">
+        <div className="max-w-2xl space-y-4">
+          {/* Status card */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Current Plan</p>
+                <h2 className="text-2xl font-bold text-zinc-100">{plan.name}</h2>
+                <p className="text-sm text-zinc-400 mt-1">{plan.description ?? plan.code}</p>
+              </div>
+              <Badge variant={STATUS_VARIANT[sub.status] ?? 'default'} size="md" dot>
+                {sub.status}
+              </Badge>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-zinc-800 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+              <div>
+                <p className="text-zinc-500 text-xs mb-0.5">Price</p>
+                <p className="text-zinc-100 font-medium">
+                  {plan.currency} {Number(plan.price).toFixed(2)}
+                  <span className="text-zinc-500 text-xs ml-1">/ {plan.billing_cycle.toLowerCase()}</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-zinc-500 text-xs mb-0.5">Started</p>
+                <p className="text-zinc-100">{fmtDate(sub.started_at)}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 text-xs mb-0.5">Expires</p>
+                <p className="text-zinc-100">{fmtDate(sub.expires_at)}</p>
+              </div>
+              {isTrial && sub.trial_ends_at && (
+                <div>
+                  <p className="text-zinc-500 text-xs mb-0.5">Trial Ends</p>
+                  <p className="text-amber-400">{fmtDate(sub.trial_ends_at)}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-zinc-500 text-xs mb-0.5">Auto-Renew</p>
+                <p className={sub.auto_renew ? 'text-green-400' : 'text-zinc-500'}>
+                  {sub.auto_renew ? 'Enabled' : 'Disabled'}
+                </p>
+              </div>
+              {plan.trial_days > 0 && (
+                <div>
+                  <p className="text-zinc-500 text-xs mb-0.5">Trial Days</p>
+                  <p className="text-zinc-100">{plan.trial_days} days</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Usage & Limits */}
+          {entitlementItems.length > 0 && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-zinc-800">
+                <p className="text-sm font-semibold text-zinc-100">Usage &amp; Limits</p>
+                <p className="text-xs text-zinc-500 mt-0.5">Current usage against your plan limits</p>
+              </div>
+              <div className="divide-y divide-zinc-800">
+                {entitlementItems.map(e => (
+                  <UsageRow
+                    key={e.feature_code}
+                    featureCode={e.feature_code}
+                    enabled={e.enabled}
+                    limitValue={e.limit_value}
+                    used={usageMap[e.feature_code] ?? null}
+                    isOverride={(e as { source?: string }).source === 'override'}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          {isOwner && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+              <h3 className="text-sm font-semibold text-zinc-100 mb-3">Actions</h3>
+              <div className="flex flex-wrap gap-2">
+                {(isActive || isTrial) && (
+                  <Btn
+                    size="sm"
+                    onClick={() => setModal('upgrade')}
+                    disabled={changePlanMutation.isPending}
+                  >
+                    Upgrade Plan
+                  </Btn>
+                )}
+                {isActive && (
+                  <Btn
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setModal('downgrade')}
+                    disabled={changePlanMutation.isPending}
+                  >
+                    Downgrade Plan
+                  </Btn>
+                )}
+                {isActive && (
+                  <Btn
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => renewMutation.mutate()}
+                    disabled={renewMutation.isPending}
+                  >
+                    {renewMutation.isPending ? 'Renewing…' : 'Renew Now'}
+                  </Btn>
+                )}
+                {(isActive || isTrial) && (
+                  <Btn
+                    variant="danger"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm('Cancel your subscription? This cannot be undone.')) {
+                        cancelMutation.mutate()
+                      }
+                    }}
+                    disabled={cancelMutation.isPending}
+                  >
+                    {cancelMutation.isPending ? 'Cancelling…' : 'Cancel Subscription'}
+                  </Btn>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
