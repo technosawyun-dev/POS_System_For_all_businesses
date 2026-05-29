@@ -41,6 +41,7 @@ const SalesAnalyticsPage        = lazy(() => import('@/features/analytics/SalesA
 const InventoryAnalyticsPage    = lazy(() => import('@/features/analytics/InventoryAnalyticsPage'))
 const CustomerAnalyticsPage     = lazy(() => import('@/features/analytics/CustomerAnalyticsPage'))
 const FinancialAnalyticsPage    = lazy(() => import('@/features/analytics/FinancialAnalyticsPage'))
+const StaffAnalyticsPage        = lazy(() => import('@/features/analytics/StaffAnalyticsPage'))
 const ProcurementLayout         = lazy(() => import('@/features/procurement/ProcurementLayout'))
 const ProcurementDashboardPage  = lazy(() => import('@/features/procurement/ProcurementDashboardPage'))
 const SuppliersPage             = lazy(() => import('@/features/procurement/SuppliersPage'))
@@ -269,6 +270,7 @@ export const router = createBrowserRouter([
                   { path: 'inventory', element: S(InventoryAnalyticsPage) },
                   { path: 'customers', element: S(CustomerAnalyticsPage)  },
                   { path: 'financial', element: S(FinancialAnalyticsPage) },
+                  { path: 'staff',     element: S(StaffAnalyticsPage)     },
                 ],
               },
             ],

@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func, select
 
 from app.core.constants import AuditAction, EntityType
 from app.core.exceptions import ConflictError, NotFoundError
@@ -24,6 +25,13 @@ class SupplierService:
         self.contact_repo = SupplierContactRepository(session)
         self.audit = AuditService(session)
 
+    async def _generate_supplier_code(self, tenant_id: uuid.UUID) -> str:
+        result = await self.session.execute(
+            select(func.count()).select_from(Supplier).where(Supplier.tenant_id == tenant_id)
+        )
+        count = result.scalar_one() or 0
+        return f"SUP-{(count + 1):04d}"
+
     async def create_supplier(
         self,
         tenant_id: uuid.UUID,
@@ -31,13 +39,15 @@ class SupplierService:
         actor_id: uuid.UUID,
         request_id: str | None = None,
     ) -> Supplier:
-        if await self.repo.code_exists(tenant_id, data.code):
-            raise ConflictError(f"Supplier code '{data.code}' already exists in this tenant")
+        code = data.code or await self._generate_supplier_code(tenant_id)
+
+        if await self.repo.code_exists(tenant_id, code):
+            code = f"SUP-{uuid.uuid4().hex[:6].upper()}"
 
         supplier = await self.repo.create(
             tenant_id=tenant_id,
             name=data.name,
-            code=data.code,
+            code=code,
             email=data.email,
             phone=data.phone,
             address=data.address,

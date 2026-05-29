@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.cashiers.models import CashierSession
 from app.repositories.base import BaseRepository
 from app.sales.models import BranchCounter, Cart, CartItem, Order, OrderItem
 
@@ -104,6 +105,7 @@ class OrderRepository(BaseRepository[Order]):
         limit: int = 20,
         branch_id: uuid.UUID | None = None,
         cashier_session_id: uuid.UUID | None = None,
+        cashier_user_id: uuid.UUID | None = None,
         order_status: str | None = None,
         payment_status: str | None = None,
         date_from: datetime | None = None,
@@ -114,6 +116,14 @@ class OrderRepository(BaseRepository[Order]):
             filters.append(Order.branch_id == branch_id)
         if cashier_session_id:
             filters.append(Order.cashier_session_id == cashier_session_id)
+        if cashier_user_id:
+            filters.append(
+                Order.cashier_session_id.in_(
+                    select(CashierSession.id).where(
+                        CashierSession.cashier_user_id == cashier_user_id
+                    )
+                )
+            )
         if order_status:
             filters.append(Order.order_status == order_status)
         if payment_status:

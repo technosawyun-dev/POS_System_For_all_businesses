@@ -456,7 +456,7 @@ class CheckoutService:
             order_items.append(order_item)
 
             # SALE stock movement — the ONLY way to deduct inventory
-            await self.inventory_svc.create_stock_movement(
+            _, inv_after = await self.inventory_svc.create_stock_movement(
                 tenant_id=tenant_id,
                 branch_id=branch_id,
                 product_id=item.product_id,
@@ -469,6 +469,26 @@ class CheckoutService:
                 unit_cost=entry["unit_cost_snapshot"],
                 reason=f"Sale: {order.order_number}",
             )
+
+            # Fire low stock alert if stock just hit or crossed the reorder point
+            if (
+                inv_after.reorder_point is not None
+                and inv_after.quantity_on_hand <= inv_after.reorder_point
+            ):
+                await self.publisher.publish(
+                    DomainEvent(
+                        event_type=EventType.LOW_STOCK,
+                        tenant_id=tenant_id,
+                        payload={
+                            "product_id":    str(product.id),
+                            "product_name":  product.name,
+                            "sku":           product.sku or "",
+                            "current_stock": float(inv_after.quantity_on_hand),
+                            "reorder_level": float(inv_after.reorder_point),
+                            "branch_id":     str(branch_id),
+                        },
+                    )
+                )
 
         await self.session.flush()
         return order_items

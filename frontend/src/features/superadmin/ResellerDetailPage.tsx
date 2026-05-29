@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { fmtDate, extractApiMsg } from '@/lib/utils'
-import { Badge, Btn, Spinner, Empty } from '@/components/ui'
+import { Badge, Btn, Spinner, Empty, Modal, PasswordInput } from '@/components/ui'
 import { cn } from '@/shared/utils'
 import { usersService } from '@/services/users/users.service'
 import { resellerFinanceAdminService } from '@/services/reseller_finance/reseller_finance.service'
@@ -24,6 +24,9 @@ export default function ResellerDetailPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('overview')
+  const [resetPwdOpen, setResetPwdOpen] = useState(false)
+  const [newPwd, setNewPwd] = useState('')
+  const [confirmPwd, setConfirmPwd] = useState('')
 
   const userQuery = useQuery({
     queryKey: ['admin', 'user', id],
@@ -59,6 +62,24 @@ export default function ResellerDetailPage() {
     onError: err => toast.error(extractApiMsg(err) ?? 'Failed'),
   })
 
+  const resetPwdMutation = useMutation({
+    mutationFn: () => usersService.resetPassword(id!, newPwd),
+    onSuccess: () => {
+      toast.success('Password reset successfully')
+      setResetPwdOpen(false)
+      setNewPwd('')
+      setConfirmPwd('')
+    },
+    onError: err => toast.error(extractApiMsg(err) ?? 'Failed to reset password'),
+  })
+
+  function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (newPwd.length < 8) { toast.error('Password must be at least 8 characters'); return }
+    if (newPwd !== confirmPwd) { toast.error('Passwords do not match'); return }
+    resetPwdMutation.mutate()
+  }
+
   const user = userQuery.data
   const referrals = referralsQuery.data?.items ?? []
 
@@ -92,6 +113,12 @@ export default function ResellerDetailPage() {
         </div>
         {user && (
           <div className="flex gap-2 flex-shrink-0">
+            <Btn
+              variant="secondary" size="sm"
+              onClick={() => { setNewPwd(''); setConfirmPwd(''); setResetPwdOpen(true) }}
+            >
+              Reset Password
+            </Btn>
             {user.status !== 'SUSPENDED' ? (
               <Btn
                 variant="secondary" size="sm"
@@ -300,6 +327,56 @@ export default function ResellerDetailPage() {
         )}
 
       </div>
+
+      {/* Reset Password Modal */}
+      <Modal
+        open={resetPwdOpen}
+        onClose={() => setResetPwdOpen(false)}
+        title={`Reset Password — ${user?.full_name ?? ''}`}
+        size="sm"
+      >
+        <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
+          <PasswordInput
+            label="New Password"
+            name="new_password"
+            value={newPwd}
+            onChange={e => setNewPwd(e.target.value)}
+            placeholder="Min 8 characters"
+            autoComplete="new-password"
+          />
+          <PasswordInput
+            label="Confirm Password"
+            name="confirm_password"
+            value={confirmPwd}
+            onChange={e => setConfirmPwd(e.target.value)}
+            placeholder="Repeat new password"
+            autoComplete="new-password"
+          />
+          {confirmPwd && newPwd !== confirmPwd && (
+            <p className="text-xs text-red-400 -mt-2">Passwords do not match</p>
+          )}
+          <div className="flex gap-2 pt-1">
+            <Btn
+              type="submit"
+              variant="danger"
+              fullWidth
+              loading={resetPwdMutation.isPending}
+              disabled={!newPwd || !confirmPwd || newPwd !== confirmPwd}
+            >
+              Reset Password
+            </Btn>
+            <Btn
+              type="button"
+              variant="secondary"
+              fullWidth
+              onClick={() => setResetPwdOpen(false)}
+              disabled={resetPwdMutation.isPending}
+            >
+              Cancel
+            </Btn>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

@@ -1,9 +1,12 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { ReceiptTemplate58mm } from '@/print/ReceiptTemplate58mm'
 import { ReceiptTemplate80mm } from '@/print/ReceiptTemplate80mm'
 import { Label40x30 } from '@/print/Label40x30'
 import { Label50x30 } from '@/print/Label50x30'
 import type { Receipt, Product } from '@/shared/types'
+import { useAuthStore } from '@/store/auth.store'
+import { tenantService } from '@/services/tenant/tenant.service'
 
 type ReceiptSize = '58mm' | '80mm'
 type LabelSize = '40x30' | '50x30'
@@ -12,11 +15,21 @@ type LabelSize = '40x30' | '50x30'
 interface ReceiptPreviewProps {
   receipt: Receipt
   onClose: () => void
+  autoTrigger?: boolean
 }
 
-export function ReceiptPrintPreviewModal({ receipt, onClose }: ReceiptPreviewProps) {
+export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false }: ReceiptPreviewProps) {
   const [size, setSize] = useState<ReceiptSize>('80mm')
   const printAreaRef = useRef<HTMLDivElement>(null)
+  const tenantId = useAuthStore(s => s.user?.tenant_id)
+  const { data: taxSettings } = useQuery({
+    queryKey: ['tenant-settings', tenantId],
+    queryFn: () => tenantService.getTenantSettings(tenantId!),
+    enabled: !!tenantId,
+    staleTime: 5 * 60 * 1000,
+  })
+  const taxInclusive = taxSettings?.tax_inclusive ?? false
+  const taxName = ((taxSettings?.extra_settings as Record<string, unknown> | undefined)?.tax_name as string) || 'Tax'
 
   function handlePrint() {
     const area = printAreaRef.current
@@ -39,6 +52,15 @@ ${pageRule}
     win.document.close()
     setTimeout(() => { win.focus(); win.print(); win.close() }, 300)
   }
+
+  // Auto-trigger print when opened from auto-print setting
+  useEffect(() => {
+    if (autoTrigger) {
+      const t = setTimeout(() => handlePrint(), 350)
+      return () => clearTimeout(t)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoTrigger])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
@@ -71,8 +93,8 @@ ${pageRule}
         <div className="flex-1 overflow-auto p-5 flex justify-center bg-zinc-900/50">
           <div ref={printAreaRef} className="shadow-lg">
             {size === '58mm'
-              ? <ReceiptTemplate58mm receipt={receipt} />
-              : <ReceiptTemplate80mm receipt={receipt} />
+              ? <ReceiptTemplate58mm receipt={receipt} taxInclusive={taxInclusive} taxName={taxName} />
+              : <ReceiptTemplate80mm receipt={receipt} taxInclusive={taxInclusive} taxName={taxName} />
             }
           </div>
         </div>

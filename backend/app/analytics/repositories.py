@@ -15,6 +15,7 @@ from typing import Any
 from sqlalchemy import and_, case, distinct, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.cashiers.models import CashierSession
 from app.core.constants import OrderStatus, PaymentStatus, StockMovementType
 from app.customers.models import Customer
 from app.models.branch import Branch
@@ -36,6 +37,7 @@ class AnalyticsRepository:
         start_dt: datetime | None = None,
         end_dt: datetime | None = None,
         branch_id: uuid.UUID | None = None,
+        cashier_user_id: uuid.UUID | None = None,
     ) -> list:
         """Base filter list for completed orders scoped to tenant."""
         f: list = [
@@ -48,6 +50,14 @@ class AnalyticsRepository:
             f.append(Order.created_at < end_dt)
         if branch_id:
             f.append(Order.branch_id == branch_id)
+        if cashier_user_id:
+            f.append(
+                Order.cashier_session_id.in_(
+                    select(CashierSession.id).where(
+                        CashierSession.cashier_user_id == cashier_user_id
+                    )
+                )
+            )
         return f
 
 
@@ -57,9 +67,10 @@ class AnalyticsRepository:
         start_dt: datetime,
         end_dt: datetime,
         branch_id: uuid.UUID | None = None,
+        cashier_user_id: uuid.UUID | None = None,
     ) -> dict[str, Any]:
         """COUNT and SUM of completed orders in [start_dt, end_dt)."""
-        filters = self._order_filters(tenant_id, start_dt, end_dt, branch_id)
+        filters = self._order_filters(tenant_id, start_dt, end_dt, branch_id, cashier_user_id)
         stmt = select(
             func.count().label("order_count"),
             func.coalesce(func.sum(Order.total_amount), 0).label("gross_sales"),

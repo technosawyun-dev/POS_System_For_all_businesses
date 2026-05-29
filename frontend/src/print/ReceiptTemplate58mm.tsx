@@ -4,11 +4,13 @@ import type { Receipt } from '@/shared/types'
 interface Props {
   receipt: Receipt
   footer?: string
+  taxInclusive?: boolean
+  taxName?: string
 }
 
 // 58mm thermal receipt — suitable for most small desktop POS printers.
 // Width ~380px equivalent; use @page { size: 58mm auto }.
-export function ReceiptTemplate58mm({ receipt, footer = 'Thank you for your purchase!' }: Props) {
+export function ReceiptTemplate58mm({ receipt, footer = 'Thank you for your purchase!', taxInclusive = false, taxName = 'Tax' }: Props) {
   return (
     <div
       className="print-sheet"
@@ -54,11 +56,16 @@ export function ReceiptTemplate58mm({ receipt, footer = 'Thank you for your purc
 
       {/* Totals */}
       <div>
-        <Row label="Subtotal" value={fmt(parseFloat(receipt.subtotal))} />
+        <Row
+          label="Subtotal"
+          value={fmt(parseFloat(taxInclusive ? receipt.total_amount : receipt.subtotal))}
+        />
         {parseFloat(receipt.discount_amount) > 0 && (
           <Row label="Discount" value={`-${fmt(parseFloat(receipt.discount_amount))}`} />
         )}
-        <Row label="Tax" value={fmt(parseFloat(receipt.tax_amount))} />
+        {parseFloat(receipt.tax_amount) > 0 && (
+          <Row label={taxInclusive ? `${taxName} (incl.)` : taxName} value={fmt(parseFloat(receipt.tax_amount))} />
+        )}
         <div style={{ borderTop: '1px solid #000', margin: '3px 0' }} />
         <Row label="TOTAL" value={fmt(parseFloat(receipt.total_amount))} bold />
       </div>

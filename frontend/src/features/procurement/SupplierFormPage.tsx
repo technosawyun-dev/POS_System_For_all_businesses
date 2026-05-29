@@ -12,7 +12,6 @@ import { inputCls, FormField } from './procurementHelpers'
 
 const schema = z.object({
   name:    z.string().min(1, 'Name is required'),
-  code:    z.string().min(1, 'Code is required'),
   email:   z.string().email('Invalid email').or(z.literal('')),
   phone:   z.string(),
   address: z.string(),
@@ -38,14 +37,13 @@ export default function SupplierFormPage() {
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: '', code: '', email: '', phone: '', address: '', city: '', country: '', website: '', notes: '' },
+    defaultValues: { name: '', email: '', phone: '', address: '', city: '', country: '', website: '', notes: '' },
   })
 
   useEffect(() => {
     if (existing) {
       reset({
         name:    existing.name,
-        code:    existing.code,
         email:   existing.email ?? '',
         phone:   existing.phone ?? '',
         address: existing.address ?? '',
@@ -60,7 +58,6 @@ export default function SupplierFormPage() {
   const createMutation = useMutation({
     mutationFn: (data: FormValues) => procurementService.createSupplier({
       name:    data.name,
-      code:    data.code,
       email:   data.email || undefined,
       phone:   data.phone || undefined,
       address: data.address || undefined,
@@ -117,14 +114,9 @@ export default function SupplierFormPage() {
 
       <div className="flex-1 overflow-y-auto">
         <form onSubmit={handleSubmit(onSubmit)} className="max-w-lg mx-auto p-4 sm:p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <FormField label="Supplier Name" error={errors.name?.message} required>
-              <input {...register('name')} placeholder="Acme Corp" className={inputCls(!!errors.name)} />
-            </FormField>
-            <FormField label="Supplier Code" error={errors.code?.message} required>
-              <input {...register('code')} placeholder="ACME-001" className={inputCls(!!errors.code)} />
-            </FormField>
-          </div>
+          <FormField label="Supplier Name" error={errors.name?.message} required>
+            <input {...register('name')} placeholder="Acme Corp" className={inputCls(!!errors.name)} />
+          </FormField>
 
           <div className="grid grid-cols-2 gap-4">
             <FormField label="Phone" error={errors.phone?.message}>

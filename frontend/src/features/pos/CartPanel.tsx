@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useCartStore, useCartTotals } from '@/store/cartStore'
-import { IconCart, IconX, IconRefund } from '@/components/icons'
+import { IconCart, IconX, IconRefund, IconChevLeft } from '@/components/icons'
 import { Divider, Kbd } from '@/components/ui'
 import { fmt } from '@/lib/utils'
 import CartItem from '@/features/pos/CartItem'
 import DiscountRow from '@/features/pos/DiscountRow'
 import RefundModal from '@/features/pos/RefundModal'
 
-export default function CartPanel() {
+export default function CartPanel({ onBackToProducts }: { onBackToProducts?: () => void }) {
   const items           = useCartStore(s => s.items)
   const discount        = useCartStore(s => s.discount)
   const clearCart       = useCartStore(s => s.clearCart)
@@ -29,6 +29,16 @@ export default function CartPanel() {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
           <div className="flex items-center gap-2">
+            {onBackToProducts && (
+              <button
+                onClick={onBackToProducts}
+                className="lg:hidden flex items-center gap-1 text-xs text-zinc-500 hover:text-amber-400 transition-colors mr-1"
+                title="Back to products"
+              >
+                <IconChevLeft width="14" height="14" />
+                Products
+              </button>
+            )}
             <IconCart width="16" height="16" className="text-amber-400" />
             <span className="text-sm font-semibold text-zinc-100">Order</span>
             {totals.itemCount > 0 && (
@@ -84,27 +94,23 @@ export default function CartPanel() {
             <DiscountRow />
             <Divider />
 
-            <div className="flex flex-col gap-1.5 text-xs">
-              <div className="flex justify-between text-zinc-500">
-                <span>Subtotal</span>
-                <span className="font-mono">{fmt(totals.itemSubtotal)}</span>
-              </div>
-              {discount > 0 && (
+            {discount > 0 && (
+              <div className="flex flex-col gap-1.5 text-xs">
+                <div className="flex justify-between text-zinc-500">
+                  <span>Subtotal</span>
+                  <span className="font-mono">{fmt(totals.itemSubtotal + totals.orderDiscAmt)}</span>
+                </div>
                 <div className="flex justify-between text-amber-500">
                   <span>Discount ({discount}%)</span>
                   <span className="font-mono">-{fmt(totals.orderDiscAmt)}</span>
                 </div>
-              )}
-              <div className="flex justify-between text-zinc-500">
-                <span>Tax</span>
-                <span className="font-mono">{fmt(totals.tax)}</span>
               </div>
-            </div>
+            )}
 
             <div className="flex items-center justify-between py-1.5 border-t border-zinc-800 mt-0.5">
               <span className="text-sm font-semibold text-zinc-200">Total</span>
               <span className="font-mono text-lg font-bold text-amber-400">
-                {fmt(totals.total)}
+                {fmt(totals.itemSubtotal)}
               </span>
             </div>
 

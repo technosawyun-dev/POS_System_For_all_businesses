@@ -7,6 +7,7 @@ const TABS = [
   { to: '/app/analytics/inventory', label: 'Inventory' },
   { to: '/app/analytics/customers', label: 'Customers' },
   { to: '/app/analytics/financial', label: 'Financial' },
+  { to: '/app/analytics/staff',     label: 'Staff'     },
 ]
 
 export default function AnalyticsLayout() {

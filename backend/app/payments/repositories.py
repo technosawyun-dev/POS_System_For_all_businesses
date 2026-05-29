@@ -8,8 +8,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.cashiers.models import CashierSession
 from app.payments.models import Payment, Refund, RefundItem
 from app.repositories.base import BaseRepository
+from app.sales.models import Order
 
 
 class PaymentRepository(BaseRepository[Payment]):
@@ -88,10 +90,19 @@ class RefundRepository(BaseRepository[Refund]):
         offset: int = 0,
         limit: int = 20,
         order_id: uuid.UUID | None = None,
+        cashier_user_id: uuid.UUID | None = None,
     ) -> tuple[list[Refund], int]:
         filters: list[Any] = [Refund.tenant_id == tenant_id]
         if order_id:
             filters.append(Refund.order_id == order_id)
+        if cashier_user_id:
+            filters.append(
+                Refund.order_id.in_(
+                    select(Order.id)
+                    .join(CashierSession, Order.cashier_session_id == CashierSession.id)
+                    .where(CashierSession.cashier_user_id == cashier_user_id)
+                )
+            )
         return await self.get_all(
             offset=offset,
             limit=limit,

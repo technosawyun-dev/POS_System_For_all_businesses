@@ -61,14 +61,31 @@ apiClient.interceptors.response.use(
 
     if (err.response?.status === 403) {
       const code = (err.response?.data as any)?.error?.code
-      // FEATURE_DISABLED should surface as an API error in-place, not a hard redirect
-      if (code !== 'FEATURE_DISABLED') {
+      const url  = (err.config?.url ?? '')
+      const method = (err.config?.method ?? '').toLowerCase()
+
+      // Don't hard-redirect for background infrastructure reads that may return 403
+      // for lower-privilege roles. GET /tenants/{uuid} and /tenants/{uuid}/settings
+      // are needed by every page layout and the POS checkout flow (tax/payment config).
+      const isSilentEndpoint =
+        code === 'FEATURE_DISABLED' ||
+        (method === 'get' && /^\/tenants\/[0-9a-f-]{36}(\/settings)?$/.test(url))
+
+      if (!isSilentEndpoint) {
         window.location.replace('/unauthorized')
       }
       return Promise.reject(err)
     }
 
     if (err.response?.status === 401 && !original._retry) {
+      // Never intercept 401 from the login endpoint itself — the auth store
+      // handles that error and shows it to the user. Intercepting it here
+      // causes a hard page reload that wipes the error before it can render.
+      const url = original.url ?? ''
+      if (url.includes('/auth/login')) {
+        return Promise.reject(err)
+      }
+
       const refreshToken = tokenStorage.getRefresh()
 
       if (!refreshToken) {

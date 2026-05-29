@@ -11,6 +11,8 @@ from app.api.deps import (
     require_super_admin,
     require_tenant_admin,
 )
+from app.core.constants import UserRole
+from app.core.exceptions import AuthorizationError
 from app.core.constants import TenantStatus
 from app.schemas.common import PaginatedResponse, SuccessResponse
 from app.schemas.tenant import (
@@ -69,12 +71,16 @@ async def list_tenants(
     "/{tenant_id}",
     response_model=TenantResponse,
     summary="Get tenant by ID",
-    dependencies=[Depends(require_tenant_admin)],
 )
 async def get_tenant(
     tenant_id: uuid.UUID,
     db: DbSession,
+    current_user: CurrentUser,
 ) -> TenantResponse:
+    # SUPER_ADMIN can read any tenant; all other roles can only read their own
+    if current_user.role != UserRole.SUPER_ADMIN.value:
+        if current_user.tenant_id is None or str(current_user.tenant_id) != str(tenant_id):
+            raise AuthorizationError("You can only view your own tenant")
     service = TenantService(db)
     tenant = await service.get_tenant(tenant_id)
     return TenantResponse.model_validate(tenant)
@@ -124,12 +130,17 @@ async def update_tenant_status(
     "/{tenant_id}/settings",
     response_model=TenantSettingsResponse,
     summary="Get tenant settings",
-    dependencies=[Depends(require_tenant_admin)],
 )
 async def get_tenant_settings(
     tenant_id: uuid.UUID,
     db: DbSession,
+    current_user: CurrentUser,
 ) -> TenantSettingsResponse:
+    # Any authenticated user may read their own tenant's settings (needed for tax/payment at checkout).
+    # SUPER_ADMIN may read any tenant's settings.
+    if current_user.role != UserRole.SUPER_ADMIN.value:
+        if current_user.tenant_id is None or str(current_user.tenant_id) != str(tenant_id):
+            raise AuthorizationError("You can only view your own tenant settings")
     service = TenantService(db)
     settings = await service.get_tenant_settings(tenant_id)
     return TenantSettingsResponse.model_validate(settings)

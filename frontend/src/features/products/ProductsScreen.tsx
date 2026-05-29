@@ -37,7 +37,6 @@ function ProductFormModal({ product, categories, brands, onClose, onSaved }: Pro
     barcode:       product?.barcode        ?? '',
     cost_price:    product?.cost_price     ?? '',
     selling_price: product?.selling_price  ?? '',
-    tax_rate:      product ? String(parseFloat(product.tax_rate) * 100) : '0',
     reorder_point: String(product?.reorder_point ?? 0),
     is_active:     product?.is_active ?? true,
     initial_stock: '',
@@ -128,7 +127,6 @@ function ProductFormModal({ product, categories, brands, onClose, onSaved }: Pro
         barcode:       form.barcode.trim() || undefined,
         cost_price:    form.cost_price,
         selling_price: form.selling_price,
-        tax_rate:      String(parseFloat(form.tax_rate || '0') / 100),
         reorder_point: parseInt(form.reorder_point || '0', 10),
       }
       if (isEdit) {
@@ -259,15 +257,12 @@ function ProductFormModal({ product, categories, brands, onClose, onSaved }: Pro
             <Input label="Selling Price *" type="number" min="0" step="0.01" value={form.selling_price} onChange={set('selling_price')} placeholder="0.00" required />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Tax Rate (%)" type="number" min="0" max="100" step="0.01" value={form.tax_rate} onChange={set('tax_rate')} placeholder="0" />
-            <div>
-              <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider block mb-1.5">
-                Reorder Point
-                <span className="ml-1 text-zinc-600 normal-case font-normal">— alert when stock ≤ this</span>
-              </label>
-              <Input type="number" min="0" step="1" value={form.reorder_point} onChange={set('reorder_point')} placeholder="0" />
-            </div>
+          <div>
+            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider block mb-1.5">
+              Reorder Point
+              <span className="ml-1 text-zinc-600 normal-case font-normal">— alert when stock ≤ this</span>
+            </label>
+            <Input type="number" min="0" step="1" value={form.reorder_point} onChange={set('reorder_point')} placeholder="0" />
           </div>
 
           {!isEdit && (
@@ -588,10 +583,6 @@ function ProductDetailPanel({
           <div className="flex justify-between">
             <span className="text-zinc-500">Category</span>
             <span className="text-zinc-200">{categoryMap.get(product.category_id ?? '') ?? '—'}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-zinc-500">Tax Rate</span>
-            <span className="text-zinc-200">{(parseFloat(product.tax_rate) * 100).toFixed(0)}%</span>
           </div>
           {product.description && (
             <div>

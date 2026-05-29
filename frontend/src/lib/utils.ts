@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { getFormatterConfig } from '@/lib/formatterConfig'
 
 export const CURRENCY_SYMBOL = 'MMK'
 export const TAX_RATE = 0.10
@@ -9,18 +10,21 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function fmt(amount: number | string | undefined): string {
-  return `${CURRENCY_SYMBOL} ${Number(amount ?? 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+  const { currency, locale } = getFormatterConfig()
+  return `${currency} ${Number(amount ?? 0).toLocaleString(locale, { maximumFractionDigits: 0 })}`
 }
 
 export function fmtDate(date: Date | string): string {
-  return new Date(date).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
+  const { locale, timezone } = getFormatterConfig()
+  return new Date(date).toLocaleDateString(locale, {
+    month: 'short', day: 'numeric', year: 'numeric', timeZone: timezone,
   })
 }
 
 export function fmtTime(date: Date | string): string {
-  return new Date(date).toLocaleTimeString('en-US', {
-    hour: '2-digit', minute: '2-digit',
+  const { locale, timezone } = getFormatterConfig()
+  return new Date(date).toLocaleTimeString(locale, {
+    hour: '2-digit', minute: '2-digit', timeZone: timezone,
   })
 }
 

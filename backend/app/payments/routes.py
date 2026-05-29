@@ -5,6 +5,7 @@ from app.models.user import User
 import uuid
 
 from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import select as _sa_select
 
 from app.api.deps import (
     CurrentUser,
@@ -222,14 +223,34 @@ async def list_refunds(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=500),
 ) -> RefundListResponse:
+    cashier_user_id = current_user.id if current_user.role == UserRole.CASHIER.value else None
     svc = RefundService(db)
     items, total = await svc.list_refunds(
         tenant_id=tenant_id,
         page=page,
         page_size=page_size,
         order_id=order_id,
+        cashier_user_id=cashier_user_id,
     )
-    enriched = [await _enrich_refund_response(r, db) for r in items]
+
+    # Batch-load processor names: one query for all processors in this page.
+    processor_ids = list({r.processed_by for r in items if r.processed_by})
+    pname_map: dict[uuid.UUID, str] = {}
+    if processor_ids:
+        rows = await db.execute(
+            _sa_select(
+                User.id,
+                (User.first_name + " " + User.last_name).label("full_name"),
+            ).where(User.id.in_(processor_ids))
+        )
+        for row in rows.all():
+            pname_map[row[0]] = row[1]
+
+    enriched = []
+    for r in items:
+        base = await _enrich_refund_response(r, db)
+        enriched.append(base.model_copy(update={"processed_by_name": pname_map.get(r.processed_by)}))
+
     return RefundListResponse(
         items=enriched,
         total=total,

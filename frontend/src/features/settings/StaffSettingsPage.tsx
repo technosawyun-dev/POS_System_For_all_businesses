@@ -5,8 +5,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { cn, extractApiMsg, fmtDateTime } from '@/lib/utils'
-import { Btn, Badge, Table, Th, Td, Spinner, Divider } from '@/components/ui'
+import { Btn, Badge, Table, Th, Td, Spinner, Divider, PasswordInput } from '@/components/ui'
 import { usersService } from '@/services/users/users.service'
+import { tenantService } from '@/services/tenant/tenant.service'
 import { useAuthStore } from '@/store/auth.store'
 import type { User, UserRole } from '@/shared/types'
 
@@ -48,25 +49,38 @@ function statusVariant(status: string) {
 // Create Staff Modal
 
 const createSchema = z.object({
-  first_name: z.string().min(1, 'Required'),
-  last_name:  z.string().min(1, 'Required'),
-  email:      z.string().email('Invalid email').or(z.literal('')).optional(),
-  password:   z.string()
+  first_name:        z.string().min(1, 'Required'),
+  last_name:         z.string().min(1, 'Required'),
+  email:             z.string().email('Invalid email').or(z.literal('')).optional(),
+  password:          z.string()
     .min(8, 'Min 8 characters')
     .regex(/[A-Z]/, 'Must contain uppercase')
     .regex(/[a-z]/, 'Must contain lowercase')
     .regex(/[0-9]/, 'Must contain a number'),
-  phone:      z.string().min(1, 'Phone number is required'),
-  role:       z.enum(['MANAGER', 'CASHIER', 'INVENTORY_STAFF']),
+  confirm_password:  z.string().min(1, 'Required'),
+  phone:             z.string().min(1, 'Phone number is required'),
+  role:              z.enum(['MANAGER', 'CASHIER', 'INVENTORY_STAFF']),
+  primary_branch_id: z.string().optional(),
+}).refine(d => d.password === d.confirm_password, {
+  message: 'Passwords do not match',
+  path: ['confirm_password'],
 })
 type CreateForm = z.infer<typeof createSchema>
 
-function CreateStaffModal({ onClose }: { onClose: () => void }) {
+function CreateStaffModal({ onClose, tenantId }: { onClose: () => void; tenantId: string }) {
   const qc = useQueryClient()
   const { register, handleSubmit, formState: { errors } } = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
     defaultValues: { role: 'CASHIER' },
   })
+
+  const { data: branchesData } = useQuery({
+    queryKey: ['tenant', tenantId, 'branches'],
+    queryFn: () => tenantService.getBranches(tenantId, { page_size: 100 }),
+    enabled: !!tenantId,
+    staleTime: 60_000,
+  })
+  const branches = (branchesData?.items ?? []).filter(b => b.status === 'ACTIVE')
 
   const mutation = useMutation({
     mutationFn: (data: CreateForm) => {
@@ -74,11 +88,12 @@ function CreateStaffModal({ onClose }: { onClose: () => void }) {
         || `${data.first_name.toLowerCase()}.${data.last_name.toLowerCase()}.${Date.now()}@staff.internal`
       return usersService.create({
         email,
-        password:   data.password,
-        first_name: data.first_name,
-        last_name:  data.last_name,
-        phone:      data.phone.trim(),
-        role:       data.role,
+        password:          data.password,
+        first_name:        data.first_name,
+        last_name:         data.last_name,
+        phone:             data.phone.trim(),
+        role:              data.role,
+        primary_branch_id: data.primary_branch_id || undefined,
       })
     },
     onSuccess: (created) => {
@@ -112,7 +127,10 @@ function CreateStaffModal({ onClose }: { onClose: () => void }) {
             <input {...register('email')} type="email" placeholder="Optional — auto-generated if blank" className={inputCls(!!errors.email)} />
           </FormField>
           <FormField label="Password" error={errors.password?.message} required>
-            <input {...register('password')} type="password" placeholder="Min 8 chars, upper, lower, digit" className={inputCls(!!errors.password)} />
+            <PasswordInput {...register('password')} placeholder="Min 8 chars, upper, lower, digit" inputClassName={inputCls(!!errors.password)} />
+          </FormField>
+          <FormField label="Confirm Password" error={errors.confirm_password?.message} required>
+            <PasswordInput {...register('confirm_password')} placeholder="Repeat password" inputClassName={inputCls(!!errors.confirm_password)} />
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Phone" error={errors.phone?.message} required>
@@ -126,6 +144,14 @@ function CreateStaffModal({ onClose }: { onClose: () => void }) {
               </select>
             </FormField>
           </div>
+          <FormField label="Assigned Branch">
+            <select {...register('primary_branch_id')} className={inputCls()}>
+              <option value="">— No branch assigned —</option>
+              {branches.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </FormField>
           <div className="flex gap-3 pt-1">
             <Btn type="button" variant="secondary" onClick={onClose}>Cancel</Btn>
             <Btn type="submit" disabled={mutation.isPending} fullWidth>
@@ -141,10 +167,11 @@ function CreateStaffModal({ onClose }: { onClose: () => void }) {
 // Edit Staff Modal
 
 const editSchema = z.object({
-  first_name: z.string().min(1, 'Required'),
-  last_name:  z.string().min(1, 'Required'),
-  phone:      z.string().optional(),
-  role:       z.enum(['MANAGER', 'CASHIER', 'INVENTORY_STAFF']),
+  first_name:        z.string().min(1, 'Required'),
+  last_name:         z.string().min(1, 'Required'),
+  phone:             z.string().optional(),
+  role:              z.enum(['MANAGER', 'CASHIER', 'INVENTORY_STAFF']),
+  primary_branch_id: z.string().optional(),
 })
 type EditForm = z.infer<typeof editSchema>
 
@@ -161,21 +188,31 @@ const resetPwSchema = z.object({
 })
 type ResetPwForm = z.infer<typeof resetPwSchema>
 
-function EditStaffModal({ staff, isOwner, onClose }: {
+function EditStaffModal({ staff, isOwner, tenantId, onClose }: {
   staff: User
   isOwner: boolean
+  tenantId: string
   onClose: () => void
 }) {
   const qc = useQueryClient()
   const [tab, setTab] = useState<'profile' | 'password'>('profile')
 
+  const { data: branchesData } = useQuery({
+    queryKey: ['tenant', tenantId, 'branches'],
+    queryFn: () => tenantService.getBranches(tenantId, { page_size: 100 }),
+    enabled: !!tenantId,
+    staleTime: 60_000,
+  })
+  const branches = (branchesData?.items ?? []).filter(b => b.status === 'ACTIVE')
+
   const editForm = useForm<EditForm>({
     resolver: zodResolver(editSchema),
     defaultValues: {
-      first_name: staff.first_name,
-      last_name:  staff.last_name,
-      phone:      staff.phone ?? '',
-      role:       (STAFF_ROLES.includes(staff.role as UserRole) ? staff.role : 'CASHIER') as EditForm['role'],
+      first_name:        staff.first_name,
+      last_name:         staff.last_name,
+      phone:             staff.phone ?? '',
+      role:              (STAFF_ROLES.includes(staff.role as UserRole) ? staff.role : 'CASHIER') as EditForm['role'],
+      primary_branch_id: staff.primary_branch_id ?? '',
     },
   })
 
@@ -187,9 +224,10 @@ function EditStaffModal({ staff, isOwner, onClose }: {
   const updateMutation = useMutation({
     mutationFn: async (data: EditForm) => {
       await usersService.update(staff.id, {
-        first_name: data.first_name,
-        last_name:  data.last_name,
-        phone:      data.phone || undefined,
+        first_name:        data.first_name,
+        last_name:         data.last_name,
+        phone:             data.phone || undefined,
+        primary_branch_id: data.primary_branch_id || undefined,
       })
       if (data.role !== staff.role) {
         await usersService.updateRole(staff.id, data.role)
@@ -266,6 +304,16 @@ function EditStaffModal({ staff, isOwner, onClose }: {
                 </select>
               </FormField>
             )}
+            {isOwner && (
+              <FormField label="Assigned Branch">
+                <select {...editForm.register('primary_branch_id')} className={inputCls()}>
+                  <option value="">— No branch assigned —</option>
+                  {branches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </FormField>
+            )}
             <div className="flex gap-3 pt-1">
               <Btn type="button" variant="secondary" onClick={onClose}>Cancel</Btn>
               <Btn type="submit" disabled={updateMutation.isPending} fullWidth>
@@ -286,19 +334,17 @@ function EditStaffModal({ staff, isOwner, onClose }: {
             </div>
             <Divider />
             <FormField label="New Password" error={pwForm.formState.errors.new_password?.message} required>
-              <input
-                type="password"
+              <PasswordInput
                 {...pwForm.register('new_password')}
                 placeholder="Min 8 chars, upper, lower, digit"
-                className={inputCls(!!pwForm.formState.errors.new_password)}
+                inputClassName={inputCls(!!pwForm.formState.errors.new_password)}
               />
             </FormField>
             <FormField label="Confirm Password" error={pwForm.formState.errors.confirm_password?.message} required>
-              <input
-                type="password"
+              <PasswordInput
                 {...pwForm.register('confirm_password')}
                 placeholder="Repeat new password"
-                className={inputCls(!!pwForm.formState.errors.confirm_password)}
+                inputClassName={inputCls(!!pwForm.formState.errors.confirm_password)}
               />
             </FormField>
             <div className="flex gap-3 pt-1">
@@ -317,9 +363,10 @@ function EditStaffModal({ staff, isOwner, onClose }: {
 // Main Page
 
 export default function StaffSettingsPage() {
-  const user   = useAuthStore(s => s.user)
-  const qc     = useQueryClient()
+  const user    = useAuthStore(s => s.user)
+  const qc      = useQueryClient()
   const isOwner = user?.role === 'BUSINESS_OWNER' || user?.role === 'SUPER_ADMIN'
+  const tenantId = user?.tenant_id ?? ''
 
   const [showCreate, setShowCreate] = useState(false)
   const [editingStaff, setEditingStaff] = useState<User | null>(null)
@@ -328,6 +375,16 @@ export default function StaffSettingsPage() {
     queryKey: ['staff-users'],
     queryFn: () => usersService.list({ page_size: 100 }),
   })
+
+  const { data: branchesData } = useQuery({
+    queryKey: ['tenant', tenantId, 'branches'],
+    queryFn: () => tenantService.getBranches(tenantId, { page_size: 100 }),
+    enabled: !!tenantId,
+    staleTime: 60_000,
+  })
+  const branchMap = new Map(
+    (branchesData?.items ?? []).map(b => [b.id, b.name]),
+  )
 
   const statusMutation = useMutation({
     mutationFn: ({ userId, status }: { userId: string; status: string }) =>
@@ -369,6 +426,7 @@ export default function StaffSettingsPage() {
                 <tr>
                   <Th>Name</Th>
                   <Th>Role</Th>
+                  <Th>Branch</Th>
                   <Th>Status</Th>
                   <Th>Last Login</Th>
                   <Th />
@@ -385,6 +443,9 @@ export default function StaffSettingsPage() {
                     </Td>
                     <Td>
                       <Badge size="xs" variant="default">{ROLE_LABELS[u.role] ?? u.role}</Badge>
+                    </Td>
+                    <Td muted>
+                      {u.primary_branch_id ? branchMap.get(u.primary_branch_id) ?? '—' : '—'}
                     </Td>
                     <Td>
                       <Badge size="xs" variant={statusVariant(u.status)}>{u.status}</Badge>
@@ -430,11 +491,12 @@ export default function StaffSettingsPage() {
         </div>
       </div>
 
-      {showCreate && <CreateStaffModal onClose={() => setShowCreate(false)} />}
+      {showCreate && <CreateStaffModal onClose={() => setShowCreate(false)} tenantId={tenantId} />}
       {editingStaff && (
         <EditStaffModal
           staff={editingStaff}
           isOwner={isOwner}
+          tenantId={tenantId}
           onClose={() => setEditingStaff(null)}
         />
       )}

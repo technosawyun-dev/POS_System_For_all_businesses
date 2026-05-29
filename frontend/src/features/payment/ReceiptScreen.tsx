@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useCartStore } from '@/store/cartStore'
+import { useAuthStore } from '@/store/auth.store'
 import { receiptsService } from '@/services/receipts/receipts.service'
+import { tenantService } from '@/services/tenant/tenant.service'
 import { fmt, fmtDateTime } from '@/lib/utils'
 import { IconCheck, IconPrint, IconAlert } from '@/components/icons'
 import { Spinner } from '@/components/ui'
@@ -11,6 +13,7 @@ export default function ReceiptScreen() {
   const [showPrintPreview, setShowPrintPreview] = useState(false)
   const completedOrderId = useCartStore(s => s.completedOrderId)
   const newSale          = useCartStore(s => s.newSale)
+  const tenantId         = useAuthStore(s => s.user?.tenant_id)
 
   const { data: receipt, isLoading, isError } = useQuery({
     queryKey: ['receipt', 'order', completedOrderId],
@@ -18,6 +21,28 @@ export default function ReceiptScreen() {
     enabled: !!completedOrderId,
     retry: 2,
   })
+
+  const { data: taxSettings } = useQuery({
+    queryKey: ['tenant-settings', tenantId],
+    queryFn: () => tenantService.getTenantSettings(tenantId!),
+    enabled: !!tenantId,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const taxEnabled   = !!taxSettings && (taxSettings.tax_rate ?? 0) > 0
+  const taxInclusive = taxSettings?.tax_inclusive ?? false
+  const ex           = taxSettings?.extra_settings as Record<string, unknown> | undefined
+  const taxName      = (ex?.tax_name as string) || 'Tax'
+  const autoPrint    = (ex?.auto_print_receipt as boolean) ?? false
+
+  // Auto-open print preview once when receipt loads and auto-print is enabled
+  const autoPrinted = useRef(false)
+  useEffect(() => {
+    if (autoPrint && receipt && !autoPrinted.current) {
+      autoPrinted.current = true
+      setShowPrintPreview(true)
+    }
+  }, [autoPrint, receipt])
 
   if (!completedOrderId) return null
 
@@ -81,7 +106,10 @@ export default function ReceiptScreen() {
             <div className="px-5 py-3 flex flex-col gap-1 border-b border-zinc-800">
               <div className="flex justify-between text-xs text-zinc-500">
                 <span>Subtotal</span>
-                <span className="font-mono">{fmt(parseFloat(receipt.subtotal))}</span>
+                {/* For inclusive tax, subtotal = total_amount (gross) so item lines match */}
+                <span className="font-mono">
+                  {fmt(parseFloat(taxEnabled && taxInclusive ? receipt.total_amount : receipt.subtotal))}
+                </span>
               </div>
               {parseFloat(receipt.discount_amount) > 0 && (
                 <div className="flex justify-between text-xs text-amber-500">
@@ -89,10 +117,12 @@ export default function ReceiptScreen() {
                   <span className="font-mono">-{fmt(parseFloat(receipt.discount_amount))}</span>
                 </div>
               )}
-              <div className="flex justify-between text-xs text-zinc-500">
-                <span>Tax</span>
-                <span className="font-mono">{fmt(parseFloat(receipt.tax_amount))}</span>
-              </div>
+              {taxEnabled && parseFloat(receipt.tax_amount) > 0 && (
+                <div className="flex justify-between text-xs text-zinc-500">
+                  <span>{taxName}{taxInclusive ? ' (incl.)' : ''}</span>
+                  <span className="font-mono">{fmt(parseFloat(receipt.tax_amount))}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm font-bold text-zinc-100 mt-1 pt-1 border-t border-zinc-800">
                 <span>Total</span>
                 <span className="font-mono text-amber-400">{fmt(parseFloat(receipt.total_amount))}</span>
@@ -150,6 +180,7 @@ export default function ReceiptScreen() {
         <ReceiptPrintPreviewModal
           receipt={receipt}
           onClose={() => setShowPrintPreview(false)}
+          autoTrigger={autoPrint && autoPrinted.current}
         />
       )}
     </div>

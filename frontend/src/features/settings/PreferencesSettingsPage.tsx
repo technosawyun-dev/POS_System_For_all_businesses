@@ -13,9 +13,7 @@ const PAYMENT_METHODS = ['CASH', 'CARD', 'BANK_TRANSFER', 'MOBILE_PAYMENT']
 
 const schema = z.object({
   auto_print_receipt:      z.boolean(),
-  require_pin_for_void:    z.boolean(),
   default_payment_method:  z.string(),
-  low_stock_threshold:     z.string().refine(v => !v || (parseInt(v) >= 0 && parseInt(v) <= 9999), 'Must be 0–9999'),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -56,9 +54,7 @@ export default function PreferencesSettingsPage() {
     resolver: zodResolver(schema),
     defaultValues: {
       auto_print_receipt:     false,
-      require_pin_for_void:   false,
       default_payment_method: 'CASH',
-      low_stock_threshold:    '10',
     },
   })
 
@@ -66,10 +62,8 @@ export default function PreferencesSettingsPage() {
     if (settings) {
       const ex = settings.extra_settings as Record<string, unknown>
       reset({
-        auto_print_receipt:     (ex.auto_print_receipt as boolean)     ?? false,
-        require_pin_for_void:   (ex.require_pin_for_void as boolean)   ?? false,
-        default_payment_method: (ex.default_payment_method as string)  ?? 'CASH',
-        low_stock_threshold:    String((ex.low_stock_threshold as number) ?? 10),
+        auto_print_receipt:     (ex.auto_print_receipt as boolean)    ?? false,
+        default_payment_method: (ex.default_payment_method as string) ?? 'CASH',
       })
     }
   }, [settings, reset])
@@ -79,9 +73,7 @@ export default function PreferencesSettingsPage() {
       tenantService.updateTenantSettings(tenantId!, {
         extra_settings: {
           auto_print_receipt:     values.auto_print_receipt,
-          require_pin_for_void:   values.require_pin_for_void,
           default_payment_method: values.default_payment_method,
-          low_stock_threshold:    parseInt(values.low_stock_threshold) || 10,
         },
       }),
     onSuccess: () => {
@@ -108,14 +100,6 @@ export default function PreferencesSettingsPage() {
               description="Automatically print a receipt after every completed sale"
             />
           </div>
-          <div className="pt-3">
-            <Toggle
-              checked={watch('require_pin_for_void')}
-              onChange={v => setValue('require_pin_for_void', v, { shouldDirty: true })}
-              label="Require Manager PIN for Voids"
-              description="Cashiers must have a manager approve before voiding a sale"
-            />
-          </div>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-4">
@@ -129,22 +113,6 @@ export default function PreferencesSettingsPage() {
               ))}
             </select>
             <p className="text-xs text-zinc-600">Pre-selected payment method on the checkout screen.</p>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Low Stock Alert Threshold</label>
-            <div className="relative">
-              <input
-                {...register('low_stock_threshold')}
-                type="number"
-                min="0"
-                max="9999"
-                step="1"
-                className={`${inputCls()} pr-16`}
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">units</span>
-            </div>
-            <p className="text-xs text-zinc-600">Notify when stock falls at or below this quantity.</p>
           </div>
         </div>
 

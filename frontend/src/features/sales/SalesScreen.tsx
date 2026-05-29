@@ -158,12 +158,13 @@ export default function SalesScreen() {
                       <Th>Date</Th>
                       <Th right>Total</Th>
                       <Th>Status</Th>
+                      <Th>By</Th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredOrders.length === 0 ? (
                       <tr>
-                        <td colSpan={4}>
+                        <td colSpan={5}>
                           <Empty icon={<IconSales width="40" height="40" />} title="No orders found" subtitle="Adjust your search or filter" />
                         </td>
                       </tr>
@@ -187,6 +188,9 @@ export default function SalesScreen() {
                               {order.order_status.charAt(0) + order.order_status.slice(1).toLowerCase().replace('_', ' ')}
                             </Badge>
                           </Td>
+                          <Td>
+                            <span className="text-xs text-zinc-300">{order.cashier_name ?? '—'}</span>
+                          </Td>
                         </tr>
                       )
                     })}
@@ -209,23 +213,26 @@ export default function SalesScreen() {
                   <thead>
                     <tr>
                       <Th>Refund #</Th>
-                      <Th>Order #</Th>
                       <Th>Date</Th>
                       <Th>Type</Th>
-                      <Th right>Items</Th>
                       <Th right>Amount</Th>
+                      <Th>By</Th>
                       <Th>Reason</Th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredRefunds.length === 0 ? (
                       <tr>
-                        <td colSpan={7}>
+                        <td colSpan={6}>
                           <Empty icon={<IconRefund width="40" height="40" />} title="No refunds found" subtitle="Processed refunds will appear here" />
                         </td>
                       </tr>
                     ) : filteredRefunds.map(refund => {
                       const isActive = selectedRefund?.id === refund.id
+                      // Split long refund number into 2 lines: REF-BRANCH / ORDER-TS
+                      const refNumParts = refund.refund_number.split('-')
+                      const refLine1 = refNumParts.length >= 2 ? `${refNumParts[0]}-${refNumParts[1]}` : refund.refund_number
+                      const refLine2 = refNumParts.length >= 3 ? refNumParts.slice(2).join('-') : null
                       return (
                         <tr
                           key={refund.id}
@@ -233,9 +240,9 @@ export default function SalesScreen() {
                           className={`cursor-pointer transition-colors ${isActive ? 'bg-zinc-800/80' : 'hover:bg-zinc-800/40'}`}
                         >
                           <Td mono>
-                            <span className="text-amber-400 text-xs">{refund.refund_number}</span>
+                            <span className="text-amber-400 text-xs block leading-tight">{refLine1}</span>
+                            {refLine2 && <span className="text-zinc-500 text-[10px] block leading-tight font-mono">{refLine2}</span>}
                           </Td>
-                          <Td mono muted className="text-xs">{refund.order_id.slice(0, 8)}…</Td>
                           <Td muted className="whitespace-nowrap text-xs">{fmtDateTime(refund.processed_at)}</Td>
                           <Td>
                             {refund.refund_type === 'REPLACEMENT'
@@ -243,14 +250,16 @@ export default function SalesScreen() {
                               : <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-950 border border-blue-800 text-blue-400">Cash</span>
                             }
                           </Td>
-                          <Td right muted>{refund.items.length}</Td>
                           <Td right mono>
                             <span className={refund.refund_type === 'REPLACEMENT' ? 'text-violet-400' : 'text-red-400'}>
                               {refund.refund_type !== 'REPLACEMENT' && '−'}{fmt(parseFloat(refund.amount))}
                             </span>
                           </Td>
                           <Td>
-                            <span className="text-xs text-zinc-400 truncate max-w-[140px] block">{refund.reason}</span>
+                            <span className="text-xs text-zinc-300">{refund.processed_by_name ?? '—'}</span>
+                          </Td>
+                          <Td>
+                            <span className="text-xs text-zinc-400 truncate max-w-[120px] block">{refund.reason}</span>
                           </Td>
                         </tr>
                       )
@@ -308,6 +317,9 @@ function OrderDetailPanel({ order, onClose }: { order: Order; onClose: () => voi
         </div>
         <p className="text-xs text-zinc-400">{fmtDateTime(order.created_at)}</p>
         <p className="text-xs text-zinc-600">{timeAgo(order.created_at)}</p>
+        {order.cashier_name && (
+          <p className="text-xs text-zinc-500">By <span className="text-zinc-300">{order.cashier_name}</span></p>
+        )}
       </div>
 
       <div className="px-4 py-3 border-b border-zinc-800 flex-shrink-0">
@@ -422,6 +434,12 @@ function RefundDetailPanel({ refund, onClose }: { refund: RefundRecord; onClose:
           <span>Refund Date</span>
           <span className="text-zinc-300">{fmtDateTime(refund.processed_at)}</span>
         </div>
+        {refund.processed_by_name && (
+          <div className="flex justify-between text-xs text-zinc-500">
+            <span>Processed By</span>
+            <span className="text-zinc-300">{refund.processed_by_name}</span>
+          </div>
+        )}
         <div className="flex justify-between text-xs text-zinc-500">
           <span>{timeAgo(refund.processed_at)}</span>
         </div>

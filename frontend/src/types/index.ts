@@ -69,6 +69,10 @@ export interface CartTotals {
   tax: number
   total: number
   itemCount: number
+  taxEnabled: boolean
+  taxName: string
+  taxInclusive: boolean
+  taxRate: number  // 0–100
 }
 // Session
 

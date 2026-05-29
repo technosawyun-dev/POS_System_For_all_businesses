@@ -37,7 +37,7 @@ class SupplierContactResponse(TimestampedSchema):
 
 class SupplierCreateRequest(BaseSchema):
     name: str = Field(min_length=1, max_length=255)
-    code: str = Field(min_length=1, max_length=50)
+    code: str | None = Field(default=None, max_length=50)
     email: EmailStr | None = None
     phone: str | None = Field(default=None, max_length=50)
     address: str | None = None

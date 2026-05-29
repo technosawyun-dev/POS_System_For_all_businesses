@@ -37,6 +37,7 @@ from app.api.deps import (
     require_manager_or_above,
 )
 from app.core.cache import cache_get, cache_set
+from app.core.constants import UserRole
 from app.db.redis import get_redis
 from app.models.user import User
 
@@ -58,7 +59,9 @@ async def get_dashboard(
     branch_id: uuid.UUID | None = Query(default=None),
     redis=Depends(get_redis),
 ) -> DashboardResponse:
-    cache_key = f"dashboard:{tenant_id}:{branch_id or 'all'}"
+    # Cashiers only see their own sales; everyone else sees branch/tenant-level data.
+    cashier_user_id = current_user.id if current_user.role == UserRole.CASHIER.value else None
+    cache_key = f"dashboard:{tenant_id}:{branch_id or 'all'}:{cashier_user_id or 'all'}"
 
     cached = await cache_get(redis, cache_key)
     if cached:
@@ -68,6 +71,7 @@ async def get_dashboard(
     result = await svc.get_dashboard(
         tenant_id=tenant_id,
         branch_id=branch_id,
+        cashier_user_id=cashier_user_id,
         actor_id=current_user.id,
         request_id=request_id,
     )

@@ -65,6 +65,8 @@ export interface WalletTransactionResponse {
 export interface PayoutRequestResponse {
   id: string
   reseller_id: string
+  reseller_name?: string
+  reseller_email?: string
   wallet_id: string
   amount: string
   currency_code: string

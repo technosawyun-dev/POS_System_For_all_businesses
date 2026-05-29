@@ -323,6 +323,7 @@ export interface Order {
   voided_at: string | null
   voided_by: string | null
   void_reason: string | null
+  cashier_name?: string | null
   created_at: string
   updated_at: string
   items?: OrderItem[]
@@ -368,6 +369,7 @@ export interface RefundRecord {
   amount: string
   notes: string | null
   processed_by: string
+  processed_by_name?: string | null
   processed_at: string
   items: RefundItemRecord[]
   created_at: string
@@ -718,6 +720,7 @@ export interface UserCreateRequest {
   last_name: string
   phone?: string
   role: UserRole
+  primary_branch_id?: string
 }
 
 export interface UserUpdateRequest {
@@ -1117,7 +1120,7 @@ export interface SupplierSummary {
 
 export interface SupplierCreateRequest {
   name: string
-  code: string
+  code?: string
   email?: string
   phone?: string
   address?: string

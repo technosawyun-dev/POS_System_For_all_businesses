@@ -9,7 +9,9 @@ import BranchSelector from '@/shared/components/BranchSelector'
 import NotificationBell from '@/shared/components/NotificationBell'
 import GlobalSearch from '@/shared/components/GlobalSearch'
 import TrialBanner from '@/shared/components/TrialBanner'
+import { TenantFormatterSync } from '@/components/TenantFormatterSync'
 import { notificationsService } from '@/services/notifications/notifications.service'
+import { tenantService } from '@/services/tenant/tenant.service'
 import {
   IconMenu, IconX, IconPOS, IconProducts, IconInventory,
   IconSales, IconSync, IconLogout,
@@ -61,6 +63,31 @@ function SidebarContent({ navGroup, onClose, onSearch }: { navGroup: string; onC
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
 
+  const tenantId = user?.tenant_id
+  const { data: tenant } = useQuery({
+    queryKey: ['tenant', tenantId],
+    queryFn: () => tenantService.getTenant(tenantId!),
+    enabled: !!tenantId && navGroup === 'app',
+    staleTime: 10 * 60 * 1000,
+  })
+
+  const tz       = tenant?.timezone ?? 'UTC'
+  const locale   = tenant?.locale   ?? 'en-US'
+  const currency = tenant?.currency ?? 'MMK'
+
+  const [clock, setClock] = useState(() =>
+    new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', timeZone: tz }),
+  )
+
+  useEffect(() => {
+    function tick() {
+      setClock(new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', timeZone: tz }))
+    }
+    tick()
+    const id = setInterval(tick, 60_000)
+    return () => clearInterval(id)
+  }, [locale, tz])
+
   const { data: unreadData } = useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: notificationsService.getUnreadCount,
@@ -98,7 +125,7 @@ function SidebarContent({ navGroup, onClose, onSearch }: { navGroup: string; onC
             <p className="text-zinc-500 text-[10px] leading-tight tracking-wider uppercase">Enterprise</p>
           </div>
         </Link>
-        {navGroup === 'app' && (
+        {navGroup === 'app' && (user?.role === 'BUSINESS_OWNER' || user?.role === 'SUPER_ADMIN') && (
           <div className="mt-3 space-y-2">
             <BranchSelector compact />
             {onSearch && (
@@ -152,6 +179,19 @@ function SidebarContent({ navGroup, onClose, onSearch }: { navGroup: string; onC
 
       {/* Footer */}
       <div className="px-3 pb-4 pt-3 border-t border-zinc-800 flex-shrink-0 space-y-3">
+        {navGroup === 'app' && (
+          <div className="px-2.5 py-2 rounded-xl bg-zinc-900 border border-zinc-800">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs font-semibold text-zinc-200">{clock}</span>
+              <span className="text-[10px] text-zinc-600 truncate ml-2">{tz.replace(/_/g, ' ')}</span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="text-[10px] font-semibold text-amber-400">{currency}</span>
+              <span className="text-zinc-700 text-[10px]">·</span>
+              <span className="text-[10px] text-zinc-500">{locale}</span>
+            </div>
+          </div>
+        )}
         <Link
           to={navGroup === 'app' ? '/app/profile' : '#'}
           onClick={onClose}
@@ -181,8 +221,7 @@ function SidebarContent({ navGroup, onClose, onSearch }: { navGroup: string; onC
 }
 
 export default function DashboardLayout({ navGroup = 'app' }: DashboardLayoutProps) {
-  const { sidebarOpen, closeSidebar, toggleSidebar } = useUIStore()
-  const { isOnline } = useUIStore()
+  const { sidebarOpen, closeSidebar, toggleSidebar, isOnline, posFocusMode } = useUIStore()
   const [searchOpen, setSearchOpen] = useState(false)
 
   useEffect(() => {
@@ -204,43 +243,50 @@ export default function DashboardLayout({ navGroup = 'app' }: DashboardLayoutPro
 
   return (
     <div className="h-full flex overflow-hidden bg-zinc-950">
+      {/* Sync tenant currency/locale/timezone into formatter config */}
+      <TenantFormatterSync />
+
       {/* Global search modal */}
       {navGroup === 'app' && (
         <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       )}
 
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-56 flex-shrink-0 flex-col h-full">
-        <SidebarContent navGroup={navGroup} onSearch={navGroup === 'app' ? () => setSearchOpen(true) : undefined} />
-      </aside>
+      {/* Desktop sidebar — hidden in POS focus mode */}
+      {!posFocusMode && (
+        <aside className="hidden lg:flex w-56 flex-shrink-0 flex-col h-full">
+          <SidebarContent navGroup={navGroup} onSearch={navGroup === 'app' ? () => setSearchOpen(true) : undefined} />
+        </aside>
+      )}
 
-      {/* Mobile backdrop */}
-      {sidebarOpen && (
+      {/* Mobile backdrop — hidden in POS focus mode */}
+      {sidebarOpen && !posFocusMode && (
         <div className="lg:hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" onClick={closeSidebar} />
       )}
 
-      {/* Mobile sidebar */}
-      <aside className={cn(
-        'lg:hidden fixed top-0 left-0 h-full w-64 z-50 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out',
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full',
-      )}>
-        <div className="flex items-center justify-between px-4 py-3 bg-zinc-950 border-b border-zinc-800 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center text-black font-black text-sm">N</div>
-            <span className="font-bold text-zinc-100 text-sm">NexusPOS</span>
+      {/* Mobile sidebar — hidden in POS focus mode */}
+      {!posFocusMode && (
+        <aside className={cn(
+          'lg:hidden fixed top-0 left-0 h-full w-64 z-50 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        )}>
+          <div className="flex items-center justify-between px-4 py-3 bg-zinc-950 border-b border-zinc-800 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center text-black font-black text-sm">N</div>
+              <span className="font-bold text-zinc-100 text-sm">NexusPOS</span>
+            </div>
+            <button onClick={closeSidebar} className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800">
+              <IconX width="16" height="16" />
+            </button>
           </div>
-          <button onClick={closeSidebar} className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800">
-            <IconX width="16" height="16" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-hidden">
-          <SidebarContent
-            navGroup={navGroup}
-            onClose={closeSidebar}
-            onSearch={navGroup === 'app' ? () => { setSearchOpen(true); closeSidebar() } : undefined}
-          />
-        </div>
-      </aside>
+          <div className="flex-1 overflow-hidden">
+            <SidebarContent
+              navGroup={navGroup}
+              onClose={closeSidebar}
+              onSearch={navGroup === 'app' ? () => { setSearchOpen(true); closeSidebar() } : undefined}
+            />
+          </div>
+        </aside>
+      )}
 
       {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -250,32 +296,34 @@ export default function DashboardLayout({ navGroup = 'app' }: DashboardLayoutPro
           </div>
         )}
         {navGroup === 'app' && <TrialBanner />}
-        {/* Mobile top bar */}
-        <header className="lg:hidden flex items-center gap-3 px-4 py-2.5 border-b border-zinc-800 bg-zinc-950 flex-shrink-0">
-          <button onClick={toggleSidebar} className="text-zinc-500 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors">
-            <IconMenu width="16" height="16" />
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-amber-500 flex items-center justify-center flex-shrink-0">
-              <span className="text-black font-black text-xs">N</span>
-            </div>
-            <span className="text-xs font-semibold text-zinc-400">NexusPOS</span>
-          </div>
-          <div className="flex-1" />
-          {navGroup === 'app' && (
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="text-zinc-500 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
-              title="Search (Ctrl+K)"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M10 10L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
+        {/* Mobile top bar — hidden in POS focus mode */}
+        {!posFocusMode && (
+          <header className="lg:hidden flex items-center gap-3 px-4 py-2.5 border-b border-zinc-800 bg-zinc-950 flex-shrink-0">
+            <button onClick={toggleSidebar} className="text-zinc-500 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors">
+              <IconMenu width="16" height="16" />
             </button>
-          )}
-          <NotificationBell />
-        </header>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-amber-500 flex items-center justify-center flex-shrink-0">
+                <span className="text-black font-black text-xs">N</span>
+              </div>
+              <span className="text-xs font-semibold text-zinc-400">NexusPOS</span>
+            </div>
+            <div className="flex-1" />
+            {navGroup === 'app' && (
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="text-zinc-500 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+                title="Search (Ctrl+K)"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M10 10L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
+            <NotificationBell />
+          </header>
+        )}
         {/* Child route renders here */}
         <main className="flex-1 min-h-0 overflow-y-auto">
           <Outlet />

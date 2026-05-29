@@ -8,6 +8,8 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select as _sa_select
+
 from app.api.deps import (
     ClientIp,
     CurrentUser,
@@ -19,6 +21,7 @@ from app.api.deps import (
     get_request_id,
     require_roles,
 )
+from app.cashiers.models import CashierSession
 from app.core.constants import UserRole
 from app.sales.schemas import (
     CartCreateRequest,
@@ -280,6 +283,8 @@ async def list_orders(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=500),
 ) -> OrderListResponse:
+    # Cashiers only see their own orders regardless of any other filter.
+    cashier_user_id = current_user.id if current_user.role == UserRole.CASHIER.value else None
     svc = OrderService(db)
     items, total = await svc.list_orders(
         tenant_id=tenant_id,
@@ -287,13 +292,36 @@ async def list_orders(
         page_size=page_size,
         branch_id=branch_id,
         cashier_session_id=cashier_session_id,
+        cashier_user_id=cashier_user_id,
         order_status=order_status,
         payment_status=payment_status,
         date_from=date_from,
         date_to=date_to,
     )
+
+    # Batch-load cashier names: one query for all sessions in this page.
+    session_ids = list({o.cashier_session_id for o in items if o.cashier_session_id})
+    name_map: dict[uuid.UUID, str] = {}
+    if session_ids:
+        rows = await db.execute(
+            _sa_select(
+                CashierSession.id,
+                (User.first_name + " " + User.last_name).label("full_name"),
+            )
+            .join(User, CashierSession.cashier_user_id == User.id)
+            .where(CashierSession.id.in_(session_ids))
+        )
+        for row in rows.all():
+            name_map[row[0]] = row[1]
+
+    order_responses = [
+        OrderResponse.model_validate(o).model_copy(
+            update={"cashier_name": name_map.get(o.cashier_session_id)}
+        )
+        for o in items
+    ]
     return OrderListResponse(
-        items=[OrderResponse.model_validate(o) for o in items],
+        items=order_responses,
         total=total,
         page=page,
         page_size=page_size,

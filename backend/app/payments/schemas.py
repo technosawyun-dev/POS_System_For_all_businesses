@@ -78,6 +78,7 @@ class RefundResponse(BaseModel):
     amount: Decimal
     notes: str | None
     processed_by: uuid.UUID
+    processed_by_name: str | None = None
     processed_at: datetime
     items: list[RefundItemResponse] = []
     created_at: datetime

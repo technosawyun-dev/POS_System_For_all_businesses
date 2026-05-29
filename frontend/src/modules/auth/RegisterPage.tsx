@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { authService } from '@/services/auth/auth.service'
 import { tokenStorage } from '@/app/lib/axios'
 import { ROLE_HOME } from '@/shared/constants/rbac'
-import { Btn, Input, Spinner, Divider } from '@/components/ui/index'
+import { Btn, Input, PasswordInput, Spinner, Divider } from '@/components/ui/index'
 import { IconAlert } from '@/components/icons'
 
 interface FormState {
@@ -175,9 +175,8 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <Input
+              <PasswordInput
                 label="Password"
-                type="password"
                 value={form.password}
                 onChange={set('password')}
                 placeholder="Min 8 chars, uppercase, number"
@@ -200,9 +199,8 @@ export default function RegisterPage() {
               )}
             </div>
 
-            <Input
+            <PasswordInput
               label="Confirm Password"
-              type="password"
               value={form.confirm_password}
               onChange={set('confirm_password')}
               placeholder="Repeat password"

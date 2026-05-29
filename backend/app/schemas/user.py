@@ -25,6 +25,7 @@ class UserCreateRequest(BaseSchema):
     last_name: str = Field(min_length=1, max_length=100)
     phone: str | None = Field(default=None, max_length=50)
     role: UserRole = UserRole.CASHIER
+    primary_branch_id: uuid.UUID | None = None
 
     @field_validator("password")
     @classmethod

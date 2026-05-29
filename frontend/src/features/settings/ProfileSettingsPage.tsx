@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { cn, extractApiMsg } from '@/lib/utils'
-import { Btn, Divider, Spinner } from '@/components/ui'
+import { Btn, Divider, PasswordInput, Spinner } from '@/components/ui'
 import { ROLE_LABELS, ROLE_BADGE_STYLES } from '@/shared/constants/rbac'
 import { usersService } from '@/services/users/users.service'
 import { authService } from '@/services/auth/auth.service'
@@ -175,28 +175,25 @@ export default function ProfileSettingsPage() {
             className="p-5 space-y-4"
           >
             <FormField label="Current Password" error={passwordForm.formState.errors.current_password?.message}>
-              <input
-                type="password"
+              <PasswordInput
                 {...passwordForm.register('current_password')}
                 placeholder="Enter current password"
-                className={inputCls(!!passwordForm.formState.errors.current_password)}
+                inputClassName={inputCls(!!passwordForm.formState.errors.current_password)}
               />
             </FormField>
             <Divider />
             <FormField label="New Password" error={passwordForm.formState.errors.new_password?.message}>
-              <input
-                type="password"
+              <PasswordInput
                 {...passwordForm.register('new_password')}
                 placeholder="Min 8 chars, upper, lower, digit"
-                className={inputCls(!!passwordForm.formState.errors.new_password)}
+                inputClassName={inputCls(!!passwordForm.formState.errors.new_password)}
               />
             </FormField>
             <FormField label="Confirm New Password" error={passwordForm.formState.errors.confirm_password?.message}>
-              <input
-                type="password"
+              <PasswordInput
                 {...passwordForm.register('confirm_password')}
                 placeholder="Repeat new password"
-                className={inputCls(!!passwordForm.formState.errors.confirm_password)}
+                inputClassName={inputCls(!!passwordForm.formState.errors.confirm_password)}
               />
             </FormField>
             <div className="flex gap-3 justify-end pt-1">

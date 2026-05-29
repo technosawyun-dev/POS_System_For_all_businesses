@@ -1,6 +1,25 @@
-import { useEffect, type ReactNode, type ButtonHTMLAttributes } from 'react'
+import { useEffect, useState, forwardRef, type ReactNode, type ButtonHTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
 import { IconX } from '@/components/icons'
+
+function EyeIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
+function EyeOffIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  )
+}
 
 // Badge
 type BadgeVariant = 'default' | 'success' | 'danger' | 'warning' | 'info' | 'purple' | 'orange'
@@ -111,6 +130,54 @@ export function Input({ label, prefix, suffix, className = '', ...rest }: {
     </div>
   )
 }
+
+// PasswordInput
+export const PasswordInput = forwardRef<HTMLInputElement, {
+  label?: string; className?: string; inputClassName?: string
+} & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'>>(
+  function PasswordInput({ label, className = '', inputClassName = '', ...rest }, ref) {
+    const [show, setShow] = useState(false)
+    const inputId = rest.id ?? (rest.name ?? (label ? `input-${label.toLowerCase().replace(/\s+/g, '-')}` : undefined))
+
+    const field = (
+      <div className="relative flex items-center">
+        <input
+          ref={ref}
+          id={inputId}
+          type={show ? 'text' : 'password'}
+          className={cn(
+            !inputClassName && [
+              'w-full bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-100 placeholder-zinc-600',
+              'focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 transition-all duration-150',
+              'py-2.5 text-sm px-3',
+            ],
+            inputClassName,
+            'pr-10',
+          )}
+          {...rest}
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setShow(s => !s)}
+          className="absolute right-3 text-zinc-500 hover:text-zinc-300 transition-colors flex items-center"
+          aria-label={show ? 'Hide password' : 'Show password'}
+        >
+          {show ? <EyeOffIcon /> : <EyeIcon />}
+        </button>
+      </div>
+    )
+
+    if (!label) return field
+
+    return (
+      <div className={cn('flex flex-col gap-1.5', className)}>
+        <label htmlFor={inputId} className="text-xs font-medium text-zinc-500 uppercase tracking-wider">{label}</label>
+        {field}
+      </div>
+    )
+  }
+)
 
 // Modal
 const MODAL_SIZES: Record<string, string> = {

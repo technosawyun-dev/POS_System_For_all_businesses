@@ -309,6 +309,7 @@ class RefundService:
         page: int = 1,
         page_size: int = 20,
         order_id: uuid.UUID | None = None,
+        cashier_user_id: uuid.UUID | None = None,
     ) -> tuple[list[Refund], int]:
         offset = (page - 1) * page_size
         return await self.refund_repo.get_by_tenant(
@@ -316,4 +317,5 @@ class RefundService:
             offset=offset,
             limit=page_size,
             order_id=order_id,
+            cashier_user_id=cashier_user_id,
         )

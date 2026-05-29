@@ -1,6 +1,9 @@
 import { create } from 'zustand'
 import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import type { CartItem, Product, CheckoutStep, PaymentMethod, SplitPayment, CartTotals } from '@/types'
+import { useAuthStore } from '@/store/auth.store'
+import { tenantService } from '@/services/tenant/tenant.service'
 
 interface CartState {
   items: CartItem[]
@@ -92,36 +95,68 @@ export const useCartStore = create<CartState>()((set) => ({
 }))
 
 export function useCartTotals(): CartTotals {
-  const items = useCartStore(s => s.items)
+  const items    = useCartStore(s => s.items)
   const discount = useCartStore(s => s.discount)
+  const tenantId = useAuthStore(s => s.user?.tenant_id)
+
+  const { data: settings } = useQuery({
+    queryKey: ['tenant-settings', tenantId],
+    queryFn: () => tenantService.getTenantSettings(tenantId!),
+    enabled: !!tenantId,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const ex          = settings?.extra_settings as Record<string, unknown> | undefined
+  const taxEnabled  = !!settings && settings.tax_rate != null && settings.tax_rate > 0
+  const taxRate     = taxEnabled ? settings!.tax_rate! : 0   // 0–100
+  const taxInclusive = settings?.tax_inclusive ?? false
+  const taxName      = (ex?.tax_name as string) || 'Tax'
+  const rateDecimal  = taxRate / 100
 
   return useMemo(() => {
-    let itemSubtotal = 0
-    let rawTax = 0
+    let rawTotal = 0
     let itemCount = 0
 
     for (const item of items) {
       const lineTotal = item.price * item.qty
-      const lineDisc = (item.lineDiscount || 0) / 100 * lineTotal
-      const lineNet = lineTotal - lineDisc
-      itemSubtotal += lineNet
-      rawTax += lineNet * (item.taxRate || 0)
+      const lineDisc  = (item.lineDiscount || 0) / 100 * lineTotal
+      rawTotal += lineTotal - lineDisc
       itemCount += item.qty
     }
 
-    const orderDiscAmt = (discount || 0) / 100 * itemSubtotal
-    const afterDiscount = itemSubtotal - orderDiscAmt
-    // Distribute order-level discount proportionally across tax
-    const taxMultiplier = itemSubtotal > 0 ? afterDiscount / itemSubtotal : 1
-    const tax = Math.max(0, rawTax * taxMultiplier)
-    const total = Math.max(0, afterDiscount + tax)
+    const orderDiscAmt   = (discount || 0) / 100 * rawTotal
+    const afterOrderDisc = rawTotal - orderDiscAmt
+
+    let subtotal: number, tax: number, total: number
+
+    if (taxEnabled && taxInclusive) {
+      // Tax is baked into prices.
+      // Show the gross (item prices as-is) as subtotal so it matches
+      // the sum the customer sees on the item lines.
+      tax      = afterOrderDisc * rateDecimal / (1 + rateDecimal)
+      subtotal = afterOrderDisc          // gross — same as what items show
+      total    = afterOrderDisc          // no extra added; tax is already in price
+    } else if (taxEnabled) {
+      subtotal = afterOrderDisc
+      tax      = subtotal * rateDecimal
+      total    = subtotal + tax
+    } else {
+      subtotal = afterOrderDisc
+      tax      = 0
+      total    = subtotal
+    }
 
     return {
-      itemSubtotal: Math.round(itemSubtotal * 100) / 100,
+      itemSubtotal: Math.round(subtotal  * 100) / 100,
       orderDiscAmt: Math.round(orderDiscAmt * 100) / 100,
-      tax: Math.round(tax * 100) / 100,
-      total: Math.round(total * 100) / 100,
+      tax:          Math.round(tax     * 100) / 100,
+      total:        Math.max(0, Math.round(total * 100) / 100),
       itemCount,
+      taxEnabled,
+      taxName,
+      taxInclusive,
+      taxRate,
     }
-  }, [items, discount])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, discount, taxEnabled, taxRate, taxInclusive, taxName])
 }

@@ -5,11 +5,13 @@ interface Props {
   receipt: Receipt
   footer?: string
   showLogo?: boolean
+  taxInclusive?: boolean
+  taxName?: string
 }
 
 // 80mm thermal receipt — standard width for most full-size POS printers.
 // Width ~530px equivalent; use @page { size: 80mm auto }.
-export function ReceiptTemplate80mm({ receipt, footer = 'Thank you for your purchase!', showLogo = false }: Props) {
+export function ReceiptTemplate80mm({ receipt, footer = 'Thank you for your purchase!', showLogo = false, taxInclusive = false, taxName = 'Tax' }: Props) {
   return (
     <div
       className="print-sheet"
@@ -72,11 +74,16 @@ export function ReceiptTemplate80mm({ receipt, footer = 'Thank you for your purc
 
       {/* Totals */}
       <div style={{ paddingLeft: '40%' }}>
-        <Row label="Subtotal" value={fmt(parseFloat(receipt.subtotal))} />
+        <Row
+          label="Subtotal"
+          value={fmt(parseFloat(taxInclusive ? receipt.total_amount : receipt.subtotal))}
+        />
         {parseFloat(receipt.discount_amount) > 0 && (
           <Row label="Discount" value={`-${fmt(parseFloat(receipt.discount_amount))}`} />
         )}
-        <Row label="Tax" value={fmt(parseFloat(receipt.tax_amount))} />
+        {parseFloat(receipt.tax_amount) > 0 && (
+          <Row label={taxInclusive ? `${taxName} (incl.)` : taxName} value={fmt(parseFloat(receipt.tax_amount))} />
+        )}
         <Divider />
         <Row label="TOTAL" value={fmt(parseFloat(receipt.total_amount))} bold large />
       </div>

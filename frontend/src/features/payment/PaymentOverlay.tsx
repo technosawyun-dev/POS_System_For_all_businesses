@@ -1,9 +1,11 @@
-import { useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useState, useEffect, useRef } from 'react'
+import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useCartStore, useCartTotals } from '@/store/cartStore'
 import { useSessionStore } from '@/store/session.store'
+import { useAuthStore } from '@/store/auth.store'
 import { checkoutService } from '@/services/sales/sales.service'
+import { tenantService } from '@/services/tenant/tenant.service'
 import { fmt, cn, extractApiMsg } from '@/lib/utils'
 import { IconX, IconCash, IconCard, IconSplit } from '@/components/icons'
 import { Spinner } from '@/components/ui'
@@ -30,6 +32,14 @@ export default function PaymentOverlay() {
   const qc = useQueryClient()
   const [isProcessing, setIsProcessing] = useState(false)
 
+  const tenantId = useAuthStore(s => s.user?.tenant_id)
+  const { data: tenantSettings } = useQuery({
+    queryKey: ['tenant-settings', tenantId],
+    queryFn: () => tenantService.getTenantSettings(tenantId!),
+    enabled: !!tenantId,
+    staleTime: 5 * 60 * 1000,
+  })
+
   const items           = useCartStore(s => s.items)
   const discount        = useCartStore(s => s.discount)
   const note            = useCartStore(s => s.note)
@@ -37,6 +47,18 @@ export default function PaymentOverlay() {
   const setCheckoutStep = useCartStore(s => s.setCheckoutStep)
   const paymentMethod   = useCartStore(s => s.paymentMethod)
   const setPaymentMethod = useCartStore(s => s.setPaymentMethod)
+
+  // Apply default payment method from settings once when overlay opens
+  const appliedDefault = useRef(false)
+  useEffect(() => {
+    if (!appliedDefault.current && tenantSettings && checkoutStep === 'payment') {
+      const ex = tenantSettings.extra_settings as Record<string, unknown>
+      const def = ((ex?.default_payment_method as string) || 'CASH').toUpperCase()
+      const mapped: PaymentMethod = def === 'CARD' ? 'card' : 'cash'
+      setPaymentMethod(mapped)
+      appliedDefault.current = true
+    }
+  }, [tenantSettings, checkoutStep, setPaymentMethod])
   const paymentAmount   = useCartStore(s => s.paymentAmount)
   const setPaymentAmount = useCartStore(s => s.setPaymentAmount)
   const splitPayments   = useCartStore(s => s.splitPayments)
@@ -62,15 +84,21 @@ export default function PaymentOverlay() {
     try {
       const orderDiscountAmt = totals.orderDiscAmt
 
-      // Build items for checkout
+      // Build items for checkout — use tenant tax settings
+      const tenantTaxRate    = totals.taxEnabled ? totals.taxRate / 100 : 0
       const checkoutItems = items.map(item => {
         const lineDiscAmt = ((item.lineDiscount || 0) / 100) * item.price * item.qty
+        // For inclusive pricing, send the pre-tax unit price so the backend
+        // formula (price * tax_rate) still yields the correct tax extracted amount
+        const unitPrice = totals.taxEnabled && totals.taxInclusive
+          ? item.price / (1 + tenantTaxRate)
+          : item.price
         return {
           product_id:      item.id,
           quantity:        item.qty.toString(),
-          unit_price:      item.price.toFixed(2),
+          unit_price:      unitPrice.toFixed(4),
           discount_amount: lineDiscAmt > 0 ? lineDiscAmt.toFixed(2) : undefined,
-          tax_rate:        item.taxRate.toFixed(2),
+          tax_rate:        tenantTaxRate.toFixed(4),
         }
       })
 

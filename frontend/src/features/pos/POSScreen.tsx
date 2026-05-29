@@ -5,10 +5,11 @@ import { toast } from 'sonner'
 import { useCartStore, useCartTotals } from '@/store/cartStore'
 import { useSessionStore } from '@/store/session.store'
 import { useTenantStore } from '@/store/tenant.store'
+import { useUIStore } from '@/store/ui.store'
 import { productsService } from '@/services/products/products.service'
 import { inventoryService } from '@/services/inventory/inventory.service'
 import { categoriesService } from '@/services/categories/categories.service'
-import { IconSearch, IconBarcode, IconCash } from '@/components/icons'
+import { IconSearch, IconBarcode, IconCash, IconExpand, IconCompress } from '@/components/icons'
 import { Kbd, Spinner } from '@/components/ui'
 import { cn } from '@/lib/utils'
 // ScannerInputCapture is lightweight (keyboard listener only — no camera library)
@@ -55,6 +56,33 @@ export default function POSScreen() {
   const [activeCategory, setActiveCategory]   = useState('all')
   const [mobileTab, setMobileTab] = useState<'products' | 'cart'>('products')
   const [scannerOpen, setScannerOpen] = useState(false)
+
+  const { posFocusMode, togglePosFocusMode, setPosFocusMode } = useUIStore()
+
+  // Desktop: hide sidebar + enter browser fullscreen together
+  function toggleDesktopFocusMode() {
+    togglePosFocusMode()
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {})
+    } else {
+      document.exitFullscreen().catch(() => {})
+    }
+  }
+
+  // If user exits browser fullscreen externally (Esc / F11), also exit sidebar focus mode
+  useEffect(() => {
+    function onFsChange() {
+      if (!document.fullscreenElement) setPosFocusMode(false)
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [setPosFocusMode])
+
+  // Reset both on unmount (navigate away)
+  useEffect(() => () => {
+    setPosFocusMode(false)
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+  }, [setPosFocusMode])
 
   const { activeSession }  = useSessionStore()
   const { selectedBranch } = useTenantStore()
@@ -145,7 +173,6 @@ export default function POSScreen() {
     const legacy = mapProduct(scanned, inventoryMap, categoryMap)
     addItem(legacy)
     setScannerOpen(false)
-    setMobileTab('cart')
     toast.success(`Added: ${scanned.name}`)
   }, [inventoryMap, categoryMap, addItem])
 
@@ -239,6 +266,14 @@ export default function POSScreen() {
             </span>
           )}
         </button>
+        <button
+          onClick={togglePosFocusMode}
+          className="w-12 flex items-center justify-center text-zinc-500 hover:text-zinc-200 transition-colors border-b-2 border-transparent"
+          aria-label={posFocusMode ? 'Exit fullscreen' : 'Enter fullscreen'}
+          title={posFocusMode ? 'Exit fullscreen' : 'Fullscreen'}
+        >
+          {posFocusMode ? <IconCompress width="16" height="16" /> : <IconExpand width="16" height="16" />}
+        </button>
       </div>
 
       {/* Content area */}
@@ -278,6 +313,14 @@ export default function POSScreen() {
             >
               <IconBarcode width="17" height="17" />
             </button>
+            <button
+              onClick={toggleDesktopFocusMode}
+              className="hidden lg:flex w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 items-center justify-center text-zinc-500 hover:text-zinc-200 transition-colors"
+              aria-label={posFocusMode ? 'Exit fullscreen' : 'Enter fullscreen'}
+              title={posFocusMode ? 'Exit fullscreen' : 'Fullscreen'}
+            >
+              {posFocusMode ? <IconCompress width="16" height="16" /> : <IconExpand width="16" height="16" />}
+            </button>
           </div>
 
           {/* Category filter — dynamic from backend */}
@@ -299,7 +342,7 @@ export default function POSScreen() {
               <ProductGrid
                 products={filtered}
                 cartItems={items}
-                onAdd={p => { handleAdd(p); setMobileTab('cart') }}
+                onAdd={handleAdd}
               />
             )}
           </div>
@@ -328,7 +371,7 @@ export default function POSScreen() {
           'flex flex-col w-full lg:w-auto flex-shrink-0',
           mobileTab === 'products' ? 'hidden lg:flex' : 'flex',
         )}>
-          <CartPanel />
+          <CartPanel onBackToProducts={() => setMobileTab('products')} />
         </div>
       </div>
 
