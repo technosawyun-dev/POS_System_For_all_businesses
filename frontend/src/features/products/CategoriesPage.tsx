@@ -141,8 +141,8 @@ export default function CategoriesPage() {
                       <Td><span className="font-medium text-zinc-100">{cat.name}</span></Td>
                       <Td muted>{cat.description ?? '—'}</Td>
                       <Td>
-                        <Badge variant={cat.status === 'ACTIVE' ? 'success' : 'default'} size="xs">
-                          {cat.status}
+                        <Badge variant={cat.status?.toUpperCase() === 'ACTIVE' ? 'success' : 'default'} size="xs">
+                          {cat.status?.toLowerCase() === 'active' ? 'active' : cat.status?.toLowerCase() ?? '—'}
                         </Badge>
                       </Td>
                       <Td>

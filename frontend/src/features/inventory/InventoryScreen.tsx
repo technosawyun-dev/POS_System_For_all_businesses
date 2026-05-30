@@ -16,6 +16,7 @@ export default function InventoryScreen() {
   const [search, setSearch]               = useState('')
   const [adjustingItem, setAdjustingItem] = useState<InventoryItem | null>(null)
   const [historyItem, setHistoryItem]     = useState<InventoryItem | null>(null)
+  const [stockSort, setStockSort]         = useState<'asc' | 'desc'>('asc')
 
   // Inventory is a management view — always follows the globally selected branch.
   // The POS cashier session is irrelevant here (that's operational, not reporting).
@@ -46,16 +47,21 @@ export default function InventoryScreen() {
 
   const items = data?.items ?? []
 
-  const filtered = items.filter(item => {
-    if (!search.trim()) return true
-    const q = search.toLowerCase()
-    const product = productMap.get(item.product_id)
-    return (
-      (product?.name ?? '').toLowerCase().includes(q) ||
-      (product?.sku ?? '').toLowerCase().includes(q) ||
-      item.product_id.toLowerCase().includes(q)
-    )
-  })
+  const filtered = items
+    .filter(item => {
+      if (!search.trim()) return true
+      const q = search.toLowerCase()
+      const product = productMap.get(item.product_id)
+      return (
+        (product?.name ?? '').toLowerCase().includes(q) ||
+        (product?.sku ?? '').toLowerCase().includes(q) ||
+        item.product_id.toLowerCase().includes(q)
+      )
+    })
+    .sort((a, b) => {
+      const diff = parseFloat(a.quantity_available) - parseFloat(b.quantity_available)
+      return stockSort === 'asc' ? diff : -diff
+    })
 
   const outOfStock  = items.filter(i => parseFloat(i.quantity_on_hand) === 0).length
   const lowStock    = items.filter(i => {
@@ -139,7 +145,18 @@ export default function InventoryScreen() {
                   <Th>Product</Th>
                   <Th right>Sold</Th>
                   <Th right>Available</Th>
-                  <Th>Stock Level</Th>
+                  <Th>
+                    <button
+                      onClick={() => setStockSort(s => s === 'asc' ? 'desc' : 'asc')}
+                      className="flex items-center gap-1 hover:text-amber-400 transition-colors group"
+                      title={stockSort === 'asc' ? 'Sorted: Low → High (click for High → Low)' : 'Sorted: High → Low (click for Low → High)'}
+                    >
+                      Stock Level
+                      <span className="text-zinc-500 group-hover:text-amber-400 transition-colors">
+                        {stockSort === 'asc' ? '↑' : '↓'}
+                      </span>
+                    </button>
+                  </Th>
                   <Th>Status</Th>
                   <Th>Actions</Th>
                 </tr>
