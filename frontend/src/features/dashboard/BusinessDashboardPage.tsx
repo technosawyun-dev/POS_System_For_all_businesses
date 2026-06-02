@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { fmt, fmtDate, timeAgo } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth.store'
 import { useTenantStore } from '@/store/tenant.store'
+import { useLocaleStore } from '@/i18n/localeStore'
 import { canAccess } from '@/shared/constants/rbac'
 import { analyticsService } from '@/services/analytics/analytics.service'
 import { notificationsService } from '@/services/notifications/notifications.service'
@@ -19,23 +20,23 @@ import { RecentlyViewed } from './widgets/RecentlyViewed'
 import { Favorites } from './widgets/Favorites'
 
 const OWNER_ACTIONS: QuickAction[] = [
-  { label: 'New Sale',       icon: '💰', path: '/app/pos',                       description: 'Open checkout' },
-  { label: 'Products',       icon: '📦', path: '/app/products',                  description: 'Manage catalog'  },
-  { label: 'Customers',      icon: '👥', path: '/app/customers',                 description: 'View accounts' },
-  { label: 'Procurement',    icon: '🛒', path: '/app/procurement',               description: 'Purchase orders' },
-  { label: 'Inventory',      icon: '🏭', path: '/app/inventory',                 description: 'Stock levels' },
-  { label: 'Analytics',      icon: '📊', path: '/app/analytics',                 description: 'Revenue & trends' },
-  { label: 'Notifications',  icon: '🔔', path: '/app/notifications',             description: 'Inbox' },
-  { label: 'Subscription',   icon: '💳', path: '/app/subscription',              description: 'Plan & billing' },
+  { labelKey: 'qa.new_sale',      descKey: 'qa.new_sale_desc',      icon: '💰', path: '/app/pos' },
+  { labelKey: 'qa.products',      descKey: 'qa.products_desc',      icon: '📦', path: '/app/products' },
+  { labelKey: 'qa.customers',     descKey: 'qa.customers_desc',     icon: '👥', path: '/app/customers' },
+  { labelKey: 'qa.procurement',   descKey: 'qa.procurement_desc',   icon: '🛒', path: '/app/procurement' },
+  { labelKey: 'qa.inventory',     descKey: 'qa.inventory_desc',     icon: '🏭', path: '/app/inventory' },
+  { labelKey: 'qa.analytics',     descKey: 'qa.analytics_desc',     icon: '📊', path: '/app/analytics' },
+  { labelKey: 'qa.notifications', descKey: 'qa.notifications_desc', icon: '🔔', path: '/app/notifications' },
+  { labelKey: 'qa.subscription',  descKey: 'qa.subscription_desc',  icon: '💳', path: '/app/subscription' },
 ]
 
 const MANAGER_ACTIONS: QuickAction[] = [
-  { label: 'New Sale',       icon: '💰', path: '/app/pos',                       description: 'Open checkout' },
-  { label: 'Inventory',      icon: '🏭', path: '/app/inventory',                 description: 'Stock levels' },
-  { label: 'Procurement',    icon: '🛒', path: '/app/procurement',               description: 'Purchase orders' },
-  { label: 'Customers',      icon: '👥', path: '/app/customers',                 description: 'View accounts' },
-  { label: 'Analytics',      icon: '📊', path: '/app/analytics',                 description: 'Revenue & trends' },
-  { label: 'Notifications',  icon: '🔔', path: '/app/notifications',             description: 'Inbox' },
+  { labelKey: 'qa.new_sale',      descKey: 'qa.new_sale_desc',      icon: '💰', path: '/app/pos' },
+  { labelKey: 'qa.inventory',     descKey: 'qa.inventory_desc',     icon: '🏭', path: '/app/inventory' },
+  { labelKey: 'qa.procurement',   descKey: 'qa.procurement_desc',   icon: '🛒', path: '/app/procurement' },
+  { labelKey: 'qa.customers',     descKey: 'qa.customers_desc',     icon: '👥', path: '/app/customers' },
+  { labelKey: 'qa.analytics',     descKey: 'qa.analytics_desc',     icon: '📊', path: '/app/analytics' },
+  { labelKey: 'qa.notifications', descKey: 'qa.notifications_desc', icon: '🔔', path: '/app/notifications' },
 ]
 
 const OVERALL = '__overall__'
@@ -44,6 +45,7 @@ export default function BusinessDashboardPage() {
   const navigate = useNavigate()
   const user = useAuthStore(s => s.user)
   const { selectedBranch, setSelectedBranch } = useTenantStore()
+  const t = useLocaleStore(s => s.t)
   const role = user?.role ?? 'MANAGER'
   const tenantId = user?.tenant_id
   const isOwner = role === 'BUSINESS_OWNER'
@@ -278,7 +280,7 @@ export default function BusinessDashboardPage() {
         <RecentlyViewed />
 
         {/* Quick Actions */}
-        <DashboardSection title="Quick Actions">
+        <DashboardSection title={t('dash.quick_actions')}>
           <QuickActionGrid actions={isOwner ? OWNER_ACTIONS : MANAGER_ACTIONS} />
         </DashboardSection>
 
@@ -287,8 +289,8 @@ export default function BusinessDashboardPage() {
 
           {/* Recent Sales */}
           <DashboardSection
-            title="Recent Sales"
-            action={{ label: 'View all', onClick: () => navigate('/app/sales') }}
+            title={t('dash.recent_sales')}
+            action={{ label: t('dash.view_all'), onClick: () => navigate('/app/sales') }}
           >
             <ActivityFeed
               items={recentOrders}

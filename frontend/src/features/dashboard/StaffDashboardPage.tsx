@@ -4,6 +4,7 @@ import { fmt, timeAgo } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth.store'
 import { useSessionStore } from '@/store/session.store'
 import { useTenantStore } from '@/store/tenant.store'
+import { useLocaleStore } from '@/i18n/localeStore'
 import { analyticsService } from '@/services/analytics/analytics.service'
 import { notificationsService } from '@/services/notifications/notifications.service'
 import { KpiCard } from './widgets/KpiCard'
@@ -12,17 +13,17 @@ import { QuickActionGrid, type QuickAction } from './widgets/QuickActionGrid'
 import { RecentlyViewed } from './widgets/RecentlyViewed'
 
 const CASHIER_ACTIONS: QuickAction[] = [
-  { label: 'Open POS',      icon: '💰', path: '/app/pos',           description: 'Start selling' },
-  { label: 'Customers',     icon: '👥', path: '/app/customers',     description: 'View accounts' },
-  { label: 'Sales History', icon: '🧾', path: '/app/sales',         description: 'Past orders' },
-  { label: 'Notifications', icon: '🔔', path: '/app/notifications', description: 'Your inbox' },
+  { labelKey: 'qa.open_pos',      descKey: 'qa.open_pos_desc',      icon: '💰', path: '/app/pos' },
+  { labelKey: 'qa.customers',     descKey: 'qa.customers_desc',     icon: '👥', path: '/app/customers' },
+  { labelKey: 'qa.sales_history', descKey: 'qa.sales_history_desc', icon: '🧾', path: '/app/sales' },
+  { labelKey: 'qa.notifications', descKey: 'qa.inbox_desc',         icon: '🔔', path: '/app/notifications' },
 ]
 
 const INVENTORY_ACTIONS: QuickAction[] = [
-  { label: 'Inventory',     icon: '🏭', path: '/app/inventory',     description: 'Stock levels' },
-  { label: 'Products',      icon: '📦', path: '/app/products',      description: 'Product catalog' },
-  { label: 'Open POS',      icon: '💰', path: '/app/pos',           description: 'Start selling' },
-  { label: 'Notifications', icon: '🔔', path: '/app/notifications', description: 'Your inbox' },
+  { labelKey: 'qa.inventory',     descKey: 'qa.inventory_desc', icon: '🏭', path: '/app/inventory' },
+  { labelKey: 'qa.products',      descKey: 'qa.catalog_desc',   icon: '📦', path: '/app/products' },
+  { labelKey: 'qa.open_pos',      descKey: 'qa.open_pos_desc',  icon: '💰', path: '/app/pos' },
+  { labelKey: 'qa.notifications', descKey: 'qa.inbox_desc',     icon: '🔔', path: '/app/notifications' },
 ]
 
 export default function StaffDashboardPage() {
@@ -30,6 +31,7 @@ export default function StaffDashboardPage() {
   const user = useAuthStore(s => s.user)
   const { activeSession } = useSessionStore()
   const { selectedBranch } = useTenantStore()
+  const t = useLocaleStore(s => s.t)
   const role = user?.role ?? 'CASHIER'
   const isInventoryStaff = role === 'INVENTORY_STAFF'
   const branchId = selectedBranch?.id
@@ -149,7 +151,7 @@ export default function StaffDashboardPage() {
         </DashboardSection>
 
         {/* Quick Actions */}
-        <DashboardSection title="Quick Actions">
+        <DashboardSection title={t('dash.quick_actions')}>
           <QuickActionGrid actions={isInventoryStaff ? INVENTORY_ACTIONS : CASHIER_ACTIONS} />
         </DashboardSection>
 

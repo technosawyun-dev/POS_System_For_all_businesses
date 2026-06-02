@@ -8,6 +8,8 @@ import { brandsService } from '@/services/brands/brands.service'
 import { inventoryService } from '@/services/inventory/inventory.service'
 import { useTenantStore } from '@/store/tenant.store'
 import { fmt } from '@/lib/utils'
+import { getFormatterConfig } from '@/lib/formatterConfig'
+import { useLocaleStore } from '@/i18n/localeStore'
 import { StatCard, Table, Th, Td, Btn, Empty, Spinner } from '@/components/ui'
 import { IconPlus, IconProducts, IconSearch } from '@/components/icons'
 import { ProductBarcodeCard } from '@/scanner'
@@ -25,9 +27,10 @@ function CategoryBadge({ name }: { name: string }) {
 }
 
 function StockBadge({ qty }: { qty: number }) {
-  if (qty === 0) return <span className="text-xs px-2 py-0.5 rounded-full bg-red-950 border border-red-800 text-red-400">Out of Stock</span>
-  if (qty <= 10) return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-950 border border-amber-800 text-amber-400">Low Stock</span>
-  return <span className="text-xs px-2 py-0.5 rounded-full bg-green-950 border border-green-800 text-green-400">In Stock</span>
+  const t = useLocaleStore(s => s.t)
+  if (qty === 0) return <span className="text-xs px-2 py-0.5 rounded-full bg-red-950 border border-red-800 text-red-400">{t('status.out_of_stock')}</span>
+  if (qty <= 10) return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-950 border border-amber-800 text-amber-400">{t('status.low_stock')}</span>
+  return <span className="text-xs px-2 py-0.5 rounded-full bg-green-950 border border-green-800 text-green-400">{t('status.in_stock')}</span>
 }
 
 interface PromoInfo {
@@ -51,9 +54,10 @@ function getPromoInfo(product: BackendProduct): PromoInfo {
   const isExpired   = end   !== null && now > end
   const isActive    = !isScheduled && !isExpired
   const val = parseFloat(product.discount_value)
+  const { currency, locale } = getFormatterConfig()
   const valueLabel = product.discount_type === 'PERCENTAGE'
     ? `${val}%`
-    : `${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kyats`
+    : `${val.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   return {
     hasPromo: true, isActive, isScheduled, isExpired, valueLabel,
@@ -63,6 +67,7 @@ function getPromoInfo(product: BackendProduct): PromoInfo {
 }
 
 function PromoBadge({ product }: { product: BackendProduct }) {
+  const t = useLocaleStore(s => s.t)
   const p = getPromoInfo(product)
   if (!p.hasPromo) return <span className="text-zinc-600 text-xs">—</span>
   if (p.isExpired) {
@@ -75,13 +80,13 @@ function PromoBadge({ product }: { product: BackendProduct }) {
   if (p.isScheduled) {
     return (
       <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-950 border border-blue-800 text-blue-400">
-        {p.valueLabel} · Scheduled
+        {p.valueLabel} · {t('products.promo.scheduled')}
       </span>
     )
   }
   return (
     <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-950 border border-green-800 text-green-400 font-semibold">
-      {p.valueLabel} off
+      {p.valueLabel} {t('products.promo.off')}
     </span>
   )
 }
@@ -90,6 +95,7 @@ const PAGE_SIZE = 50
 
 export default function ProductsScreen() {
   const qc = useQueryClient()
+  const t = useLocaleStore(s => s.t)
   const [search, setSearch]               = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -173,14 +179,14 @@ export default function ProductsScreen() {
       <div className="flex-1 flex flex-col min-w-0 lg:overflow-hidden">
         {/* Sub-navigation */}
         <div className="flex-shrink-0 flex items-center gap-1 px-4 sm:px-6 pt-3 sm:pt-4 border-b border-zinc-800 pb-0">
-          <span className="px-3 py-1.5 text-xs font-semibold text-amber-400 border-b-2 border-amber-500 -mb-px">Products</span>
-          <Link to="/app/categories" className="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-100 border-b-2 border-transparent -mb-px transition-colors">Categories</Link>
-          <Link to="/app/brands" className="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-100 border-b-2 border-transparent -mb-px transition-colors">Brands</Link>
+          <span className="px-3 py-1.5 text-xs font-semibold text-amber-400 border-b-2 border-amber-500 -mb-px">{t('products.tab.products')}</span>
+          <Link to="/app/categories" className="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-100 border-b-2 border-transparent -mb-px transition-colors">{t('products.tab.categories')}</Link>
+          <Link to="/app/brands" className="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-100 border-b-2 border-transparent -mb-px transition-colors">{t('products.tab.brands')}</Link>
         </div>
 
         {/* Page header */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-zinc-800 flex-shrink-0">
-          <h2 className="text-base font-semibold text-zinc-100 flex-shrink-0">Products</h2>
+          <h2 className="text-base font-semibold text-zinc-100 flex-shrink-0">{t('products.title')}</h2>
           <div className="flex items-center gap-2 sm:gap-3 flex-1 justify-end">
             <div className="relative flex-1 sm:flex-none">
               <IconSearch width="14" height="14" className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
@@ -188,7 +194,7 @@ export default function ProductsScreen() {
                 type="text"
                 value={search}
                 onChange={e => handleSearch(e.target.value)}
-                placeholder="Search products…"
+                placeholder={t('products.search')}
                 className="bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-600 text-sm
                   focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 transition-all
                   py-2 pl-8 pr-4 w-full sm:w-56"
@@ -196,8 +202,8 @@ export default function ProductsScreen() {
             </div>
             <Btn size="sm" onClick={() => { setEditProduct(null); setShowForm(true) }}>
               <IconPlus width="14" height="14" />
-              <span className="hidden sm:inline">New Product</span>
-              <span className="sm:hidden">New</span>
+              <span className="hidden sm:inline">{t('products.new')}</span>
+              <span className="sm:hidden">{t('products.new_short')}</span>
             </Btn>
           </div>
         </div>
@@ -205,9 +211,9 @@ export default function ProductsScreen() {
         <div className="p-4 sm:p-6 flex flex-col gap-4 sm:gap-5 lg:overflow-auto lg:flex-1 lg:min-h-0">
           {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-            <StatCard label="Total SKUs"  value={total} />
-            <StatCard label="Active"      value={products.filter(p => p.is_active).length} accent />
-            <StatCard label="Inactive"    value={products.filter(p => !p.is_active).length} />
+            <StatCard label={t('products.stat.skus')}     value={total} />
+            <StatCard label={t('products.stat.active')}   value={products.filter(p => p.is_active).length} accent />
+            <StatCard label={t('products.stat.inactive')} value={products.filter(p => !p.is_active).length} />
           </div>
 
           {/* Category pills */}
@@ -218,7 +224,7 @@ export default function ProductsScreen() {
                 !categoryFilter ? 'bg-amber-500 border-amber-400 text-black' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
               }`}
             >
-              All Items
+              All
             </button>
             {categories.map(cat => (
               <button
@@ -254,7 +260,7 @@ export default function ProductsScreen() {
                   {products.length === 0 ? (
                     <tr>
                       <td colSpan={7}>
-                        <Empty icon={<IconProducts width="40" height="40" />} title="No products found" subtitle="Try adjusting your search or filter" />
+                        <Empty icon={<IconProducts width="40" height="40" />} title={t('products.empty')} subtitle={t('products.empty_sub')} />
                       </td>
                     </tr>
                   ) : products.map(product => {
@@ -282,8 +288,8 @@ export default function ProductsScreen() {
                         </Td>
                         <Td>
                           {product.is_active
-                            ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-950 border border-green-800 text-green-400">Active</span>
-                            : <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-500">Inactive</span>
+                            ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-950 border border-green-800 text-green-400">{t('status.active')}</span>
+                            : <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-500">{t('status.inactive')}</span>
                           }
                         </Td>
                       </tr>
@@ -302,7 +308,7 @@ export default function ProductsScreen() {
                   disabled={page === 1}
                   className="px-2 py-1 rounded-lg text-xs text-zinc-400 border border-zinc-700 hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
-                  ‹ Prev
+                  {t('common.prev')}
                 </button>
                 <span className="text-xs text-zinc-500 px-2">{page} / {totalPages}</span>
                 <button
@@ -310,7 +316,7 @@ export default function ProductsScreen() {
                   disabled={page >= totalPages}
                   className="px-2 py-1 rounded-lg text-xs text-zinc-400 border border-zinc-700 hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
-                  Next ›
+                  {t('common.next')}
                 </button>
               </div>
             </div>
@@ -345,6 +351,7 @@ function ProductDetailPanel({
   isDeleting: boolean
 }) {
   const [showLabelPrint, setShowLabelPrint] = useState(false)
+  const t = useLocaleStore(s => s.t)
 
   return (
     <>
@@ -361,7 +368,7 @@ function ProductDetailPanel({
     />
     <div className="fixed inset-0 z-50 bg-zinc-950 flex flex-col overflow-y-auto lg:relative lg:inset-auto lg:z-auto lg:w-80 lg:flex-shrink-0 lg:border-t-0 lg:border-l lg:border-zinc-800">
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
-        <span className="text-sm font-semibold text-zinc-100">Product Detail</span>
+        <span className="text-sm font-semibold text-zinc-100">{t('products.detail.title')}</span>
         <button
           onClick={onClose}
           className="flex items-center justify-center w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 transition-colors text-xl leading-none"
@@ -380,11 +387,11 @@ function ProductDetailPanel({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
-            <p className="text-xs text-zinc-500 mb-0.5">Selling Price</p>
+            <p className="text-xs text-zinc-500 mb-0.5">{t('products.detail.selling')}</p>
             <p className="font-mono font-bold text-amber-400">{fmt(parseFloat(product.selling_price))}</p>
           </div>
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
-            <p className="text-xs text-zinc-500 mb-0.5">Cost Price</p>
+            <p className="text-xs text-zinc-500 mb-0.5">{t('products.detail.cost')}</p>
             <p className="font-mono font-bold text-zinc-200">{fmt(parseFloat(product.cost_price))}</p>
           </div>
         </div>
@@ -394,8 +401,8 @@ function ProductDetailPanel({
           const promo = getPromoInfo(product)
           if (!promo.hasPromo) return (
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 flex items-center justify-between">
-              <p className="text-xs text-zinc-500">Promotion</p>
-              <span className="text-xs text-zinc-600">None</span>
+              <p className="text-xs text-zinc-500">{t('products.detail.promo_none')}</p>
+              <span className="text-xs text-zinc-600">{t('products.detail.promo_val')}</span>
             </div>
           )
           return (
@@ -405,40 +412,39 @@ function ProductDetailPanel({
                                   'bg-zinc-900     border-zinc-800'
             }`}>
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-zinc-300">Promotion / Discount</p>
-                {promo.isActive    && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/20 border border-green-600/40 text-green-400 font-semibold">Active</span>}
-                {promo.isScheduled && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20  border border-blue-600/40  text-blue-400  font-semibold">Scheduled</span>}
-                {promo.isExpired   && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-700/40  border border-zinc-600/40  text-zinc-500  font-semibold">Expired</span>}
+                <p className="text-xs font-semibold text-zinc-300">{t('products.detail.promo')}</p>
+                {promo.isActive    && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/20 border border-green-600/40 text-green-400 font-semibold">{t('products.promo.active')}</span>}
+                {promo.isScheduled && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20  border border-blue-600/40  text-blue-400  font-semibold">{t('products.promo.scheduled')}</span>}
+                {promo.isExpired   && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-700/40  border border-zinc-600/40  text-zinc-500  font-semibold">{t('products.promo.expired')}</span>}
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-zinc-500">Discount</span>
+                <span className="text-xs text-zinc-500">{t('products.detail.discount')}</span>
                 <span className={`font-mono text-sm font-bold ${promo.isActive ? 'text-green-400' : promo.isScheduled ? 'text-blue-400' : 'text-zinc-500'}`}>
                   {promo.valueLabel}
-                  {product.discount_type === 'PERCENTAGE' ? '' : ''}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-zinc-500">Type</span>
-                <span className="text-xs text-zinc-300">{product.discount_type === 'PERCENTAGE' ? 'Percentage' : 'Fixed Amount'}</span>
+                <span className="text-xs text-zinc-500">{t('products.detail.type')}</span>
+                <span className="text-xs text-zinc-300">{product.discount_type === 'PERCENTAGE' ? t('products.detail.percentage') : t('products.detail.fixed')}</span>
               </div>
               {(promo.startDate || promo.endDate) && (
                 <div className="pt-1.5 border-t border-zinc-700/40 flex flex-col gap-1">
                   {promo.startDate && (
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-zinc-500">Start</span>
+                      <span className="text-xs text-zinc-500">{t('products.detail.start')}</span>
                       <span className="text-xs text-zinc-300 font-mono">{promo.startDate}</span>
                     </div>
                   )}
                   {promo.endDate && (
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-zinc-500">End</span>
+                      <span className="text-xs text-zinc-500">{t('products.detail.end')}</span>
                       <span className="text-xs text-zinc-300 font-mono">{promo.endDate}</span>
                     </div>
                   )}
                 </div>
               )}
               {!promo.startDate && !promo.endDate && (
-                <p className="text-[10px] text-zinc-600">No time limit — always active</p>
+                <p className="text-[10px] text-zinc-600">{t('products.detail.no_limit')}</p>
               )}
             </div>
           )
@@ -446,12 +452,12 @@ function ProductDetailPanel({
 
         <div className="flex flex-col gap-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-zinc-500">Category</span>
+            <span className="text-zinc-500">{t('products.detail.category')}</span>
             <span className="text-zinc-200">{categoryMap.get(product.category_id ?? '') ?? '—'}</span>
           </div>
           {product.description && (
             <div>
-              <p className="text-zinc-500 mb-1">Description</p>
+              <p className="text-zinc-500 mb-1">{t('products.detail.desc')}</p>
               <p className="text-zinc-300 text-xs">{product.description}</p>
             </div>
           )}
@@ -459,7 +465,7 @@ function ProductDetailPanel({
 
         {(product.variants ?? []).length > 0 && (
           <div>
-            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Variants ({(product.variants ?? []).length})</p>
+            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">{t('products.detail.variants')} ({(product.variants ?? []).length})</p>
             {(product.variants ?? []).map(v => (
               <div key={v.id} className="flex justify-between items-center py-1.5 border-b border-zinc-800 text-xs">
                 <span className="text-zinc-300">{v.name}</span>
@@ -471,22 +477,22 @@ function ProductDetailPanel({
 
         {/* Barcode section */}
         <div>
-          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Barcode</p>
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">{t('products.detail.barcode')}</p>
           <ProductBarcodeCard product={product} showPrice compact={false} />
           <button
             onClick={() => setShowLabelPrint(true)}
             className="w-full mt-2 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-xs font-medium transition-colors"
           >
-            Print Label
+            {t('products.detail.print')}
           </button>
         </div>
 
         <div className="pt-2 border-t border-zinc-800 flex gap-2">
           <Btn variant="outline" size="sm" fullWidth onClick={onEdit}>
-            Edit
+            {t('common.edit')}
           </Btn>
           <Btn variant="danger" size="sm" fullWidth onClick={onDelete} disabled={isDeleting}>
-            {isDeleting ? 'Deleting…' : 'Delete'}
+            {isDeleting ? t('common.deleting') : t('common.delete')}
           </Btn>
         </div>
       </div>

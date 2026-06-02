@@ -1,4 +1,5 @@
-import { fmt, CURRENCY_SYMBOL } from '@/lib/utils'
+import { fmt } from '@/lib/utils'
+import { getFormatterConfig } from '@/lib/formatterConfig'
 import NumPad from '@/features/payment/NumPad'
 import QuickBills from '@/features/payment/QuickBills'
 
@@ -21,7 +22,7 @@ export default function CashPayment({ total, amount, onAmountChange, onProcess }
         <p className="text-xs text-zinc-600 uppercase tracking-wider mb-1">Amount Tendered</p>
         <p className="font-mono text-3xl font-bold text-right text-zinc-100">
           {amount
-            ? `${CURRENCY_SYMBOL}${amount}`
+            ? `${getFormatterConfig().currency} ${amount}`
             : <span className="text-zinc-700">{fmt(0)}</span>
           }
         </p>

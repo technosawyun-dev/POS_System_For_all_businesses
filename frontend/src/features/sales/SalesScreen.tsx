@@ -5,7 +5,7 @@ import { receiptsService } from '@/services/receipts/receipts.service'
 import { useTenantStore } from '@/store/tenant.store'
 import { fmt, fmtDateTime, timeAgo } from '@/lib/utils'
 import { StatCard, Table, Th, Td, Badge, Empty, Divider, Spinner } from '@/components/ui'
-import { IconSales, IconX, IconSearch, IconRefund, IconPrint } from '@/components/icons'
+import { IconSales, IconSearch, IconRefund, IconPrint } from '@/components/icons'
 import { ReceiptPrintPreviewModal } from '@/components/hardware/PrintPreviewModal'
 import type { Order, OrderItem, RefundRecord } from '@/shared/types'
 
@@ -303,12 +303,18 @@ export default function SalesScreen() {
 
       {/* Order detail panel */}
       {selectedOrder && (
-        <OrderDetailPanel order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+        <>
+          <div className="fixed inset-0 bg-black/60 z-40 lg:hidden" onClick={() => setSelectedOrder(null)} />
+          <OrderDetailPanel order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+        </>
       )}
 
       {/* Refund detail panel */}
       {selectedRefund && (
-        <RefundDetailPanel refund={selectedRefund} onClose={() => setSelectedRefund(null)} />
+        <>
+          <div className="fixed inset-0 bg-black/60 z-40 lg:hidden" onClick={() => setSelectedRefund(null)} />
+          <RefundDetailPanel refund={selectedRefund} onClose={() => setSelectedRefund(null)} />
+        </>
       )}
     </div>
   )
@@ -334,11 +340,11 @@ function OrderDetailPanel({ order, onClose }: { order: Order; onClose: () => voi
   const items: OrderItem[] = (detail?.items ?? []) as OrderItem[]
 
   return (
-    <div className="w-full lg:w-96 flex-shrink-0 border-t lg:border-t-0 lg:border-l border-zinc-800 bg-zinc-950 flex flex-col overflow-y-auto">
+    <div className="fixed inset-0 z-50 lg:relative lg:inset-auto lg:z-auto w-full lg:w-96 flex-shrink-0 lg:border-l border-zinc-800 bg-zinc-950 flex flex-col overflow-y-auto">
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
         <span className="text-sm font-semibold text-zinc-100">Order Receipt</span>
-        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800">
-          <IconX width="14" height="14" />
+        <button onClick={onClose} className="flex items-center justify-center w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 transition-colors text-xl leading-none">
+          ×
         </button>
       </div>
 
@@ -469,11 +475,11 @@ function OrderDetailPanel({ order, onClose }: { order: Order; onClose: () => voi
 
 function RefundDetailPanel({ refund, onClose }: { refund: RefundRecord; onClose: () => void }) {
   return (
-    <div className="w-full lg:w-96 flex-shrink-0 border-t lg:border-t-0 lg:border-l border-zinc-800 bg-zinc-950 flex flex-col overflow-y-auto">
+    <div className="fixed inset-0 z-50 lg:relative lg:inset-auto lg:z-auto w-full lg:w-96 flex-shrink-0 lg:border-l border-zinc-800 bg-zinc-950 flex flex-col overflow-y-auto">
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
         <span className="text-sm font-semibold text-zinc-100">Refund Detail</span>
-        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800">
-          <IconX width="14" height="14" />
+        <button onClick={onClose} className="flex items-center justify-center w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 transition-colors text-xl leading-none">
+          ×
         </button>
       </div>
 

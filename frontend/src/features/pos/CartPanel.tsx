@@ -3,6 +3,7 @@ import { useCartStore, useCartTotals } from '@/store/cartStore'
 import { IconCart, IconX, IconRefund, IconChevLeft } from '@/components/icons'
 import { Divider, Kbd } from '@/components/ui'
 import { fmt } from '@/lib/utils'
+import { useLocaleStore } from '@/i18n/localeStore'
 import CartItem from '@/features/pos/CartItem'
 import DiscountRow from '@/features/pos/DiscountRow'
 import RefundModal from '@/features/pos/RefundModal'
@@ -15,6 +16,7 @@ export default function CartPanel({ onBackToProducts }: { onBackToProducts?: () 
   const checkoutStep    = useCartStore(s => s.checkoutStep)
   const setCheckoutStep = useCartStore(s => s.setCheckoutStep)
   const totals          = useCartTotals()
+  const t               = useLocaleStore(s => s.t)
 
   const [showRefund, setShowRefund] = useState(false)
 
@@ -55,7 +57,7 @@ export default function CartPanel({ onBackToProducts }: { onBackToProducts?: () 
               title="Process a refund"
             >
               <IconRefund width="13" height="13" />
-              Refund
+              {t('pos.refund')}
             </button>
             {items.length > 0 && (
               <button
@@ -63,7 +65,7 @@ export default function CartPanel({ onBackToProducts }: { onBackToProducts?: () 
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border border-zinc-700 bg-zinc-800 text-zinc-300 hover:text-red-400 hover:border-red-500/50 transition-colors"
               >
                 <IconX width="11" height="11" />
-                Clear
+                {t('pos.clear')}
               </button>
             )}
           </div>

@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/shared/utils'
 import { useAuthStore } from '@/store/auth.store'
 import { useUIStore } from '@/store/ui.store'
+import { usePreferencesStore } from '@/store/preferences.store'
+import { useLocaleStore } from '@/i18n/localeStore'
 import { canAccess, ROLE_LABELS, ROLE_BADGE_STYLES } from '@/shared/constants/rbac'
 import BranchSelector from '@/shared/components/BranchSelector'
 import NotificationBell from '@/shared/components/NotificationBell'
@@ -25,34 +27,34 @@ interface NavItem {
 }
 
 const APP_NAV: NavItem[] = [
-  { to: '/app/dashboard',     section: 'dashboard',     label: 'Dashboard',     icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏠</span> },
-  { to: '/app/pos',           section: 'pos',           label: 'Checkout',      icon: <IconPOS       width="18" height="18" /> },
-  { to: '/app/sales',         section: 'sales',         label: 'Sales',         icon: <IconSales     width="18" height="18" /> },
-  { to: '/app/products',      section: 'products',      label: 'Products',      icon: <IconProducts  width="18" height="18" /> },
-  { to: '/app/inventory',     section: 'inventory',     label: 'Inventory',     icon: <IconInventory width="18" height="18" /> },
-  { to: '/app/customers',     section: 'customers',     label: 'Wholesale Customers', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">👥</span> },
-  { to: '/app/procurement',   section: 'procurement',   label: 'Procurement',   icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📦</span> },
-  { to: '/app/analytics',     section: 'analytics',     label: 'Analytics',     icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📊</span> },
-  { to: '/app/notifications', section: 'notifications', label: 'Notifications', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🔔</span> },
-  { to: '/app/subscription',  section: 'subscription',  label: 'Subscription',  icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">💳</span> },
-  { to: '/app/settings',      section: 'settings',      label: 'Settings',      icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">⚙️</span> },
-  { to: '/app/sync',          section: 'sync',          label: 'Sync',          icon: <IconSync      width="18" height="18" /> },
+  { to: '/app/dashboard',     section: 'dashboard',     label: 'nav.dashboard',     icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏠</span> },
+  { to: '/app/pos',           section: 'pos',           label: 'nav.checkout',      icon: <IconPOS       width="18" height="18" /> },
+  { to: '/app/sales',         section: 'sales',         label: 'nav.sales',         icon: <IconSales     width="18" height="18" /> },
+  { to: '/app/products',      section: 'products',      label: 'nav.products',      icon: <IconProducts  width="18" height="18" /> },
+  { to: '/app/inventory',     section: 'inventory',     label: 'nav.inventory',     icon: <IconInventory width="18" height="18" /> },
+  { to: '/app/customers',     section: 'customers',     label: 'nav.customers',     icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">👥</span> },
+  { to: '/app/procurement',   section: 'procurement',   label: 'nav.procurement',   icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📦</span> },
+  { to: '/app/analytics',     section: 'analytics',     label: 'nav.analytics',     icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📊</span> },
+  { to: '/app/notifications', section: 'notifications', label: 'nav.notifications', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🔔</span> },
+  { to: '/app/subscription',  section: 'subscription',  label: 'nav.subscription',  icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">💳</span> },
+  { to: '/app/settings',      section: 'settings',      label: 'nav.settings',      icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">⚙️</span> },
+  { to: '/app/sync',          section: 'sync',          label: 'nav.sync',          icon: <IconSync      width="18" height="18" /> },
 ]
 
 const SUPER_ADMIN_NAV: NavItem[] = [
-  { to: '/super-admin/dashboard',     section: 'dashboard',     label: 'Dashboard',     icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏠</span> },
-  { to: '/super-admin/businesses',    section: 'businesses',    label: 'Businesses & Users', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏢</span> },
-  { to: '/super-admin/resellers',     section: 'resellers',     label: 'Resellers',     icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🤝</span> },
-  { to: '/super-admin/plans',         section: 'plans',         label: 'Plans',         icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📋</span> },
-  { to: '/super-admin/notifications', section: 'notifications', label: 'Notifications', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🔔</span> },
-  { to: '/super-admin/audit-logs',       section: 'audit-logs',       label: 'Audit Logs',       icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📝</span> },
-  { to: '/super-admin/reseller-finance', section: 'reseller-finance', label: 'Reseller Finance', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">💰</span> },
+  { to: '/super-admin/dashboard',        section: 'dashboard',        label: 'nav.sa.dashboard',        icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏠</span> },
+  { to: '/super-admin/businesses',       section: 'businesses',       label: 'nav.sa.businesses',       icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏢</span> },
+  { to: '/super-admin/resellers',        section: 'resellers',        label: 'nav.sa.resellers',        icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🤝</span> },
+  { to: '/super-admin/plans',            section: 'plans',            label: 'nav.sa.plans',            icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📋</span> },
+  { to: '/super-admin/notifications',    section: 'notifications',    label: 'nav.sa.notifications',    icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🔔</span> },
+  { to: '/super-admin/audit-logs',       section: 'audit-logs',       label: 'nav.sa.audit_logs',       icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📝</span> },
+  { to: '/super-admin/reseller-finance', section: 'reseller-finance', label: 'nav.sa.reseller_finance', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">💰</span> },
 ]
 
 const RESELLER_NAV: NavItem[] = [
-  { to: '/reseller/dashboard',  section: 'dashboard',  label: 'Dashboard',  icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏠</span> },
-  { to: '/reseller/businesses', section: 'businesses', label: 'Businesses', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏢</span> },
-  { to: '/reseller/analytics',  section: 'analytics',  label: 'Analytics',  icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📊</span> },
+  { to: '/reseller/dashboard',  section: 'dashboard',  label: 'nav.re.dashboard',  icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏠</span> },
+  { to: '/reseller/businesses', section: 'businesses', label: 'nav.re.businesses', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏢</span> },
+  { to: '/reseller/analytics',  section: 'analytics',  label: 'nav.re.analytics',  icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">📊</span> },
 ]
 
 interface DashboardLayoutProps {
@@ -62,6 +64,8 @@ interface DashboardLayoutProps {
 function SidebarContent({ navGroup, onClose, onSearch }: { navGroup: string; onClose?: () => void; onSearch?: () => void }) {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
+  const t = useLocaleStore(s => s.t)
+  const timeFormat = usePreferencesStore(s => s.timeFormat)
 
   const tenantId = user?.tenant_id
   const { data: tenant } = useQuery({
@@ -76,17 +80,17 @@ function SidebarContent({ navGroup, onClose, onSearch }: { navGroup: string; onC
   const currency = tenant?.currency ?? 'MMK'
 
   const [clock, setClock] = useState(() =>
-    new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', timeZone: tz }),
+    new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: timeFormat === '12h', timeZone: tz }),
   )
 
   useEffect(() => {
     function tick() {
-      setClock(new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', timeZone: tz }))
+      setClock(new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: timeFormat === '12h', timeZone: tz }))
     }
     tick()
     const id = setInterval(tick, 60_000)
     return () => clearInterval(id)
-  }, [locale, tz])
+  }, [locale, tz, timeFormat])
 
   const { data: unreadData } = useQuery({
     queryKey: ['notifications', 'unread-count'],
@@ -137,7 +141,7 @@ function SidebarContent({ navGroup, onClose, onSearch }: { navGroup: string; onC
                   <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
                   <path d="M10 10L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
-                <span className="flex-1 text-left">Search…</span>
+                <span className="flex-1 text-left">{t('common.search')}</span>
                 <kbd className="text-[9px] bg-zinc-800 border border-zinc-700 rounded px-1">⌘K</kbd>
               </button>
             )}
@@ -165,7 +169,7 @@ function SidebarContent({ navGroup, onClose, onSearch }: { navGroup: string; onC
                 <span className={cn('flex-shrink-0', isActive ? 'text-amber-400' : 'text-zinc-500')}>
                   {item.icon}
                 </span>
-                <span className="flex-1">{item.label}</span>
+                <span className="flex-1">{t(item.label)}</span>
                 {item.section === 'notifications' && unreadCount > 0 && (
                   <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -186,7 +190,7 @@ function SidebarContent({ navGroup, onClose, onSearch }: { navGroup: string; onC
               <span className="text-[10px] text-zinc-600 truncate ml-2">{tz.replace(/_/g, ' ')}</span>
             </div>
             <div className="flex items-center gap-1.5 mt-1">
-              <span className="text-[10px] font-semibold text-amber-400">{currency === 'MMK' ? 'Kyats' : currency}</span>
+              <span className="text-[10px] font-semibold text-amber-400">{currency === 'MMK' ? t('currency.mmk') : currency}</span>
               <span className="text-zinc-700 text-[10px]">·</span>
               <span className="text-[10px] text-zinc-500">{locale}</span>
             </div>
@@ -213,7 +217,7 @@ function SidebarContent({ navGroup, onClose, onSearch }: { navGroup: string; onC
           className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-zinc-500 hover:text-red-400 hover:bg-red-950 border border-transparent hover:border-red-900 transition-all duration-150"
         >
           <IconLogout width="14" height="14" />
-          Sign Out
+          {t('common.sign_out')}
         </button>
       </div>
     </div>
@@ -223,6 +227,7 @@ function SidebarContent({ navGroup, onClose, onSearch }: { navGroup: string; onC
 export default function DashboardLayout({ navGroup = 'app' }: DashboardLayoutProps) {
   const { sidebarOpen, closeSidebar, toggleSidebar, isOnline, posFocusMode } = useUIStore()
   const [searchOpen, setSearchOpen] = useState(false)
+  const t = useLocaleStore(s => s.t)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -292,7 +297,7 @@ export default function DashboardLayout({ navGroup = 'app' }: DashboardLayoutPro
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {!isOnline && (
           <div className="flex-shrink-0 bg-amber-950 border-b border-amber-800 px-4 py-1.5">
-            <span className="text-amber-400 text-xs font-medium">Working offline — changes will sync when reconnected</span>
+            <span className="text-amber-400 text-xs font-medium">{t('offline.banner')}</span>
           </div>
         )}
         {navGroup === 'app' && <TrialBanner />}
