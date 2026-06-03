@@ -369,6 +369,15 @@ export default function PlansPage() {
   const [proofPlan, setProofPlan] = useState<Plan | null>(null)
   const [confirmDowngrade, setConfirmDowngrade] = useState<Plan | null>(null)
   const [upgradeProofPlan, setUpgradeProofPlan] = useState<Plan | null>(null)
+  const [expandedPlans, setExpandedPlans] = useState<Set<string>>(new Set())
+
+  function toggleExpand(planId: string) {
+    setExpandedPlans(prev => {
+      const next = new Set(prev)
+      next.has(planId) ? next.delete(planId) : next.add(planId)
+      return next
+    })
+  }
 
   const { data: sub, isLoading: subLoading } = useQuery({
     queryKey: ['subscription', 'current'],
@@ -505,9 +514,13 @@ export default function PlansPage() {
                   }
                 }
 
+                const isExpanded = expandedPlans.has(plan.id)
                 const enabledFeatures = plan.entitlements.filter(e => e.enabled)
-                const visibleFeatures = enabledFeatures.slice(0, 6)
-                const hiddenCount = enabledFeatures.length - visibleFeatures.length
+                const disabledFeatures = plan.entitlements.filter(e => !e.enabled)
+                const visibleFeatures = isExpanded ? enabledFeatures : enabledFeatures.slice(0, 6)
+                const hiddenEnabledCount = Math.max(0, enabledFeatures.length - 6)
+                const hasMore = hiddenEnabledCount > 0 || disabledFeatures.length > 0
+                const moreCount = hiddenEnabledCount + disabledFeatures.length
 
                 const isPendingDowngradeTo = sub?.pending_downgrade_plan_id === plan.id
 
@@ -562,8 +575,9 @@ export default function PlansPage() {
                         )}
                       </div>
 
-                      {visibleFeatures.length > 0 && (
+                      {(visibleFeatures.length > 0 || (isExpanded && disabledFeatures.length > 0)) && (
                         <ul className="space-y-1.5">
+                          {/* Enabled features */}
                           {visibleFeatures.map(ent => (
                             <li key={ent.feature_code} className="flex items-center gap-2 text-xs text-zinc-400">
                               <span className="w-3.5 h-3.5 rounded-full bg-green-900/60 text-green-400 flex items-center justify-center flex-shrink-0">
@@ -572,13 +586,43 @@ export default function PlansPage() {
                                 </svg>
                               </span>
                               <span>{featureLabel(ent.feature_code)}</span>
-                              {ent.limit_value !== null && ent.limit_value > 0 && (
+                              {ent.limit_value !== null && ent.limit_value > 0 ? (
                                 <span className="text-zinc-600 ml-auto tabular-nums">up to {ent.limit_value}</span>
-                              )}
+                              ) : ent.limit_value === null || ent.limit_value === 0 ? (
+                                <span className="text-zinc-700 ml-auto">∞</span>
+                              ) : null}
                             </li>
                           ))}
-                          {hiddenCount > 0 && (
-                            <li className="text-xs text-zinc-600 pl-5">+{hiddenCount} more features</li>
+
+                          {/* Disabled features — only shown when expanded */}
+                          {isExpanded && disabledFeatures.map(ent => (
+                            <li key={ent.feature_code} className="flex items-center gap-2 text-xs text-zinc-600">
+                              <span className="w-3.5 h-3.5 rounded-full bg-zinc-800 text-zinc-600 flex items-center justify-center flex-shrink-0">
+                                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                  <path d="M18 6 6 18M6 6l12 12" />
+                                </svg>
+                              </span>
+                              <span className="line-through">{featureLabel(ent.feature_code)}</span>
+                            </li>
+                          ))}
+
+                          {/* Show more / Show less toggle */}
+                          {hasMore && (
+                            <li>
+                              <button
+                                onClick={() => toggleExpand(plan.id)}
+                                className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors pt-0.5 pl-5"
+                              >
+                                <svg
+                                  width="10" height="10" viewBox="0 0 24 24" fill="none"
+                                  stroke="currentColor" strokeWidth="2.5"
+                                  className={cn('transition-transform', isExpanded && 'rotate-180')}
+                                >
+                                  <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                                {isExpanded ? 'Show less' : `Show more (${moreCount})`}
+                              </button>
+                            </li>
                           )}
                         </ul>
                       )}

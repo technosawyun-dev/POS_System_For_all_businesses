@@ -505,12 +505,6 @@ export default function CurrentSubscriptionPage() {
     onError: err => toast.error(extractApiMsg(err) ?? 'Failed to schedule downgrade'),
   })
 
-  const cancelMutation = useMutation({
-    mutationFn: subscriptionsService.cancel,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['subscription'] }); toast.success('Subscription cancelled') },
-    onError: err => toast.error(extractApiMsg(err) ?? 'Failed to cancel'),
-  })
-
   if (isLoading) return <div className="flex items-center justify-center h-full"><Spinner size={28} /></div>
 
   if (error || !sub) {
@@ -524,6 +518,7 @@ export default function CurrentSubscriptionPage() {
 
   const isTrial = sub.status === 'TRIAL'
   const isActive = sub.status === 'ACTIVE'
+  const isExpired = sub.status === 'EXPIRED'
   const isReferralPlan = sub.plan.is_referral_plan
   const isReferralOrTrial = isTrial || isReferralPlan
   const plan = sub.plan
@@ -577,12 +572,22 @@ export default function CurrentSubscriptionPage() {
         />
       )}
       {modal === 'renew-proof' && (
-        <ProofSubmitModal
-          title="Submit Renewal Payment Proof"
-          subtitle="Upload your payment receipt to complete the renewal process."
-          actionType={ProofActionType.RENEWAL}
-          onClose={() => setModal(null)}
-        />
+        sub?.pending_downgrade_plan_id ? (
+          <ProofSubmitModal
+            title={`Pay for ${pendingDowngradePlan?.name ?? 'Downgrade Plan'}`}
+            subtitle={`Submit payment for your new plan. It activates when your current plan expires${sub.expires_at ? ` (${fmtDate(sub.expires_at)})` : ''}.`}
+            actionType={ProofActionType.DOWNGRADE}
+            targetPlanId={sub.pending_downgrade_plan_id}
+            onClose={() => setModal(null)}
+          />
+        ) : (
+          <ProofSubmitModal
+            title="Submit Renewal Payment Proof"
+            subtitle="Upload your payment receipt to complete the renewal process."
+            actionType={ProofActionType.RENEWAL}
+            onClose={() => setModal(null)}
+          />
+        )
       )}
       {upgradePlanId && (
         <ProofSubmitModal
@@ -624,7 +629,7 @@ export default function CurrentSubscriptionPage() {
               <div className="flex flex-col items-end gap-1.5">
                 <Badge variant={STATUS_VARIANT[sub.status] ?? 'default'} size="md" dot>{sub.status}</Badge>
                 {isReferralPlan && (
-                  <span className="text-[10px] font-semibold text-purple-400 bg-purple-500/10 border border-purple-500/30 rounded px-1.5 py-0.5">Referral Plan</span>
+                  <span className="text-[10px] font-semibold text-purple-400 bg-purple-500/10 border border-purple-500/30 rounded px-1.5 py-0.5">Referral Trial</span>
                 )}
               </div>
             </div>
@@ -689,12 +694,29 @@ export default function CurrentSubscriptionPage() {
                   To upgrade to a paid plan, submit a payment proof. Our team will review and activate your plan.
                 </p>
               )}
+              {isExpired && Number(plan.price) > 0 && (
+                <p className="text-xs text-zinc-500 mb-3">
+                  Your <span className="text-zinc-300">{plan.name}</span> subscription has expired. Submit your payment proof to reactivate it, or request an upgrade to a different plan.
+                </p>
+              )}
               <div className="flex flex-wrap gap-2">
                 {/* Trial/Referral users: request upgrade with proof */}
                 {isReferralOrTrial && (
                   <Btn size="sm" onClick={() => setModal('request-upgrade')}>
                     Request Upgrade
                   </Btn>
+                )}
+
+                {/* Expired paid-plan users: pay to reactivate current plan, or request upgrade */}
+                {isExpired && Number(plan.price) > 0 && (
+                  <>
+                    <Btn size="sm" onClick={() => setModal('renew-proof')}>
+                      Pay to Reactivate
+                    </Btn>
+                    <Btn variant="secondary" size="sm" onClick={() => setModal('request-upgrade')}>
+                      Switch Plan
+                    </Btn>
+                  </>
                 )}
 
                 {/* Paid ACTIVE users: standard upgrade/downgrade (only show when plans exist) */}
@@ -710,21 +732,19 @@ export default function CurrentSubscriptionPage() {
                         Downgrade Plan
                       </Btn>
                     )}
-                    <Btn variant="secondary" size="sm" onClick={() => setModal('renew-proof')}>
-                      Renew Now
-                    </Btn>
+                    {/* If a downgrade is pending, pay for that plan instead of renewing current */}
+                    {sub.pending_downgrade_plan_id ? (
+                      <Btn variant="secondary" size="sm" onClick={() => setModal('renew-proof')}>
+                        Pay for {pendingDowngradePlan?.name ?? 'Downgrade Plan'}
+                      </Btn>
+                    ) : (
+                      <Btn variant="secondary" size="sm" onClick={() => setModal('renew-proof')}>
+                        Renew Now
+                      </Btn>
+                    )}
                   </>
                 )}
 
-                {(isActive || isTrial) && (
-                  <Btn
-                    variant="danger" size="sm"
-                    onClick={() => { if (confirm('Cancel your subscription? This cannot be undone.')) cancelMutation.mutate() }}
-                    disabled={cancelMutation.isPending}
-                  >
-                    {cancelMutation.isPending ? 'Cancelling…' : 'Cancel Subscription'}
-                  </Btn>
-                )}
               </div>
             </div>
           )}

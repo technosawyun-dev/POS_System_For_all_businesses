@@ -338,8 +338,11 @@ def check_trial_expiring(self: Any) -> dict[str, Any]:
 def check_subscription_expiring(self: Any) -> dict[str, Any]:
     """Emit SUBSCRIPTION_EXPIRING events for subscriptions expiring in 14, 7, 3, 1 day(s)."""
     try:
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(_check_subscription_expiring_async())
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(_check_subscription_expiring_async())
+        finally:
+            loop.close()
     except Exception as exc:
         logger.error("check_subscription_expiring_task_failed", error=str(exc))
         raise self.retry(exc=exc)

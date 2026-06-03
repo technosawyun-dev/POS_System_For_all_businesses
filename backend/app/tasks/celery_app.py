@@ -60,6 +60,10 @@ celery_app.conf.update(
             "task": "app.tasks.notification_tasks.send_trial_reminders",
             "schedule": 86400,
         },
+        "check-subscription-expiring-daily": {
+            "task": "app.notifications.tasks.check_subscription_expiring",
+            "schedule": 86400,
+        },
         "check-low-stock-every-6-hours": {
             "task": "app.notifications.tasks.check_low_stock",
             "schedule": 21600,  # every 6 hours; 24-h dedup prevents alert flooding

@@ -594,6 +594,7 @@ export enum ProofActionType {
   INITIAL_ACTIVATION = 'INITIAL_ACTIVATION',
   RENEWAL = 'RENEWAL',
   UPGRADE = 'UPGRADE',
+  DOWNGRADE = 'DOWNGRADE',
 }
 
 export interface PaymentProof {

@@ -40,7 +40,11 @@ class SubscriptionPlanRepository:
         stmt = (
             select(SubscriptionPlan)
             .options(selectinload(SubscriptionPlan.entitlements))
-            .where(SubscriptionPlan.is_trial.is_(True), SubscriptionPlan.is_active.is_(True))
+            .where(
+                SubscriptionPlan.is_trial.is_(True),
+                SubscriptionPlan.is_active.is_(True),
+                SubscriptionPlan.is_referral_plan.is_(False),
+            )
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
@@ -70,7 +74,9 @@ class SubscriptionPlanRepository:
 
     async def count_trial_plans(self) -> int:
         stmt = select(func.count()).select_from(SubscriptionPlan).where(
-            SubscriptionPlan.is_trial.is_(True), SubscriptionPlan.is_active.is_(True)
+            SubscriptionPlan.is_trial.is_(True),
+            SubscriptionPlan.is_active.is_(True),
+            SubscriptionPlan.is_referral_plan.is_(False),
         )
         result = await self.session.execute(stmt)
         return result.scalar_one()

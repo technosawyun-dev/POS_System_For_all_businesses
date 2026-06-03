@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/shared/utils'
 import { useAuthStore } from '@/store/auth.store'
@@ -11,6 +11,7 @@ import BranchSelector from '@/shared/components/BranchSelector'
 import NotificationBell from '@/shared/components/NotificationBell'
 import GlobalSearch from '@/shared/components/GlobalSearch'
 import TrialBanner from '@/shared/components/TrialBanner'
+import ExpiredPlanGate from '@/shared/components/ExpiredPlanGate'
 import { TenantFormatterSync } from '@/components/TenantFormatterSync'
 import { notificationsService } from '@/services/notifications/notifications.service'
 import { tenantService } from '@/services/tenant/tenant.service'
@@ -228,6 +229,10 @@ export default function DashboardLayout({ navGroup = 'app' }: DashboardLayoutPro
   const { sidebarOpen, closeSidebar, toggleSidebar, isOnline, posFocusMode } = useUIStore()
   const [searchOpen, setSearchOpen] = useState(false)
   const t = useLocaleStore(s => s.t)
+  const location = useLocation()
+
+  // Don't gate the subscription management pages — users must be able to upgrade
+  const isSubscriptionRoute = location.pathname.startsWith('/app/subscription')
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -329,10 +334,13 @@ export default function DashboardLayout({ navGroup = 'app' }: DashboardLayoutPro
             <NotificationBell />
           </header>
         )}
-        {/* Child route renders here */}
-        <main className="flex-1 min-h-0 overflow-y-auto">
-          <Outlet />
-        </main>
+        {/* Child route renders here — relative wrapper so the expired gate overlay positions correctly */}
+        <div className="flex-1 min-h-0 relative overflow-hidden">
+          <main className="h-full overflow-y-auto">
+            <Outlet />
+          </main>
+          {navGroup === 'app' && !isSubscriptionRoute && <ExpiredPlanGate />}
+        </div>
       </div>
     </div>
   )

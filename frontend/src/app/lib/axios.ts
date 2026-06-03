@@ -51,10 +51,11 @@ apiClient.interceptors.response.use(
     const original = err.config as InternalAxiosRequestConfig & { _retry?: boolean }
 
     if (err.response?.status === 402) {
-      // Subscription expired or suspended — redirect to the expired wall
       const code = (err.response?.data as any)?.error?.code
       if (code === 'SUBSCRIPTION_EXPIRED' || code === 'SUBSCRIPTION_SUSPENDED') {
-        window.location.replace('/trial-expired')
+        // Signal the in-app upgrade gate instead of hard-redirecting
+        const { markExpired } = (await import('@/store/subscription.store')).useSubscriptionStore.getState()
+        markExpired()
       }
       return Promise.reject(err)
     }

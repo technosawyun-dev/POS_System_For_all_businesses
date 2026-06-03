@@ -164,6 +164,7 @@ class ProofActionType(str, Enum):
     INITIAL_ACTIVATION = "INITIAL_ACTIVATION"
     RENEWAL = "RENEWAL"
     UPGRADE = "UPGRADE"
+    DOWNGRADE = "DOWNGRADE"
 
 
 class CustomerGender(str, Enum):

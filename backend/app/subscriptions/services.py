@@ -414,13 +414,12 @@ class SubscriptionService:
                 "Must be ACTIVE, EXPIRED, or CANCELLED."
             )
 
-        # Block renewal for the Free plan (price=0, no expiry)
+        # Block renewal for subscriptions without an expiry (no paid plan set)
         if sub.expires_at is None:
-            if sub.plan and sub.plan.price == 0 and sub.plan.trial_days == 0:
-                raise BusinessRuleError(
-                    "The Free plan does not expire and cannot be renewed. "
-                    "Upgrade to a paid plan instead."
-                )
+            raise BusinessRuleError(
+                "This subscription has no expiry and cannot be renewed. "
+                "Upgrade to a paid plan instead."
+            )
 
         proof = PaymentProof(
             tenant_id=tenant_id,
@@ -700,69 +699,31 @@ class SubscriptionService:
         return await self.sub_repo.get_by_tenant(tenant_id)  # type: ignore[return-value]
 
     async def process_expired_subscriptions(self) -> int:
-        """Batch-downgrade expired subscriptions to Free; falls back to EXPIRED if no Free plan."""
+        """Mark expired subscriptions as EXPIRED. Users must upgrade to continue."""
         now = _now()
         expired = await self.sub_repo.get_expired(now)
-        free_plan = await self.plan_repo.get_trial_plan()
 
         for sub in expired:
             old_status = sub.status
             old_plan_id = sub.plan_id
-            old_plan_name = sub.plan.name if sub.plan else "unknown"
-            old_plan_code = sub.plan.code if sub.plan else ""
 
-            if free_plan:
-                sub.plan_id = free_plan.id
-                sub.status = SubscriptionStatus.ACTIVE
-                sub.expires_at = None
-                sub.trial_ends_at = None
+            sub.status = SubscriptionStatus.EXPIRED
 
-                tenant = await self.session.get(Tenant, sub.tenant_id)
-                if tenant:
-                    tenant.status = TenantStatus.ACTIVE
-                    tenant.subscription_plan = free_plan.code
-                    tenant.subscription_expires_at = None
-
-                self._add_history(
-                    sub,
-                    change_type=SubscriptionChangeType.DOWNGRADED,
-                    old_plan_id=old_plan_id,
-                    new_plan_id=free_plan.id,
-                    old_status=old_status,
-                    new_status=SubscriptionStatus.ACTIVE,
-                    note=(
-                        f"Auto-downgraded to Free plan after '{old_plan_name}' "
-                        "subscription expired."
-                    ),
-                )
-                await self.audit.log(
-                    action=AuditAction.SUBSCRIPTION_DOWNGRADED,
-                    tenant_id=sub.tenant_id,
-                    entity_type=EntityType.TENANT_SUBSCRIPTION,
-                    entity_id=sub.id,
-                    after_state={
-                        "from_plan": old_plan_code,
-                        "to_plan": free_plan.code,
-                        "source": "auto_downgrade_on_expiry",
-                    },
-                )
-            else:
-                sub.status = SubscriptionStatus.EXPIRED
-                self._add_history(
-                    sub,
-                    change_type=SubscriptionChangeType.EXPIRED,
-                    old_plan_id=old_plan_id,
-                    old_status=old_status,
-                    new_status=SubscriptionStatus.EXPIRED,
-                    note="Auto-expired (no Free plan configured for downgrade).",
-                )
-                await self.audit.log(
-                    action=AuditAction.SUBSCRIPTION_EXPIRED,
-                    tenant_id=sub.tenant_id,
-                    entity_type=EntityType.TENANT_SUBSCRIPTION,
-                    entity_id=sub.id,
-                    after_state={"previous_status": old_status},
-                )
+            self._add_history(
+                sub,
+                change_type=SubscriptionChangeType.EXPIRED,
+                old_plan_id=old_plan_id,
+                old_status=old_status,
+                new_status=SubscriptionStatus.EXPIRED,
+                note="Subscription auto-expired. Upgrade required to continue.",
+            )
+            await self.audit.log(
+                action=AuditAction.SUBSCRIPTION_EXPIRED,
+                tenant_id=sub.tenant_id,
+                entity_type=EntityType.TENANT_SUBSCRIPTION,
+                entity_id=sub.id,
+                after_state={"previous_status": old_status},
+            )
 
         await self.session.flush()
         return len(expired)
@@ -805,7 +766,7 @@ class TrialStatusService:
             is_expired = now >= sub.expires_at
             expires_at_str: str | None = sub.expires_at.isoformat()
         else:
-            # Free plan — never expires
+            # No expiry date set (should not occur with current plans but handled as a safety net)
             days_remaining = -1
             is_expired = False
             expires_at_str = None
@@ -896,6 +857,21 @@ class PaymentProofService:
 
         # CANCELLED subscriptions may submit a proof to reactivate
 
+        action_type = getattr(data, "action_type", None) or ProofActionType.INITIAL_ACTIVATION
+        target_plan_id = getattr(data, "target_plan_id", None)
+
+        # Validate DOWNGRADE action: target plan must exist, be active, and cheaper than current
+        target_plan_name: str | None = None
+        if action_type == ProofActionType.DOWNGRADE:
+            if not target_plan_id:
+                raise BusinessRuleError("Downgrade proof requires a target_plan_id.")
+            target_plan = await self.plan_repo.get_by_id(target_plan_id)
+            if not target_plan or not target_plan.is_active:
+                raise BusinessRuleError("Target downgrade plan not found or inactive.")
+            if float(target_plan.price) >= float(sub.plan.price if sub.plan else 0):
+                raise BusinessRuleError("Target plan must be cheaper than current plan for a downgrade.")
+            target_plan_name = target_plan.name
+
         proof = PaymentProof(
             tenant_id=tenant_id,
             subscription_id=sub.id,
@@ -904,6 +880,8 @@ class PaymentProofService:
             reference_number=data.reference_number,
             proof_file_url=data.proof_file_url,
             status=PaymentProofStatus.PENDING,
+            action_type=action_type,
+            target_plan_id=target_plan_id,
         )
         self.session.add(proof)
         await self.session.flush()
@@ -919,6 +897,8 @@ class PaymentProofService:
                 "amount": str(data.amount),
                 "currency": data.currency,
                 "reference_number": data.reference_number,
+                "action_type": str(action_type),
+                **({"target_plan_id": str(target_plan_id)} if target_plan_id else {}),
             },
             request_id=request_id,
         )
@@ -927,6 +907,12 @@ class PaymentProofService:
         tenant = await self.session.get(Tenant, tenant_id)
         tenant_name = tenant.name if tenant else str(tenant_id)
         plan_name = sub.plan.name if sub.plan else "Unknown"
+        action_label = (
+            f"downgrade to {target_plan_name}" if action_type == ProofActionType.DOWNGRADE and target_plan_name
+            else f"renew {plan_name}" if action_type == ProofActionType.RENEWAL
+            else f"upgrade from {plan_name}" if action_type == ProofActionType.UPGRADE
+            else plan_name
+        )
         admin_ids = await self._get_super_admin_ids()
         await self._notify_silent(
             tenant_id=None,
@@ -934,11 +920,15 @@ class PaymentProofService:
             priority="HIGH",
             title="Payment Proof Submitted",
             message=(
-                f"{tenant_name} submitted a payment proof for {plan_name} "
+                f"{tenant_name} submitted a payment proof to {action_label} "
                 f"({data.currency} {int(data.amount):,}). Review required."
             ),
             user_ids=admin_ids,
-            metadata={"proof_id": str(proof.id), "tenant_id": str(tenant_id)},
+            metadata={
+                "proof_id": str(proof.id),
+                "tenant_id": str(tenant_id),
+                "action_type": str(action_type),
+            },
         )
 
         return proof
@@ -1099,6 +1089,70 @@ class PaymentProofService:
         except Exception as exc:
             logger.warning("subscription_upgraded_event_failed", error=str(exc))
 
+    async def _apply_downgrade(
+        self,
+        sub: "TenantSubscription",
+        target_plan_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        proof_amount: "Decimal",
+        proof_currency: str,
+        request_id: str | None = None,
+    ) -> None:
+        """Confirm downgrade payment — deferred activation.
+
+        The plan switch does NOT happen here. pending_downgrade_plan_id stays set
+        so the daily Celery expiry job can detect the paid downgrade and activate
+        Plan B the moment Plan A expires. The tenant keeps Plan A features until
+        the last day of their current billing period.
+        """
+        new_plan = await self.plan_repo.get_by_id(target_plan_id)
+        if not new_plan:
+            raise NotFoundError("SubscriptionPlan", target_plan_id)
+        if not new_plan.is_active:
+            raise BusinessRuleError("Target downgrade plan is no longer active")
+
+        expires_str = (
+            sub.expires_at.strftime("%d %b %Y") if sub.expires_at else "end of billing period"
+        )
+        current_plan_name = sub.plan.name if sub.plan else "your current plan"
+
+        await self.audit.log(
+            action=AuditAction.SUBSCRIPTION_DOWNGRADED,
+            actor_user_id=actor_id,
+            tenant_id=sub.tenant_id,
+            entity_type=EntityType.TENANT_SUBSCRIPTION,
+            entity_id=sub.id,
+            after_state={
+                "pending_downgrade_plan_id": str(target_plan_id),
+                "pending_downgrade_plan_name": new_plan.name,
+                "payment_amount": str(proof_amount),
+                "payment_currency": proof_currency,
+                "switches_at": sub.expires_at.isoformat() if sub.expires_at else None,
+                "triggered_by": "payment_proof_downgrade_approval_deferred",
+            },
+            request_id=request_id,
+        )
+
+        # Notify owner: payment confirmed, plan switches automatically at expiry
+        owner_ids = await self._get_tenant_owner_ids(sub.tenant_id)
+        await self._notify_silent(
+            tenant_id=sub.tenant_id,
+            type=NotificationType.SUBSCRIPTION,
+            priority="HIGH",
+            title="Downgrade Payment Approved",
+            message=(
+                f"Your payment for the {new_plan.name} plan has been approved. "
+                f"Your account will automatically switch to {new_plan.name} on {expires_str}. "
+                f"You can continue using {current_plan_name} until then."
+            ),
+            user_ids=owner_ids,
+            metadata={
+                "target_plan_name": new_plan.name,
+                "target_plan_id": str(target_plan_id),
+                "switches_at": sub.expires_at.isoformat() if sub.expires_at else None,
+            },
+        )
+
     async def approve_proof(
         self,
         proof_id: uuid.UUID,
@@ -1143,6 +1197,19 @@ class PaymentProofService:
                     "Upgrade proof is missing target_plan_id; cannot apply upgrade."
                 )
             await self._apply_upgrade(
+                sub=sub,
+                target_plan_id=proof.target_plan_id,
+                actor_id=actor_id,
+                proof_amount=proof.amount,
+                proof_currency=proof.currency,
+                request_id=request_id,
+            )
+        elif action == ProofActionType.DOWNGRADE:
+            if not proof.target_plan_id:
+                raise BusinessRuleError(
+                    "Downgrade proof is missing target_plan_id; cannot apply downgrade."
+                )
+            await self._apply_downgrade(
                 sub=sub,
                 target_plan_id=proof.target_plan_id,
                 actor_id=actor_id,
@@ -1209,22 +1276,24 @@ class PaymentProofService:
             request_id=request_id,
         )
 
-        # Notify tenant owner that proof was approved
-        plan_name = sub.plan.name if sub.plan else "your plan"
-        owner_ids = await self._get_tenant_owner_ids(sub.tenant_id)
-        await self._notify_silent(
-            tenant_id=sub.tenant_id,
-            type=NotificationType.SUBSCRIPTION,
-            priority="HIGH",
-            title="Subscription Activated",
-            message=(
-                f"Your payment proof has been approved. Your {plan_name} subscription "
-                f"is now active."
-                + (f" Note: {review_notes}" if review_notes else "")
-            ),
-            user_ids=owner_ids,
-            metadata={"proof_id": str(proof_id), "plan_name": plan_name, "review_notes": review_notes},
-        )
+        # DOWNGRADE approval notification is sent inside _apply_downgrade (deferred activation).
+        # For all other action types, notify the owner that the subscription is now active.
+        if action != ProofActionType.DOWNGRADE:
+            plan_name = sub.plan.name if sub.plan else "your plan"
+            owner_ids = await self._get_tenant_owner_ids(sub.tenant_id)
+            await self._notify_silent(
+                tenant_id=sub.tenant_id,
+                type=NotificationType.SUBSCRIPTION,
+                priority="HIGH",
+                title="Subscription Activated",
+                message=(
+                    f"Your payment proof has been approved. Your {plan_name} subscription "
+                    f"is now active."
+                    + (f" Note: {review_notes}" if review_notes else "")
+                ),
+                user_ids=owner_ids,
+                metadata={"proof_id": str(proof_id), "plan_name": plan_name, "review_notes": review_notes},
+            )
 
         # Commission generation — only for INITIAL_ACTIVATION and UPGRADE (paid plan switches).
         # RENEWAL does NOT re-trigger commission (already earned on first payment).
