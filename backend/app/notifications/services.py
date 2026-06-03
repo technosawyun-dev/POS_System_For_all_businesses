@@ -184,6 +184,7 @@ class NotificationService:
                 priority=notif.priority,
                 title=notif.title,
                 message=notif.message,
+                metadata_=notif.metadata_,
                 expires_at=notif.expires_at,
                 is_read=is_read,
                 read_at=read_at,

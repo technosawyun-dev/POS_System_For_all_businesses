@@ -12,6 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, ORJSONResponse
 
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.router import api_router
 from app.api.deps import get_current_user
 from app.models.user import User
@@ -20,7 +21,7 @@ from app.core.constants import API_V1_PREFIX
 from app.core.exceptions import AppBaseException
 from app.core.logging import configure_logging, get_logger
 from app.db.redis import close_redis_pool, get_redis_pool
-from app.db.session import engine
+from app.db.session import engine, get_db
 from app.events import handlers as _event_handlers  # noqa: F401 — registers handlers
 from app.notifications import handlers as _notification_handlers  # noqa: F401 — registers notification handlers
 from app.reseller_finance.events import handlers as _reseller_finance_handlers # noqa: F401 — handlers
@@ -126,11 +127,32 @@ def create_application() -> FastAPI:
         tenant_id: str,
         filename: str,
         current_user: Annotated[User, Depends(get_current_user)],
+        db: AsyncSession = Depends(get_db),
     ) -> FileResponse:
         from app.core.constants import UserRole
+        from sqlalchemy import select
 
-        # Tenant users can only access their own tenant's files
-        if current_user.role != UserRole.SUPER_ADMIN and str(current_user.tenant_id) != tenant_id:
+        if current_user.role == UserRole.SUPER_ADMIN:
+            pass  # full access
+        elif current_user.tenant_id and str(current_user.tenant_id) == tenant_id:
+            pass  # own tenant
+        elif current_user.role == UserRole.RESELLER:
+            # Resellers may access proof files for their referred tenants
+            from app.reseller_finance.models.referral import TenantReferral
+            import uuid as _uuid
+            try:
+                tid = _uuid.UUID(tenant_id)
+            except ValueError:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid tenant_id")
+            result = await db.execute(
+                select(TenantReferral).where(
+                    TenantReferral.reseller_id == current_user.id,
+                    TenantReferral.tenant_id == tid,
+                )
+            )
+            if not result.scalar_one_or_none():
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+        else:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
         upload_root = Path(settings.UPLOAD_DIR).resolve()

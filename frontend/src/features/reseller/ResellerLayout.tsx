@@ -18,9 +18,9 @@ interface ResellerNavItem {
 const RESELLER_NAV: ResellerNavItem[] = [
   { to: '/reseller/dashboard',     label: 'Dashboard',     icon: '🏠' },
   { to: '/reseller/referrals',     label: 'Referrals',     icon: '🔗' },
+  { to: '/reseller/plans',         label: 'Plans',         icon: '📋' },
   { to: '/reseller/wallet',        label: 'Wallet',        icon: '💰' },
   { to: '/reseller/notifications', label: 'Notifications', icon: '🔔' },
-  { to: '/reseller/profile',       label: 'Profile',       icon: '👤' },
 ]
 
 function NavItems({ onClose }: { onClose?: () => void }) {
@@ -85,7 +85,11 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       {/* Footer */}
       <div className="px-3 pb-4 pt-3 border-t border-zinc-800 flex-shrink-0 space-y-3">
-        <div className="flex items-center gap-3 px-2">
+        <Link
+          to="/reseller/profile"
+          onClick={onClose}
+          className="flex items-center gap-3 px-2 py-1.5 rounded-xl hover:bg-zinc-800 transition-colors group"
+        >
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 border"
             style={{ background: roleStyle.bg, color: roleStyle.text, borderColor: roleStyle.border }}
@@ -93,10 +97,10 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             {user.first_name[0]}{user.last_name[0]}
           </div>
           <div className="min-w-0">
-            <p className="text-zinc-100 text-sm font-medium truncate leading-tight">{user.full_name}</p>
+            <p className="text-zinc-100 text-sm font-medium truncate leading-tight group-hover:text-orange-300 transition-colors">{user.full_name}</p>
             <p className="text-zinc-500 text-xs leading-tight">Reseller</p>
           </div>
-        </div>
+        </Link>
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-zinc-500 hover:text-red-400 hover:bg-red-950 border border-transparent hover:border-red-900 transition-all duration-150"

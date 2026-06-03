@@ -15,6 +15,7 @@ class NotificationSummaryResponse(BaseSchema):
     priority: str
     title: str
     message: str
+    metadata_: dict[str, Any] | None = Field(default=None, alias="metadata")
     expires_at: datetime | None
     is_read: bool
     read_at: datetime | None

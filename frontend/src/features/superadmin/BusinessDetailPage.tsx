@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { fmtDate, extractApiMsg } from '@/lib/utils'
@@ -791,8 +791,12 @@ function BillingTab({ tenantId }: { tenantId: string }) {
 export default function BusinessDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const qc = useQueryClient()
-  const [tab, setTab] = useState<Tab>('overview')
+  const tab = (searchParams.get('tab') as Tab | null) ?? 'overview'
+  function setTab(t: Tab) {
+    setSearchParams(prev => { prev.set('tab', t); return prev }, { replace: true })
+  }
 
   const tenantQuery = useQuery({
     queryKey: ['tenant', id],

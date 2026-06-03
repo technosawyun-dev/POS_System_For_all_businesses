@@ -10,7 +10,6 @@ import POSLayout from '@/shared/layouts/POSLayout'
 import PlaceholderPage from '@/shared/components/PlaceholderPage'
 import UnauthorizedPage from '@/shared/components/UnauthorizedPage'
 import NotFoundPage from '@/shared/components/NotFoundPage'
-import SettingsGapPage from '@/features/settings/SettingsGapPage'
 import { Spinner } from '@/components/ui'
 
 import LoginPage from '@/modules/auth/LoginPage'
@@ -90,6 +89,7 @@ const ResellerNotificationsPage   = lazy(() => import('@/features/reseller/Resel
 const ResellerProfilePage         = lazy(() => import('@/features/reseller/ResellerProfilePage'))
 const ResellerReferralPage        = lazy(() => import('@/features/reseller/ResellerReferralPage'))
 const ResellerWalletPage          = lazy(() => import('@/features/reseller/ResellerWalletPage'))
+const ResellerPlansPage           = lazy(() => import('@/features/reseller/ResellerPlansPage'))
 
 const SuperAdminDashboardPage     = lazy(() => import('@/features/superadmin/SuperAdminDashboardPage'))
 const BusinessesPage              = lazy(() => import('@/features/superadmin/BusinessesPage'))
@@ -401,6 +401,7 @@ export const router = createBrowserRouter([
           },
           { path: 'profile',           element: S(ResellerProfilePage)        },
           { path: 'referrals',         element: S(ResellerReferralPage)       },
+          { path: 'plans',             element: S(ResellerPlansPage)          },
           { path: 'wallet',            element: S(ResellerWalletPage)         },
         ],
       },

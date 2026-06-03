@@ -48,6 +48,8 @@ class TenantReferralResponse(TimestampedSchema):
     locked_at: datetime | None
     first_paid_subscription_at: datetime | None
     tenant_name: str | None = None
+    subscription_status: str | None = None
+    subscription_expires_at: datetime | None = None
 
 
 class ReferralStatsResponse(BaseSchema):

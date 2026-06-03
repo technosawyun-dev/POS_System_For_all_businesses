@@ -59,6 +59,7 @@ services:
       target: app
     container_name: pos_api
     restart: unless-stopped
+    user: "1000:1000"
     env_file: ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}
@@ -74,6 +75,7 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./logs:/app/logs
+      - ./uploads:/app/uploads
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -95,6 +97,7 @@ services:
       target: app
     container_name: pos_celery_worker
     restart: unless-stopped
+    user: "1000:1000"
     env_file: ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}
@@ -110,6 +113,7 @@ services:
         condition: service_healthy
     volumes:
       - ./logs:/app/logs
+      - ./uploads:/app/uploads
     healthcheck:
       test: ["CMD-SHELL", "cat /proc/1/cmdline | tr '\\0' ' ' | grep -q celery"]
       interval: 30s
@@ -131,6 +135,7 @@ services:
       target: app
     container_name: pos_celery_beat
     restart: unless-stopped
+    user: "1000:1000"
     env_file: ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}
@@ -145,6 +150,7 @@ services:
         condition: service_healthy
     volumes:
       - ./logs:/app/logs
+      - ./uploads:/app/uploads
     healthcheck:
       test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping 2>/dev/null | grep -q OK || pgrep -f 'celery.*beat'"]
       interval: 30s

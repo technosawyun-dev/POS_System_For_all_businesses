@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { subscriptionsService } from '@/services/subscriptions/subscriptions.service'
 import type { Plan } from '@/shared/types'
 import { ProofActionType } from '@/shared/types'
+import { LatestProofCard, PendingProofBadge } from '@/features/reseller/ResellerReferralPage'
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'default'> = {
   ACTIVE:    'success',
@@ -495,6 +496,14 @@ export default function CurrentSubscriptionPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  const { data: latestProofData } = useQuery({
+    queryKey: ['subscription', 'proofs', 'latest'],
+    queryFn: () => subscriptionsService.listPaymentProofs({ page: 1, page_size: 1 }),
+    enabled: !!sub,
+    staleTime: 0,
+  })
+  const latestProof = latestProofData?.items[0] ?? null
+
   const downgradeMutation = useMutation({
     mutationFn: (planId: string) => subscriptionsService.downgrade(planId),
     onSuccess: (data) => {
@@ -546,6 +555,12 @@ export default function CurrentSubscriptionPage() {
   const pendingDowngradePlan = sub.pending_downgrade_plan_id
     ? (plansData?.items ?? []).find(p => p.id === sub.pending_downgrade_plan_id)
     : null
+
+  const pendingProofType = latestProof?.status === 'PENDING' ? latestProof.action_type : null
+  const downgradeProofApproved =
+    !!sub.pending_downgrade_plan_id &&
+    latestProof?.action_type === ProofActionType.DOWNGRADE &&
+    latestProof?.status === 'APPROVED'
 
   return (
     <>
@@ -685,6 +700,13 @@ export default function CurrentSubscriptionPage() {
             </div>
           )}
 
+          {/* Latest payment proof */}
+          {latestProof && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+              <LatestProofCard proof={latestProof} />
+            </div>
+          )}
+
           {/* Actions */}
           {isOwner && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
@@ -702,45 +724,68 @@ export default function CurrentSubscriptionPage() {
               <div className="flex flex-wrap gap-2">
                 {/* Trial/Referral users: request upgrade with proof */}
                 {isReferralOrTrial && (
-                  <Btn size="sm" onClick={() => setModal('request-upgrade')}>
-                    Request Upgrade
-                  </Btn>
+                  pendingProofType === ProofActionType.UPGRADE ? (
+                    <PendingProofBadge />
+                  ) : (
+                    <Btn size="sm" onClick={() => setModal('request-upgrade')}>
+                      Request Upgrade
+                    </Btn>
+                  )
                 )}
 
                 {/* Expired paid-plan users: pay to reactivate current plan, or request upgrade */}
                 {isExpired && Number(plan.price) > 0 && (
-                  <>
-                    <Btn size="sm" onClick={() => setModal('renew-proof')}>
-                      Pay to Reactivate
-                    </Btn>
-                    <Btn variant="secondary" size="sm" onClick={() => setModal('request-upgrade')}>
-                      Switch Plan
-                    </Btn>
-                  </>
+                  pendingProofType ? (
+                    <PendingProofBadge />
+                  ) : (
+                    <>
+                      <Btn size="sm" onClick={() => setModal('renew-proof')}>
+                        Pay to Reactivate
+                      </Btn>
+                      <Btn variant="secondary" size="sm" onClick={() => setModal('request-upgrade')}>
+                        Switch Plan
+                      </Btn>
+                    </>
+                  )
                 )}
 
                 {/* Paid ACTIVE users: standard upgrade/downgrade (only show when plans exist) */}
                 {isActive && !isReferralPlan && (
                   <>
                     {hasHigherPlan && (
-                      <Btn size="sm" onClick={() => setModal('upgrade')}>
-                        Upgrade Plan
-                      </Btn>
+                      pendingProofType === ProofActionType.UPGRADE ? (
+                        <PendingProofBadge />
+                      ) : (
+                        <Btn size="sm" onClick={() => setModal('upgrade')}>
+                          Upgrade Plan
+                        </Btn>
+                      )
                     )}
                     {hasLowerPlan && !sub.pending_downgrade_plan_id && (
                       <Btn variant="secondary" size="sm" onClick={() => setModal('downgrade')} disabled={downgradeMutation.isPending}>
                         Downgrade Plan
                       </Btn>
                     )}
-                    {/* If a downgrade is pending, pay for that plan instead of renewing current */}
                     {sub.pending_downgrade_plan_id ? (
-                      <Btn variant="secondary" size="sm" onClick={() => setModal('renew-proof')}>
-                        Pay for {pendingDowngradePlan?.name ?? 'Downgrade Plan'}
-                      </Btn>
+                      pendingProofType === ProofActionType.DOWNGRADE ? (
+                        <PendingProofBadge />
+                      ) : downgradeProofApproved ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-green-500/10 border border-green-500/30 text-green-400">
+                          Downgrade to {pendingDowngradePlan?.name ?? 'lower plan'} scheduled{sub.expires_at ? ` for ${fmtDate(sub.expires_at)}` : ''}
+                        </span>
+                      ) : (
+                        <Btn variant="secondary" size="sm" onClick={() => setModal('renew-proof')}>
+                          Pay for {pendingDowngradePlan?.name ?? 'Downgrade Plan'}
+                        </Btn>
+                      )
                     ) : (
-                      <Btn variant="secondary" size="sm" onClick={() => setModal('renew-proof')}>
-                        Renew Now
-                      </Btn>
+                      pendingProofType === ProofActionType.RENEWAL ? (
+                        <PendingProofBadge />
+                      ) : (
+                        <Btn variant="secondary" size="sm" onClick={() => setModal('renew-proof')}>
+                          Renew Now
+                        </Btn>
+                      )
                     )}
                   </>
                 )}

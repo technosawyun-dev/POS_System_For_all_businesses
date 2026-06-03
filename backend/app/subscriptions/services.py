@@ -931,7 +931,10 @@ class PaymentProofService:
             },
         )
 
-        return proof
+        # Re-fetch with eager-loaded relationships so target_plan_name is available
+        # for response serialisation without hitting async lazy-load outside greenlet.
+        loaded = await self.proof_repo.get_by_id(proof.id)
+        return loaded or proof
 
     async def _extend_subscription(
         self,
@@ -960,6 +963,7 @@ class PaymentProofService:
         if tenant:
             tenant.status = TenantStatus.ACTIVE
             tenant.subscription_plan = plan.code
+            tenant.subscription_expires_at = sub.expires_at
 
         history = SubscriptionHistory(
             tenant_id=sub.tenant_id,
@@ -1030,8 +1034,11 @@ class PaymentProofService:
 
         sub.plan_id = target_plan_id
         sub.status = SubscriptionStatus.ACTIVE
-        # Keep existing expires_at — tenant already paid for the current period;
-        # next renewal will be on the new plan's billing cycle.
+        # If upgrading FROM a trial (or from an expired/no expiry state) give a full
+        # billing cycle starting now. For paid→higher-paid upgrades keep the existing
+        # expires_at so the tenant does not lose days they already paid for.
+        if old_status == SubscriptionStatus.TRIAL or sub.expires_at is None or sub.expires_at <= now:
+            sub.expires_at = _expires_at_for_cycle(new_plan.billing_cycle, now)
         sub.trial_ends_at = None
 
         # Sync denormalized tenant fields
@@ -1039,6 +1046,7 @@ class PaymentProofService:
         if tenant:
             tenant.status = TenantStatus.ACTIVE
             tenant.subscription_plan = new_plan.code
+            tenant.subscription_expires_at = sub.expires_at
 
         history = SubscriptionHistory(
             tenant_id=sub.tenant_id,
@@ -1234,6 +1242,7 @@ class PaymentProofService:
             if tenant:
                 tenant.status = TenantStatus.ACTIVE
                 tenant.subscription_plan = plan.code
+                tenant.subscription_expires_at = sub.expires_at
 
             history = SubscriptionHistory(
                 tenant_id=sub.tenant_id,
@@ -1327,7 +1336,8 @@ class PaymentProofService:
                     error=str(exc),
                 )
 
-        return proof
+        loaded = await self.proof_repo.get_by_id(proof.id)
+        return loaded or proof
 
     async def reject_proof(
         self,
@@ -1378,7 +1388,8 @@ class PaymentProofService:
             metadata={"proof_id": str(proof_id), "review_notes": review_notes},
         )
 
-        return proof
+        loaded = await self.proof_repo.get_by_id(proof.id)
+        return loaded or proof
 
     async def list_proofs(
         self,

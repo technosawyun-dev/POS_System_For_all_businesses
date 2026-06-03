@@ -496,6 +496,7 @@ export interface Notification {
   priority: string
   title: string
   message: string
+  metadata: Record<string, unknown> | null
   expires_at: string | null
   is_read: boolean
   read_at: string | null
