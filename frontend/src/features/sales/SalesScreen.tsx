@@ -4,10 +4,11 @@ import { checkoutService, refundService } from '@/services/sales/sales.service'
 import { receiptsService } from '@/services/receipts/receipts.service'
 import { useTenantStore } from '@/store/tenant.store'
 import { fmt, fmtDateTime, timeAgo } from '@/lib/utils'
+import { getPaymentMethodLabel } from '@/lib/paymentMethod'
 import { StatCard, Table, Th, Td, Badge, Empty, Divider, Spinner } from '@/components/ui'
 import { IconSales, IconSearch, IconRefund, IconPrint } from '@/components/icons'
 import { ReceiptPrintPreviewModal } from '@/components/hardware/PrintPreviewModal'
-import type { Order, OrderItem, RefundRecord } from '@/shared/types'
+import type { Order, OrderItem, RefundRecord, OrderPayment } from '@/shared/types'
 
 type TabFilter = 'all' | 'COMPLETED' | 'REFUNDED'
 
@@ -202,11 +203,20 @@ export default function SalesScreen() {
                             </Badge>
                           </Td>
                           <Td>
-                            {paymentLabel && (
-                              <Badge variant={PAYMENT_VARIANT[order.payment_status] ?? 'warning'} dot>
-                                {paymentLabel}
-                              </Badge>
-                            )}
+                            <div className="flex flex-col gap-0.5">
+                              {order.payments && order.payments.length > 0 ? (
+                                <span className="text-xs font-medium text-green-400">
+                                  Paid via {order.payments.map(p => {
+                                    const label = getPaymentMethodLabel(p.payment_method)
+                                    return p.notes ? `${label} (${p.notes})` : label
+                                  }).join(' + ')}
+                                </span>
+                              ) : paymentLabel ? (
+                                <Badge variant={PAYMENT_VARIANT[order.payment_status] ?? 'warning'} dot>
+                                  {paymentLabel}
+                                </Badge>
+                              ) : null}
+                            </div>
                           </Td>
                           <Td>
                             <span className="text-xs text-zinc-300">{order.cashier_name ?? '—'}</span>
@@ -430,14 +440,36 @@ function OrderDetailPanel({ order, onClose }: { order: Order; onClose: () => voi
         </div>
       </div>
 
-      {detail?.payment_status && (
-        <div className="px-4 py-3 border-b border-zinc-800 flex-shrink-0">
-          <div className="flex justify-between text-xs">
-            <span className="text-zinc-500">Payment</span>
-            <span className="text-zinc-300 capitalize">{detail.payment_status.toLowerCase()}</span>
+      {/* Payment methods breakdown */}
+      <div className="px-4 py-3 border-b border-zinc-800 flex-shrink-0">
+        <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Payment</p>
+        {detail?.payments && detail.payments.length > 0 ? (
+          <div className="flex flex-col gap-1.5">
+            {(detail.payments as OrderPayment[]).map((p, i) => (
+              <div key={p.id ?? i} className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+                  <span className="text-xs text-zinc-300">{getPaymentMethodLabel(p.payment_method)}</span>
+                  {p.notes && (
+                    <span className="text-[10px] text-zinc-500">· {p.notes}</span>
+                  )}
+                  {p.reference_number && (
+                    <span className="text-[10px] text-zinc-600 font-mono">#{p.reference_number}</span>
+                  )}
+                </div>
+                <span className="text-xs font-mono font-semibold text-amber-400">{fmt(parseFloat(p.amount))}</span>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+        ) : (
+          detail?.payment_status && (
+            <div className="flex justify-between text-xs">
+              <span className="text-zinc-500">Status</span>
+              <span className="text-zinc-300 capitalize">{detail.payment_status.toLowerCase()}</span>
+            </div>
+          )
+        )}
+      </div>
 
       {order.notes && (
         <div className="px-4 py-3 border-b border-zinc-800 flex-shrink-0">

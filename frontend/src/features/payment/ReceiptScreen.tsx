@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { receiptsService } from '@/services/receipts/receipts.service'
 import { tenantService } from '@/services/tenant/tenant.service'
 import { fmt, fmtDateTime } from '@/lib/utils'
+import { getPaymentMethodLabel } from '@/lib/paymentMethod'
 import { IconCheck, IconPrint, IconAlert } from '@/components/icons'
 import { Spinner } from '@/components/ui'
 import { ReceiptPrintPreviewModal } from '@/components/hardware/PrintPreviewModal'
@@ -134,7 +135,10 @@ export default function ReceiptScreen() {
             <div className="px-5 py-3 flex flex-col gap-1 text-xs text-zinc-500">
               {receipt.payment_methods.map((pm, i) => (
                 <div key={i} className="flex justify-between">
-                  <span className="capitalize">{(pm.method ?? '').toLowerCase().replace('_', ' ')}</span>
+                  <span>
+                    {getPaymentMethodLabel(pm.method ?? '')}
+                    {pm.notes && <span className="text-zinc-600"> · {pm.notes}</span>}
+                  </span>
                   <span className="font-mono text-zinc-300">{fmt(parseFloat(pm.amount))}</span>
                 </div>
               ))}

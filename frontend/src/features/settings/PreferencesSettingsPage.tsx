@@ -9,7 +9,11 @@ import { tenantService } from '@/services/tenant/tenant.service'
 import { Btn, Spinner } from '@/components/ui'
 import { extractApiMsg } from '@/lib/utils'
 
-const PAYMENT_METHODS = ['CASH', 'CARD', 'BANK_TRANSFER', 'MOBILE_PAYMENT']
+// Only CASH and CARD are valid checkout tab defaults (card tab covers all digital sub-methods)
+const PAYMENT_METHODS: { value: string; label: string }[] = [
+  { value: 'CASH', label: 'Cash' },
+  { value: 'CARD', label: 'Digital / Card' },
+]
 
 const schema = z.object({
   auto_print_receipt:      z.boolean(),
@@ -109,7 +113,7 @@ export default function PreferencesSettingsPage() {
             <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Default Payment Method</label>
             <select {...register('default_payment_method')} className={inputCls()}>
               {PAYMENT_METHODS.map(m => (
-                <option key={m} value={m}>{m.replace('_', ' ')}</option>
+                <option key={m.value} value={m.value}>{m.label}</option>
               ))}
             </select>
             <p className="text-xs text-zinc-600">Pre-selected payment method on the checkout screen.</p>

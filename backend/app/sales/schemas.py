@@ -139,6 +139,17 @@ class OrderItemResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PaymentResponse(BaseModel):
+    id: uuid.UUID
+    payment_method: str
+    amount: Decimal
+    reference_number: str | None
+    notes: str | None
+    paid_at: datetime | None
+
+    model_config = {"from_attributes": True}
+
+
 class OrderResponse(BaseModel):
     id: uuid.UUID
     tenant_id: uuid.UUID
@@ -161,6 +172,7 @@ class OrderResponse(BaseModel):
     customer_name: str | None = None
     branch_name: str | None = None
     items: list[OrderItemResponse] = []
+    payments: list[PaymentResponse] = []
     created_at: datetime
     updated_at: datetime
 

@@ -614,6 +614,7 @@ class CheckoutService:
                 "method": p.payment_method,
                 "amount": str(p.amount),
                 "reference_number": p.reference_number,
+                "notes": p.notes,
             }
             for p in payments
         ]

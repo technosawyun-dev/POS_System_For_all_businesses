@@ -19,16 +19,15 @@ import SplitPayment  from '@/features/payment/SplitPayment'
 import ReceiptScreen from '@/features/payment/ReceiptScreen'
 
 const METHODS: { id: PaymentMethod; label: string; icon: typeof IconCash; activeClass: string }[] = [
-  { id: 'cash',  label: 'Cash',  icon: IconCash,  activeClass: 'bg-amber-500/20 border-amber-500/50 text-amber-400' },
-  { id: 'card',  label: 'Card',  icon: IconCard,  activeClass: 'bg-blue-500/20 border-blue-500/50 text-blue-400' },
-  { id: 'split', label: 'Split', icon: IconSplit, activeClass: 'bg-violet-500/20 border-violet-500/50 text-violet-400' },
+  { id: 'cash',  label: 'Cash',         icon: IconCash,  activeClass: 'bg-amber-500/20 border-amber-500/50 text-amber-400' },
+  { id: 'card',  label: 'Digital/Card', icon: IconCard,  activeClass: 'bg-blue-500/20 border-blue-500/50 text-blue-400' },
+  { id: 'split', label: 'Split',        icon: IconSplit, activeClass: 'bg-violet-500/20 border-violet-500/50 text-violet-400' },
 ]
 
-// Map frontend payment method to backend enum value
-function toBackendMethod(method: PaymentMethod): string {
-  if (method === 'cash')  return 'CASH'
-  if (method === 'card')  return 'CARD'
-  return 'CASH'
+// Split method values are already backend enum values (CASH, KPAY, WAVEPAY, etc.)
+// Only 'cash' (lowercase UI value) needs mapping to 'CASH'
+function toBackendMethod(method: string): string {
+  return method === 'cash' ? 'CASH' : method
 }
 
 export default function PaymentOverlay() {
@@ -48,8 +47,10 @@ export default function PaymentOverlay() {
   const note            = useCartStore(s => s.note)
   const checkoutStep    = useCartStore(s => s.checkoutStep)
   const setCheckoutStep = useCartStore(s => s.setCheckoutStep)
-  const paymentMethod   = useCartStore(s => s.paymentMethod)
+  const paymentMethod    = useCartStore(s => s.paymentMethod)
   const setPaymentMethod = useCartStore(s => s.setPaymentMethod)
+  const cardSubMethod      = useCartStore(s => s.cardSubMethod)
+  const bankTransferBank   = useCartStore(s => s.bankTransferBank)
 
   // Apply default payment method from settings once when overlay opens
   const appliedDefault = useRef(false)
@@ -101,13 +102,20 @@ export default function PaymentOverlay() {
         tax_rate:        tenantTaxRate.toFixed(4),
       }
     })
-    const payments: { payment_method: string; amount: string }[] =
+    const payments: { payment_method: string; amount: string; notes?: string }[] =
       paymentMethod === 'split'
         ? splitPayments.map(sp => ({
-            payment_method: toBackendMethod(sp.method as PaymentMethod),
+            payment_method: toBackendMethod(sp.method),
             amount: sp.amount.toFixed(2),
+            notes: sp.notes || undefined,
           }))
-        : [{ payment_method: toBackendMethod(paymentMethod), amount: totals.total.toFixed(2) }]
+        : [{
+            payment_method: paymentMethod === 'card' ? cardSubMethod : toBackendMethod(paymentMethod),
+            amount: totals.total.toFixed(2),
+            notes: (paymentMethod === 'card' && cardSubMethod === 'BANK_TRANSFER' && bankTransferBank)
+              ? bankTransferBank
+              : undefined,
+          }]
 
     const checkoutPayload = {
       cashier_session_id: activeSession.id,

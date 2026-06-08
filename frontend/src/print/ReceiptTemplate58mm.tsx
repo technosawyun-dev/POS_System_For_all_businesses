@@ -1,4 +1,5 @@
 import { fmt, fmtDateTime } from '@/lib/utils'
+import { getPaymentMethodLabel } from '@/lib/paymentMethod'
 import type { Receipt } from '@/shared/types'
 
 interface Props {
@@ -85,7 +86,7 @@ export function ReceiptTemplate58mm({ receipt, footer = 'Thank you for your purc
       {receipt.payment_methods.map((pm, i) => (
         <Row
           key={i}
-          label={(pm.method ?? '').toLowerCase().replace('_', ' ')}
+          label={`${getPaymentMethodLabel(pm.method ?? '')}${pm.notes ? ` (${pm.notes})` : ''}`}
           value={fmt(parseFloat(pm.amount))}
         />
       ))}

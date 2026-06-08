@@ -6,6 +6,7 @@ import {
   XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from 'recharts'
 import { fmt, fmtDateTime } from '@/lib/utils'
+import { getPaymentMethodLabel } from '@/lib/paymentMethod'
 import { Spinner, StatCard } from '@/components/ui'
 import { analyticsService } from '@/services/analytics/analytics.service'
 import {
@@ -57,7 +58,7 @@ export default function AnalyticsDashboardPage() {
 
   const paymentMethods = paymentMethodsQ.data ?? []
   const pmData = paymentMethods.map(p => ({
-    name:  p.payment_method,
+    name:  getPaymentMethodLabel(p.payment_method),
     value: parseFloat(p.amount),
     count: p.transaction_count,
   }))

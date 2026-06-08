@@ -247,6 +247,10 @@ class PaymentStatus(str, Enum):
 class PaymentMethod(str, Enum):
     CASH = "CASH"
     CARD = "CARD"
+    KPAY = "KPAY"
+    WAVEPAY = "WAVEPAY"
+    AYA_PAY = "AYA_PAY"
+    CB_PAY = "CB_PAY"
     BANK_TRANSFER = "BANK_TRANSFER"
     MOBILE_PAYMENT = "MOBILE_PAYMENT"
     STORE_CREDIT = "STORE_CREDIT"

@@ -93,6 +93,9 @@ export interface Session {
 export type PaymentMethod = 'cash' | 'card' | 'split'
 export type SaleStatus = 'completed' | 'refunded' | 'voided'
 
+// Card/digital sub-methods — values match backend PaymentMethod enum
+export type CardSubMethod = 'CARD' | 'KPAY' | 'WAVEPAY' | 'AYA_PAY' | 'CB_PAY' | 'BANK_TRANSFER'
+
 export interface SaleItem {
   id: string
   name: string
@@ -103,8 +106,9 @@ export interface SaleItem {
 }
 
 export interface SplitPayment {
-  method: 'cash' | 'card'
+  method: 'cash' | CardSubMethod
   amount: number
+  notes?: string
 }
 
 export interface Sale {

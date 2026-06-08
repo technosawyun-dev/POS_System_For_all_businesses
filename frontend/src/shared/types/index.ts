@@ -305,6 +305,15 @@ export interface OrderItem {
   total: string
 }
 
+export interface OrderPayment {
+  id: string
+  payment_method: string
+  amount: string
+  reference_number: string | null
+  notes: string | null
+  paid_at: string | null
+}
+
 export interface Order {
   id: string
   tenant_id: string
@@ -329,6 +338,7 @@ export interface Order {
   created_at: string
   updated_at: string
   items?: OrderItem[]
+  payments?: OrderPayment[]
 }
 
 export interface VoidOrderRequest {
@@ -927,6 +937,7 @@ export interface ReceiptPayment {
   method: string
   amount: string
   reference_number: string | null
+  notes?: string | null
 }
 
 export interface Receipt {

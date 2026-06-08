@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import type { CartItem, Product, CheckoutStep, PaymentMethod, SplitPayment, CartTotals } from '@/types'
+import type { CartItem, Product, CheckoutStep, PaymentMethod, CardSubMethod, SplitPayment, CartTotals } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
 import { tenantService } from '@/services/tenant/tenant.service'
 
@@ -14,6 +14,8 @@ interface CartState {
   // Checkout flow
   checkoutStep: CheckoutStep
   paymentMethod: PaymentMethod
+  cardSubMethod: CardSubMethod   // active sub-method when paymentMethod === 'card'
+  bankTransferBank: string       // bank name when cardSubMethod === 'BANK_TRANSFER'
   paymentAmount: string
   splitPayments: SplitPayment[]
 
@@ -33,6 +35,8 @@ interface CartState {
   // Actions — checkout
   setCheckoutStep: (step: CheckoutStep) => void
   setPaymentMethod: (method: PaymentMethod) => void
+  setCardSubMethod: (method: CardSubMethod) => void
+  setBankTransferBank: (bank: string) => void
   setPaymentAmount: (amount: string) => void
   addSplitPayment: (p: SplitPayment) => void
   removeSplitPayment: (index: number) => void
@@ -48,6 +52,8 @@ export const useCartStore = create<CartState>()((set) => ({
   note: '',
   checkoutStep: 'cart',
   paymentMethod: 'cash',
+  cardSubMethod: 'CARD',
+  bankTransferBank: '',
   paymentAmount: '',
   splitPayments: [],
   completedOrderId: null,
@@ -79,11 +85,13 @@ export const useCartStore = create<CartState>()((set) => ({
   clearCart: () => set({
     items: [], discount: 0, discountType: 'percent', note: '',
     checkoutStep: 'cart', paymentAmount: '', splitPayments: [],
-    completedOrderId: null,
+    cardSubMethod: 'CARD', bankTransferBank: '', completedOrderId: null,
   }),
 
   setCheckoutStep: (checkoutStep) => set({ checkoutStep }),
   setPaymentMethod: (paymentMethod) => set({ paymentMethod, paymentAmount: '', splitPayments: [] }),
+  setCardSubMethod: (cardSubMethod) => set({ cardSubMethod, bankTransferBank: '' }),
+  setBankTransferBank: (bankTransferBank) => set({ bankTransferBank }),
   setPaymentAmount: (paymentAmount) => set({ paymentAmount }),
   addSplitPayment: (p) => set(state => ({ splitPayments: [...state.splitPayments, p] })),
   removeSplitPayment: (index) => set(state => ({
@@ -95,7 +103,7 @@ export const useCartStore = create<CartState>()((set) => ({
   newSale: () => set({
     items: [], discount: 0, discountType: 'percent', note: '',
     checkoutStep: 'cart', paymentAmount: '', splitPayments: [],
-    completedOrderId: null,
+    cardSubMethod: 'CARD', bankTransferBank: '', completedOrderId: null,
   }),
 }))
 

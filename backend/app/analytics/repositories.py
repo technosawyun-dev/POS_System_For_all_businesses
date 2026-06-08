@@ -393,15 +393,27 @@ class AnalyticsRepository:
         if branch_id:
             payment_filters.append(Order.branch_id == branch_id)
 
+        # Normalize legacy/variant payment method strings to canonical enum values
+        # so old test data and new transactions group together correctly.
+        normalized_method = case(
+            (Payment.payment_method == "KBZPAY",    "KPAY"),
+            (Payment.payment_method == "KBZ_PAY",   "KPAY"),
+            (Payment.payment_method == "WAVE_PAY",  "WAVEPAY"),
+            (Payment.payment_method == "WAVEMONEY", "WAVEPAY"),
+            (Payment.payment_method == "AYAPAY",    "AYA_PAY"),
+            (Payment.payment_method == "CBPAY",     "CB_PAY"),
+            else_=Payment.payment_method,
+        ).label("payment_method")
+
         stmt = (
             select(
-                Payment.payment_method,
+                normalized_method,
                 func.count().label("transaction_count"),
                 func.coalesce(func.sum(Payment.amount), 0).label("amount"),
             )
             .join(Order, Order.id == Payment.order_id)
             .where(and_(*payment_filters))
-            .group_by(Payment.payment_method)
+            .group_by(normalized_method)
             .order_by(func.sum(Payment.amount).desc())
         )
         result = await self.session.execute(stmt)

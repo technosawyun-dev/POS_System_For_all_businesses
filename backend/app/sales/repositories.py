@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -132,12 +132,23 @@ class OrderRepository(BaseRepository[Order]):
             filters.append(Order.created_at >= date_from)
         if date_to:
             filters.append(Order.created_at <= date_to)
-        return await self.get_all(
-            offset=offset,
-            limit=limit,
-            filters=filters,
-            order_by=Order.created_at.desc(),
+
+        where_clause = and_(*filters)
+        count_stmt = select(func.count()).select_from(Order).where(where_clause)
+        count_result = await self.session.execute(count_stmt)
+        total = count_result.scalar_one()
+
+        stmt = (
+            select(Order)
+            .options(selectinload(Order.payments))
+            .where(where_clause)
+            .order_by(Order.created_at.desc())
+            .offset(offset)
+            .limit(limit)
         )
+        result = await self.session.execute(stmt)
+        items = list(result.scalars().all())
+        return items, total
 
     async def get_by_id_and_tenant(
         self,

@@ -4,6 +4,8 @@ import { fmt } from '@/lib/utils'
 import { StatCard, Table, Th, Td } from '@/components/ui'
 import { analyticsService } from '@/services/analytics/analytics.service'
 import { useAnalyticsFilters, AnalyticsFilters, ChartCard } from './analyticsHelpers'
+import { getPaymentMethodLabel } from '@/lib/paymentMethod'
+import type { PaymentMethodStat } from '@/shared/types'
 
 const PAGE_SIZE = 30
 
@@ -32,7 +34,7 @@ export default function SalesAnalyticsPage() {
   const [productsPage, setProductsPage] = useState(1)
   const [cashiersPage, setCashiersPage] = useState(1)
 
-  const [summaryQ, topProductsQ, byCashierQ] = useQueries({
+  const [summaryQ, topProductsQ, byCashierQ, paymentMethodsQ] = useQueries({
     queries: [
       {
         queryKey: ['sales-summary', from, to, branch],
@@ -46,12 +48,17 @@ export default function SalesAnalyticsPage() {
         queryKey: ['sales-by-cashier', from, to, branch],
         queryFn:  () => analyticsService.getSalesByCashier(apiParams),
       },
+      {
+        queryKey: ['sales-payment-methods', from, to, branch],
+        queryFn:  () => analyticsService.getPaymentMethods(apiParams),
+      },
     ],
   })
 
-  const summary     = summaryQ.data
-  const topProducts = topProductsQ.data ?? []
-  const cashiers    = byCashierQ.data ?? []
+  const summary        = summaryQ.data
+  const topProducts    = topProductsQ.data ?? []
+  const cashiers       = byCashierQ.data ?? []
+  const paymentMethods = paymentMethodsQ.data ?? []
 
   const productsTotalPages = Math.max(1, Math.ceil(topProducts.length / PAGE_SIZE))
   const cashiersTotalPages = Math.max(1, Math.ceil(cashiers.length / PAGE_SIZE))
@@ -86,6 +93,45 @@ export default function SalesAnalyticsPage() {
             />
           </>
         ) : null}
+      </div>
+
+      {/* Payment Method Breakdown */}
+      <div>
+        <h3 className="text-sm font-semibold text-zinc-300 mb-3">Revenue by Payment Method</h3>
+        {paymentMethodsQ.isLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-24 rounded-2xl bg-zinc-900 border border-zinc-800 animate-pulse" />
+            ))}
+          </div>
+        ) : paymentMethods.length === 0 ? (
+          <p className="text-sm text-zinc-600 py-2">No payment data for this period.</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {(paymentMethods as PaymentMethodStat[]).map(pm => (
+              <div
+                key={pm.payment_method}
+                className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-1.5"
+              >
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider truncate">
+                  {getPaymentMethodLabel(pm.payment_method)}
+                </p>
+                <p className="font-mono text-lg font-bold text-amber-400">{fmt(parseFloat(pm.amount))}</p>
+                <div className="flex items-center justify-between text-[10px] text-zinc-500">
+                  <span>{pm.transaction_count} txn{pm.transaction_count !== 1 ? 's' : ''}</span>
+                  <span className="font-semibold text-zinc-400">{parseFloat(pm.percentage).toFixed(1)}%</span>
+                </div>
+                {/* Mini progress bar */}
+                <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden mt-0.5">
+                  <div
+                    className="h-full bg-amber-500 rounded-full"
+                    style={{ width: `${Math.min(100, parseFloat(pm.percentage))}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Top Products */}
