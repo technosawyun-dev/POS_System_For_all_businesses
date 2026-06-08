@@ -7,15 +7,55 @@ import { useAuthStore } from '@/store/auth.store'
 import { useTenantStore } from '@/store/tenant.store'
 import { tenantService } from '@/services/tenant/tenant.service'
 
-function OnlineDetector() {
+const PING_INTERVAL_MS = 10_000
+const PING_TIMEOUT_MS  = 5_000
+
+async function pingServer(): Promise<boolean> {
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), PING_TIMEOUT_MS)
+    const res = await fetch('/health', { method: 'GET', signal: controller.signal, cache: 'no-store' })
+    clearTimeout(timer)
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+function HealthPinger() {
   const { setOnline } = useUIStore()
+
   useEffect(() => {
-    const on  = () => setOnline(true)
-    const off = () => setOnline(false)
-    window.addEventListener('online',  on)
-    window.addEventListener('offline', off)
-    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
+    let cancelled = false
+
+    async function check() {
+      if (cancelled) return
+      const alive = await pingServer()
+      if (cancelled) return
+      setOnline(alive)
+
+      // On every successful ping, process any queued sales (handles both
+      // offline→online transitions and blink scenarios where we never
+      // truly went "offline" but a checkout request failed mid-flight).
+      if (alive) {
+        try {
+          const { getPendingSyncOps } = await import('@/offline/db')
+          const pending = await getPendingSyncOps()
+          if (pending.length > 0) {
+            const { processSyncQueue } = await import('@/services/sync/syncService')
+            await processSyncQueue()
+          }
+        } catch {
+          // Sync check failed silently — will retry on next ping interval
+        }
+      }
+    }
+
+    check()
+    const id = setInterval(check, PING_INTERVAL_MS)
+    return () => { cancelled = true; clearInterval(id) }
   }, [setOnline])
+
   return null
 }
 
@@ -55,7 +95,7 @@ function TenantLoader() {
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <OnlineDetector />
+      <HealthPinger />
       <TenantLoader />
       {children}
       <Toaster

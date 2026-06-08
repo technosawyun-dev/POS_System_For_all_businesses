@@ -74,7 +74,7 @@ export default function ExpiredPlanGate() {
     sub?.status === 'EXPIRED' ||
     sub?.status === 'SUSPENDED'
 
-  const isTrial = sub?.status === 'TRIAL' || sub?.plan?.is_trial === true
+  const isTrial = sub?.status === 'TRIAL'
 
   if (!isExpired) return null
   if (!user || user.role !== 'BUSINESS_OWNER') return null

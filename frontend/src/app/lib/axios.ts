@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
+import { useUIStore } from '@/store/ui.store'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api/v1'
 
@@ -7,6 +8,25 @@ export const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
   timeout: 15_000,
   withCredentials: true,
+})
+
+// Sentinel error thrown when the offline gate blocks a write request.
+// Components can check `err instanceof OfflineError` or `err.name === 'OfflineError'`.
+export class OfflineError extends Error {
+  constructor() {
+    super('Server is offline. Please reconnect to make changes.')
+    this.name = 'OfflineError'
+  }
+}
+
+// Block all non-GET requests when the server is unreachable.
+// GET requests pass through so React Query can still serve cached data.
+apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const method = (config.method ?? 'get').toLowerCase()
+  if (method !== 'get' && !useUIStore.getState().isOnline) {
+    return Promise.reject(new OfflineError())
+  }
+  return config
 })
 
 
@@ -40,6 +60,9 @@ function processQueue(error: unknown, token: string | null) {
 apiClient.interceptors.response.use(
   res => res,
   async (err: AxiosError) => {
+    // Non-axios errors (e.g. OfflineError from request interceptor) pass straight through.
+    if (!axios.isAxiosError(err)) return Promise.reject(err)
+
     const original = err.config as InternalAxiosRequestConfig & { _retry?: boolean }
 
     if (err.response?.status === 402) {

@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import axios from 'axios'
 import { useCartStore, useCartTotals } from '@/store/cartStore'
 import { useSessionStore } from '@/store/session.store'
 import { useAuthStore } from '@/store/auth.store'
 import { checkoutService } from '@/services/sales/sales.service'
 import { tenantService } from '@/services/tenant/tenant.service'
-import { fmt, cn, extractApiMsg } from '@/lib/utils'
+import { fmt, cn, extractApiMsg, genId } from '@/lib/utils'
+import { OfflineError } from '@/app/lib/axios'
+import { enqueueSyncOp } from '@/offline/db'
 import { IconX, IconCash, IconCard, IconSplit } from '@/components/icons'
 import { Spinner } from '@/components/ui'
 import type { PaymentMethod } from '@/types'
@@ -79,56 +82,47 @@ export default function PaymentOverlay() {
       return
     }
 
+    // Build the checkout payload once — reused in both the primary call
+    // and the offline blink queue so there is no duplicated logic.
+    const tenantTaxRate  = totals.taxEnabled ? totals.taxRate / 100 : 0
+    const orderDiscountAmt = totals.orderDiscAmt
+    const checkoutItems = items.map(item => {
+      // For inclusive pricing, send the pre-tax unit price so the backend
+      // formula (price * tax_rate) still yields the correct tax extracted amount.
+      const unitPrice = totals.taxEnabled && totals.taxInclusive
+        ? item.price / (1 + tenantTaxRate)
+        : item.price
+      const lineDiscAmt = ((item.lineDiscount || 0) / 100) * unitPrice * item.qty
+      return {
+        product_id:      item.id,
+        quantity:        item.qty.toString(),
+        unit_price:      unitPrice.toFixed(4),
+        discount_amount: lineDiscAmt > 0 ? lineDiscAmt.toFixed(2) : undefined,
+        tax_rate:        tenantTaxRate.toFixed(4),
+      }
+    })
+    const payments: { payment_method: string; amount: string }[] =
+      paymentMethod === 'split'
+        ? splitPayments.map(sp => ({
+            payment_method: toBackendMethod(sp.method as PaymentMethod),
+            amount: sp.amount.toFixed(2),
+          }))
+        : [{ payment_method: toBackendMethod(paymentMethod), amount: totals.total.toFixed(2) }]
+
+    const checkoutPayload = {
+      cashier_session_id: activeSession.id,
+      items:              checkoutItems,
+      payments,
+      discount_amount:    orderDiscountAmt > 0 ? orderDiscountAmt.toFixed(2) : undefined,
+      notes:              note || undefined,
+    }
+
     setIsProcessing(true)
     setCheckoutStep('processing')
 
     try {
-      const orderDiscountAmt = totals.orderDiscAmt
+      const order = await checkoutService.checkout(checkoutPayload)
 
-      // Build items for checkout — use tenant tax settings
-      const tenantTaxRate    = totals.taxEnabled ? totals.taxRate / 100 : 0
-      const checkoutItems = items.map(item => {
-        // For inclusive pricing, send the pre-tax unit price so the backend
-        // formula (price * tax_rate) still yields the correct tax extracted amount.
-        // lineDiscAmt must use the same unitPrice basis so the backend discount/tax
-        // ratio is consistent — computing it on the gross (inclusive) price would
-        // inflate the discount relative to the net unit_price the backend receives.
-        const unitPrice = totals.taxEnabled && totals.taxInclusive
-          ? item.price / (1 + tenantTaxRate)
-          : item.price
-        const lineDiscAmt = ((item.lineDiscount || 0) / 100) * unitPrice * item.qty
-        return {
-          product_id:      item.id,
-          quantity:        item.qty.toString(),
-          unit_price:      unitPrice.toFixed(4),
-          discount_amount: lineDiscAmt > 0 ? lineDiscAmt.toFixed(2) : undefined,
-          tax_rate:        tenantTaxRate.toFixed(4),
-        }
-      })
-
-      // Build payments for checkout
-      let payments: { payment_method: string; amount: string; reference_number?: string }[]
-      if (paymentMethod === 'split') {
-        payments = splitPayments.map(sp => ({
-          payment_method: toBackendMethod(sp.method as PaymentMethod),
-          amount: sp.amount.toFixed(2),
-        }))
-      } else {
-        payments = [{
-          payment_method: toBackendMethod(paymentMethod),
-          amount: totals.total.toFixed(2),
-        }]
-      }
-
-      const order = await checkoutService.checkout({
-        cashier_session_id: activeSession.id,
-        items: checkoutItems,
-        payments,
-        discount_amount: orderDiscountAmt > 0 ? orderDiscountAmt.toFixed(2) : undefined,
-        notes: note || undefined,
-      })
-
-      // Invalidate cached data that checkout may have changed
       await Promise.all([
         qc.invalidateQueries({ queryKey: ['products'] }),
         qc.invalidateQueries({ queryKey: ['inventory'] }),
@@ -138,6 +132,34 @@ export default function PaymentOverlay() {
 
       completeOrder(order.id)
     } catch (err: unknown) {
+      // Offline gate blocked the request — server is unreachable.
+      if (err instanceof OfflineError) {
+        toast.error('Server is offline. No changes can be made while offline.')
+        setCheckoutStep('payment')
+        return
+      }
+
+      // Network blip mid-flight (request was sent but connection dropped).
+      // Queue the sale locally; the HealthPinger will auto-sync on next successful ping.
+      if (axios.isAxiosError(err) && !err.response) {
+        try {
+          await enqueueSyncOp({
+            id:        genId('sale'),
+            type:      'SALE_CREATE',
+            payload:   checkoutPayload,
+            status:    'pending',
+            createdAt: new Date(),
+            retries:   0,
+          })
+          useCartStore.getState().clearCart()
+          toast.info('Connection lost — sale saved locally. It will sync automatically when reconnected.', { duration: 6000 })
+        } catch {
+          toast.error('Connection lost and could not save the sale locally. Please try again.')
+          setCheckoutStep('payment')
+        }
+        return
+      }
+
       const msg = extractApiMsg(err) ?? 'Checkout failed. Please try again.'
       toast.error(msg)
       setCheckoutStep('payment')

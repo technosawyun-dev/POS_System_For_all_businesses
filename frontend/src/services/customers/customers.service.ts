@@ -1,7 +1,7 @@
 import apiClient from '@/app/lib/axios'
 import type { Customer, CustomerContact, CreateCustomerRequest, PaginatedResponse, LedgerEntry, CustomerStatement } from '@/shared/types'
 
-export interface UpdateCustomerRequest extends Partial<CreateCustomerRequest> {
+export interface UpdateCustomerRequest extends Omit<Partial<CreateCustomerRequest>, 'notes'> {
   is_active?: boolean
   notes?: string | null
 }

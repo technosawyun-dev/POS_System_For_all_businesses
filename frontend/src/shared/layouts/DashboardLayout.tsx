@@ -17,7 +17,7 @@ import { notificationsService } from '@/services/notifications/notifications.ser
 import { tenantService } from '@/services/tenant/tenant.service'
 import {
   IconMenu, IconX, IconPOS, IconProducts, IconInventory,
-  IconSales, IconSync, IconLogout,
+  IconSales, IconLogout,
 } from '@/components/icons'
 
 interface NavItem {
@@ -39,7 +39,6 @@ const APP_NAV: NavItem[] = [
   { to: '/app/notifications', section: 'notifications', label: 'nav.notifications', icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🔔</span> },
   { to: '/app/subscription',  section: 'subscription',  label: 'nav.subscription',  icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">💳</span> },
   { to: '/app/settings',      section: 'settings',      label: 'nav.settings',      icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">⚙️</span> },
-  { to: '/app/sync',          section: 'sync',          label: 'nav.sync',          icon: <IconSync      width="18" height="18" /> },
 ]
 
 const SUPER_ADMIN_NAV: NavItem[] = [
@@ -301,8 +300,9 @@ export default function DashboardLayout({ navGroup = 'app' }: DashboardLayoutPro
       {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {!isOnline && (
-          <div className="flex-shrink-0 bg-amber-950 border-b border-amber-800 px-4 py-1.5">
-            <span className="text-amber-400 text-xs font-medium">{t('offline.banner')}</span>
+          <div className="flex-shrink-0 bg-red-950 border-b border-red-800 px-4 py-2 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0 animate-pulse" />
+            <span className="text-red-400 text-xs font-semibold">{t('offline.banner')}</span>
           </div>
         )}
         {navGroup === 'app' && <TrialBanner />}

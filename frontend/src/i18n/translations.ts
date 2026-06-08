@@ -90,7 +90,7 @@ export const en: LangDict = {
   // Currency
   'currency.mmk': 'Kyats',
   // Offline / online
-  'offline.banner': 'Working offline — changes will sync when reconnected',
+  'offline.banner': 'Server offline — please reconnect. No changes can be made.',
   // Settings layout tabs
   'settings.title':            'Settings',
   'settings.tab.business':     'Business Profile',
@@ -260,7 +260,7 @@ export const my: LangDict = {
   // Currency
   'currency.mmk': 'ကျပ်',
   // Offline / online
-  'offline.banner': 'အင်တာနက် ချိတ်ဆက်မှု မရှိပါ — ချိတ်ဆက်သောအခါ မှတ်တမ်းများ ထပ်တူပြုမည်',
+  'offline.banner': 'ဆာဗာ အော့ဖ်လိုင်း — ကျေးဇူးပြု၍ ပြန်ချိတ်ဆက်ပါ။ ပြောင်းလဲမှုများ ပြုလုပ်၍ မရပါ။',
   // Settings layout tabs
   'settings.title':            'ဆက်တင်',
   'settings.tab.business':     'စီးပွားရေး ပရိုဖိုင်',
