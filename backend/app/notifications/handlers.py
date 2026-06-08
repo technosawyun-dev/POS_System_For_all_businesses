@@ -94,7 +94,6 @@ async def _get_super_admin_ids(session) -> list:  # type: ignore[no-untyped-def]
 @event_publisher.on(EventType.LOW_STOCK)
 async def handle_low_stock(event: DomainEvent) -> None:
     from app.db.session import AsyncSessionLocal
-    from app.notifications.email import email_service
     from app.notifications.services import NotificationService
 
     product_name = event.payload.get("product_name", "Unknown Product")
@@ -109,7 +108,7 @@ async def handle_low_stock(event: DomainEvent) -> None:
                 return
 
             svc = NotificationService(session)
-            notification = await svc.notify_users(
+            await svc.notify_users(
                 tenant_id=event.tenant_id,
                 type=NotificationType.INVENTORY,
                 priority=NotificationPriority.HIGH,
@@ -123,22 +122,6 @@ async def handle_low_stock(event: DomainEvent) -> None:
             )
             await session.commit()
 
-            # Queue email for each recipient who has email + inventory enabled
-            for uid in recipient_ids:
-                if await svc.is_email_enabled_for_type(uid, NotificationType.INVENTORY):
-                    await email_service.queue_email_notification(
-                        to="",  # resolved by Celery task from user_id
-                        template_name="low_stock",
-                        context={
-                            "recipient_name": "",
-                            "product_name": product_name,
-                            "sku": sku,
-                            "current_stock": current_stock,
-                            "reorder_level": reorder_level,
-                        },
-                        user_id=uid,
-                    )
-
         except Exception:
             await session.rollback()
             logger.exception("handle_low_stock_error", tenant_id=str(event.tenant_id))
@@ -148,7 +131,6 @@ async def handle_low_stock(event: DomainEvent) -> None:
 @event_publisher.on(EventType.PURCHASE_ORDER_APPROVED)
 async def handle_purchase_order_approved(event: DomainEvent) -> None:
     from app.db.session import AsyncSessionLocal
-    from app.notifications.email import email_service
     from app.notifications.services import NotificationService
 
     po_number = event.payload.get("po_number", "")
@@ -177,22 +159,6 @@ async def handle_purchase_order_approved(event: DomainEvent) -> None:
                 metadata=event.payload,
             )
             await session.commit()
-
-            for uid in recipient_ids:
-                if await svc.is_email_enabled_for_type(uid, NotificationType.PROCUREMENT):
-                    await email_service.queue_email_notification(
-                        to="",
-                        template_name="purchase_order_approved",
-                        context={
-                            "recipient_name": "",
-                            "po_number": po_number,
-                            "supplier_name": supplier_name,
-                            "total_amount": total_amount,
-                            "currency": currency,
-                            "expected_date": expected_date,
-                        },
-                        user_id=uid,
-                    )
 
         except Exception:
             await session.rollback()

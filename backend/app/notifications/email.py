@@ -14,20 +14,6 @@ _MAILTRAP_API_URL = "https://send.api.mailtrap.io/api/send"
 
 
 TEMPLATES: dict[str, dict[str, str]] = {
-    "low_stock": {
-        "subject": "Low Stock Alert: {product_name}",
-        "body": (
-            "Dear {recipient_name},\n\n"
-            "This is an automated alert to notify you that the following product "
-            "is running low on stock:\n\n"
-            "  Product: {product_name}\n"
-            "  SKU: {sku}\n"
-            "  Current Stock: {current_stock}\n"
-            "  Reorder Level: {reorder_level}\n\n"
-            "Please arrange for restocking at your earliest convenience.\n\n"
-            "Regards,\nPOS System"
-        ),
-    },
     "subscription_expiring": {
         "subject": "Your Subscription Expires in {days} Day(s)",
         "body": (
@@ -46,17 +32,6 @@ TEMPLATES: dict[str, dict[str, str]] = {
             "Your payment proof of {amount} {currency} has been reviewed and approved.\n\n"
             "Your subscription for {tenant_name} is now active until {expires_at}.\n\n"
             "Thank you for your payment.\n\n"
-            "Regards,\nPOS System"
-        ),
-    },
-    "purchase_order_approved": {
-        "subject": "Purchase Order {po_number} Approved",
-        "body": (
-            "Dear {recipient_name},\n\n"
-            "Purchase Order {po_number} from supplier {supplier_name} has been approved.\n\n"
-            "  Total Amount: {total_amount} {currency}\n"
-            "  Expected Delivery: {expected_date}\n\n"
-            "The supplier has been notified and goods are expected as per the schedule.\n\n"
             "Regards,\nPOS System"
         ),
     },
@@ -329,7 +304,7 @@ class EmailNotificationService:
     Abstraction layer for email notifications.
 
     _deliver() sends via Mailtrap API. The existing notification templates
-    (low_stock, subscription_expiring, etc.) are sent as plain-text-in-HTML.
+    (subscription_expiring, payment_proof_approved, etc.) are sent as plain-text-in-HTML.
     """
 
     def __init__(self) -> None:
