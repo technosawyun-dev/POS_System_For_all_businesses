@@ -26,14 +26,14 @@ class PrinterService {
   BluetoothDevice? _connectedBtDevice;
   BluetoothCharacteristic? _printCharacteristic;
 
-  // ─── Connection status ───────────────────────────────────────────────
+  // Connection status
 
   bool get isUsbConnected => _usbPort != null;
   bool get isSerialConnected => _usbPort != null && _usbMode == _UsbMode.serial;
   bool get isBtConnected => _printCharacteristic != null;
   bool get isAnyConnected => isUsbConnected || isBtConnected;
 
-  // ─── USB (direct USB thermal printer) ───────────────────────────────
+  // USB (direct USB thermal printer)
 
   Future<List<UsbDevice>> listUsbDevices() => UsbSerial.listDevices();
 
@@ -59,7 +59,7 @@ class PrinterService {
     }
   }
 
-  // ─── Serial (USB-to-Serial adapter: CH340/PL2303/FTDI/CP21xx) ───────
+  // Serial (USB-to-Serial adapter: CH340/PL2303/FTDI/CP21xx)
 
   Future<bool> connectSerial(UsbDevice device) async {
     await disconnectUsb();
@@ -89,7 +89,7 @@ class PrinterService {
     _usbMode = null;
   }
 
-  // ─── Bluetooth ────────────────────────────────────────────────────────
+  // Bluetooth
 
   Future<List<BluetoothDevice>> scanBluetooth(
       {Duration timeout = const Duration(seconds: 5)}) async {
@@ -132,7 +132,7 @@ class PrinterService {
     _printCharacteristic = null;
   }
 
-  // ─── WiFi / LAN ──────────────────────────────────────────────────────
+  // WiFi / LAN
 
   Future<bool> printViaWifi({
     required String ipAddress,
@@ -151,7 +151,7 @@ class PrinterService {
     }
   }
 
-  // ─── ESC/POS receipt builder ─────────────────────────────────────────
+  // ESC/POS receipt builder
 
   List<int> buildReceipt(OrderModel order,
       {String? businessName, String? footer}) {
@@ -215,7 +215,7 @@ class PrinterService {
 
   List<int> openCashDrawerCommand() => [0x1B, 0x70, 0x00, 0x19, 0x19];
 
-  // ─── Print receipt (routes to connected transport) ───────────────────
+  // Print receipt (routes to connected transport)
   // Priority: USB/Serial > Bluetooth > WiFi (explicit params required)
 
   Future<bool> printReceipt(
@@ -265,7 +265,7 @@ class PrinterService {
     return false;
   }
 
-  // ─── Helpers ─────────────────────────────────────────────────────────
+  // Helpers
 
   List<int> _encode(String text) => text.codeUnits;
 
