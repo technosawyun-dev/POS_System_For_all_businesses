@@ -310,7 +310,7 @@ class ProductPriceHistory(Base):
     new_price: Mapped[Decimal] = mapped_column(Numeric(12, 4), nullable=False)
     changed_by_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
     )
 

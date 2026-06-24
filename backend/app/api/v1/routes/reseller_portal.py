@@ -80,10 +80,11 @@ async def list_my_branches(
             all_branches_allowed=False,
         )
 
-    # Empty allowed_branch_ids → fetch all active branches for the tenant
+    # Empty allowed_branch_ids → fetch all active, non-deleted branches for the tenant
     stmt = select(Branch).where(
         Branch.tenant_id == tenant_id,
         Branch.status != "CLOSED",
+        Branch.is_deleted.is_(False),
     )
     result = await db.execute(stmt)
     branches = list(result.scalars().all())

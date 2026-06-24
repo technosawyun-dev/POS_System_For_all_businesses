@@ -1,0 +1,72 @@
+name: pos_mobile
+description: "SawYun POS - Point of Sale Mobile Application"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+
+  # Navigation
+  go_router: ^14.6.3
+
+  # HTTP Client
+  dio: ^5.8.0+1
+
+  # Secure Storage (JWT tokens)
+  flutter_secure_storage: ^9.2.4
+
+  # Local Database (offline queue)
+  sqflite: ^2.4.2
+  path_provider: ^2.1.5
+  path: ^1.9.1
+
+  # Preferences
+  shared_preferences: ^2.3.5
+
+  # Connectivity
+  connectivity_plus: ^6.1.4
+
+  # UI
+  google_fonts: ^6.2.1
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+
+  # Camera barcode/QR scanner
+  mobile_scanner: ^5.2.3
+
+  # Bluetooth + USB/Serial (receipt printers)
+  flutter_blue_plus: ^1.35.5
+  usb_serial: ^0.5.2
+
+  # QR Code generation
+  qr_flutter: ^4.1.0
+
+  # Charts (analytics)
+  fl_chart: ^0.69.0
+
+  # Runtime permissions
+  permission_handler: ^11.3.1
+
+  # Utils
+  intl: ^0.20.2
+  uuid: ^4.5.1
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/

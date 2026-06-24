@@ -580,7 +580,7 @@ class CheckoutService:
         from sqlalchemy import select as sa_select
 
         branch_result = await self.session.execute(
-            sa_select(Branch).where(Branch.id == branch_id)
+            sa_select(Branch).where(Branch.id == branch_id, Branch.is_deleted.is_(False))
         )
         branch = branch_result.scalar_one_or_none()
 

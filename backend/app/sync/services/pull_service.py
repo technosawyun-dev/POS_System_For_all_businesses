@@ -150,8 +150,8 @@ class SyncPullService:
         from app.models.product import Product
         from sqlalchemy import func
 
-        stmt = select(Product).where(Product.tenant_id == tenant_id)
-        count_stmt = select(func.count()).select_from(Product).where(Product.tenant_id == tenant_id)
+        stmt = select(Product).where(Product.tenant_id == tenant_id, Product.is_deleted.is_(False))
+        count_stmt = select(func.count()).select_from(Product).where(Product.tenant_id == tenant_id, Product.is_deleted.is_(False))
         if since_at:
             stmt = stmt.where(Product.updated_at > since_at)
             count_stmt = count_stmt.where(Product.updated_at > since_at)
@@ -177,13 +177,21 @@ class SyncPullService:
         stmt = (
             select(ProductVariant)
             .join(Product, ProductVariant.product_id == Product.id)
-            .where(Product.tenant_id == tenant_id)
+            .where(
+                Product.tenant_id == tenant_id,
+                Product.is_deleted.is_(False),
+                ProductVariant.is_deleted.is_(False),
+            )
         )
         count_stmt = (
             select(func.count())
             .select_from(ProductVariant)
             .join(Product, ProductVariant.product_id == Product.id)
-            .where(Product.tenant_id == tenant_id)
+            .where(
+                Product.tenant_id == tenant_id,
+                Product.is_deleted.is_(False),
+                ProductVariant.is_deleted.is_(False),
+            )
         )
         if since_at:
             stmt = stmt.where(ProductVariant.updated_at > since_at)
@@ -235,8 +243,8 @@ class SyncPullService:
         from app.models.product import Category
         from sqlalchemy import func
 
-        stmt = select(Category).where(Category.tenant_id == tenant_id)
-        count_stmt = select(func.count()).select_from(Category).where(Category.tenant_id == tenant_id)
+        stmt = select(Category).where(Category.tenant_id == tenant_id, Category.is_deleted.is_(False))
+        count_stmt = select(func.count()).select_from(Category).where(Category.tenant_id == tenant_id, Category.is_deleted.is_(False))
         if since_at:
             stmt = stmt.where(Category.updated_at > since_at)
             count_stmt = count_stmt.where(Category.updated_at > since_at)
@@ -259,8 +267,8 @@ class SyncPullService:
         from app.models.branch import Branch
         from sqlalchemy import func
 
-        stmt = select(Branch).where(Branch.tenant_id == tenant_id)
-        count_stmt = select(func.count()).select_from(Branch).where(Branch.tenant_id == tenant_id)
+        stmt = select(Branch).where(Branch.tenant_id == tenant_id, Branch.is_deleted.is_(False))
+        count_stmt = select(func.count()).select_from(Branch).where(Branch.tenant_id == tenant_id, Branch.is_deleted.is_(False))
         if since_at:
             stmt = stmt.where(Branch.updated_at > since_at)
             count_stmt = count_stmt.where(Branch.updated_at > since_at)

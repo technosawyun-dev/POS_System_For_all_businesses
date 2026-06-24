@@ -24,7 +24,7 @@ export interface OpeningStockRequest {
 export interface TransferCreateRequest {
   from_branch_id: string
   to_branch_id: string
-  items: Array<{ product_id: string; variant_id?: string; quantity: string }>
+  items: Array<{ product_id: string; variant_id?: string; quantity_requested: string }>
   notes?: string
 }
 
@@ -63,7 +63,7 @@ export const inventoryService = {
     apiClient.patch(`/inventory/branches/${branchId}/products/${productId}/reorder`, payload).then(r => r.data),
 
   approveTransfer: (transferId: string) =>
-    apiClient.patch(`/inventory/transfers/${transferId}/approve`).then(r => r.data),
+    apiClient.post(`/inventory/transfers/${transferId}/approve`).then(r => r.data),
 
   executeTransfer: (transferId: string) =>
     apiClient.post(`/inventory/transfers/${transferId}/execute`).then(r => r.data),

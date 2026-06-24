@@ -36,8 +36,8 @@ class AuditLogFilterParams(BaseSchema):
     actor_user_id: uuid.UUID | None = None
     tenant_id: uuid.UUID | None = None
     branch_id: uuid.UUID | None = None
-    action: str | None = None
-    entity_type: str | None = None
-    entity_id: str | None = None
+    action: str | None = Field(default=None, max_length=100)
+    entity_type: str | None = Field(default=None, max_length=100)
+    entity_id: str | None = Field(default=None, max_length=255)
     date_from: datetime | None = None
     date_to: datetime | None = None

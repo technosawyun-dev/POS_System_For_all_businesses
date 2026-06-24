@@ -47,9 +47,28 @@ class AuthService:
         ip_address: str | None = None,
         user_agent: str | None = None,
         request_id: str | None = None,
+        redis=None,
     ) -> tuple[TokenResponse, str]:
         from app.repositories.tenant_repository import TenantRepository
+        from app.core.rate_limit import (
+            clear_failed_logins,
+            is_account_locked,
+            record_failed_login,
+        )
+
         tenant_repo = TenantRepository(self.session)
+
+        # Derive a stable, non-reversible key for per-account lockout tracking.
+        # Normalise to lowercase so "User@Example.com" and "user@example.com" share one counter.
+        _ident_raw = (email or phone or f"{business_code}:{identifier}" or "").lower().strip()
+        _account_key = f"rl:account_lock:{hashlib.sha256(_ident_raw.encode()).hexdigest()[:32]}"
+
+        # Check per-account lockout BEFORE hitting the DB or doing any bcrypt work.
+        if redis and await is_account_locked(redis, _account_key):
+            raise AuthenticationError(
+                "Account temporarily locked due to too many failed login attempts. "
+                "Please try again in 15 minutes."
+            )
 
         user = None
         if business_code and identifier:
@@ -64,9 +83,10 @@ class AuthService:
             user = await self.user_repo.get_by_phone(phone)
 
         if not user or not verify_password(password, user.hashed_password):
-            import hashlib as _hl
-            _raw = (email or identifier or "").encode()
-            _id_hash = _hl.sha256(_raw).hexdigest()[:16]
+            _id_hash = hashlib.sha256(_ident_raw.encode()).hexdigest()[:16]
+            # Record failure for account lockout BEFORE committing the audit log.
+            if redis:
+                await record_failed_login(redis, _account_key)
             try:
                 # Use an independent session so the audit write is committed even
                 # though we're about to raise (which rolls back the main session).
@@ -113,6 +133,10 @@ class AuthService:
         )
 
         await self.user_repo.update_last_login(user.id)
+
+        # Clear the failure counter now that the user has authenticated successfully.
+        if redis:
+            await clear_failed_logins(redis, _account_key)
 
         await self.audit_service.log(
             action=AuditAction.LOGIN,

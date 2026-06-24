@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react'
+import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -8,7 +8,7 @@ import { brandsService } from '@/services/brands/brands.service'
 import { inventoryService } from '@/services/inventory/inventory.service'
 import { useTenantStore } from '@/store/tenant.store'
 import { Btn, Spinner, Input } from '@/components/ui'
-import { RawScannerModal, lookupProductByBarcode } from '@/scanner'
+import { RawScannerModal, ScannerInputCapture, lookupProductByBarcode } from '@/scanner'
 import type { Product as BackendProduct } from '@/shared/types'
 
 export function generateSKU(): string {
@@ -28,6 +28,14 @@ export interface ProductFormModalProps {
 export function ProductFormModal({ product, initialBarcode, onClose, onSaved }: ProductFormModalProps) {
   const isEdit = !!product
   const selectedBranch = useTenantStore(s => s.selectedBranch)
+
+  // Disable camera scanner and USB scanner on mobile-width browsers (< 700px)
+  const [isMobileWidth, setIsMobileWidth] = useState(() => window.innerWidth < 700)
+  useEffect(() => {
+    const fn = () => setIsMobileWidth(window.innerWidth < 700)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
 
   const { data: categoriesData } = useQuery({
     queryKey: ['categories'],
@@ -82,10 +90,6 @@ export function ProductFormModal({ product, initialBarcode, onClose, onSaved }: 
     if (rp != null) setForm(prev => ({ ...prev, reorder_point: String(Math.round(Number(rp))) }))
   }, [invData])
 
-  const usbBuffer    = useRef('')
-  const usbLastTime  = useRef(0)
-  const usbTimer     = useRef<ReturnType<typeof setTimeout> | null>(null)
-
   const handleScan = useCallback(async (code: string) => {
     if (isEdit) {
       setForm(prev => ({ ...prev, sku: prev.sku || code, barcode: code }))
@@ -105,34 +109,6 @@ export function ProductFormModal({ product, initialBarcode, onClose, onSaved }: 
     toast.success(`Scanned: ${code}`)
   }, [isEdit])
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      const tag = (document.activeElement as HTMLElement | null)?.tagName ?? ''
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return
-      if (e.ctrlKey || e.altKey || e.metaKey) return
-      const now = Date.now()
-      if (e.key === 'Enter') {
-        const code = usbBuffer.current.trim()
-        usbBuffer.current = ''; usbLastTime.current = 0
-        if (usbTimer.current) { clearTimeout(usbTimer.current); usbTimer.current = null }
-        if (code.length >= 3) handleScan(code)
-        return
-      }
-      if (e.key.length === 1) {
-        const gap = now - usbLastTime.current
-        if (usbLastTime.current > 0 && gap > 50) usbBuffer.current = ''
-        usbBuffer.current += e.key; usbLastTime.current = now
-        if (usbTimer.current) clearTimeout(usbTimer.current)
-        usbTimer.current = setTimeout(() => {
-          const code = usbBuffer.current.trim()
-          usbBuffer.current = ''; usbLastTime.current = 0; usbTimer.current = null
-          if (code.length >= 3) handleScan(code)
-        }, 200)
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => { window.removeEventListener('keydown', onKeyDown); if (usbTimer.current) clearTimeout(usbTimer.current) }
-  }, [handleScan])
 
   function set(field: string) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -213,6 +189,7 @@ export function ProductFormModal({ product, initialBarcode, onClose, onSaved }: 
 
   return (
     <>
+      <ScannerInputCapture onScan={handleScan} enabled={!showScanner && !isMobileWidth} />
       {showScanner && (
         <RawScannerModal
           title="Scan Product Barcode"
@@ -230,18 +207,20 @@ export function ProductFormModal({ product, initialBarcode, onClose, onSaved }: 
           </div>
 
           <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 p-6 space-y-4">
-            <button
-              type="button"
-              disabled={barcodeChecking}
-              onClick={() => setShowScanner(true)}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-zinc-700 hover:border-amber-500 hover:text-amber-400 text-zinc-400 text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-                <rect x="7" y="7" width="3" height="10" rx="1"/><rect x="14" y="7" width="3" height="10" rx="1"/>
-              </svg>
-              {barcodeChecking ? 'Checking barcode…' : form.barcode ? `Scanned: ${form.barcode} — tap to re-scan` : 'Tap to scan barcode'}
-            </button>
+            {!isMobileWidth && (
+              <button
+                type="button"
+                disabled={barcodeChecking}
+                onClick={() => setShowScanner(true)}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-zinc-700 hover:border-amber-500 hover:text-amber-400 text-zinc-400 text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+                  <rect x="7" y="7" width="3" height="10" rx="1"/><rect x="14" y="7" width="3" height="10" rx="1"/>
+                </svg>
+                {barcodeChecking ? 'Checking barcode…' : form.barcode ? `Scanned: ${form.barcode} — tap to re-scan` : 'Tap to scan barcode'}
+              </button>
+            )}
 
             {!isEdit && barcodeConflict && (
               <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-amber-950 border border-amber-800">

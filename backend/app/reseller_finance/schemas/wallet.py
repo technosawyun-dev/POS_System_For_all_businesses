@@ -56,8 +56,8 @@ class ManualAdjustmentRequest(BaseSchema):
 
     reseller_id: uuid.UUID
     amount: Decimal = Field(ne=0)
-    transaction_type: str   # MANUAL_ADJUSTMENT | BONUS | PENALTY
-    notes: str
+    transaction_type: str = Field(min_length=1, max_length=50)
+    notes: str = Field(min_length=1, max_length=1000)
 
 
 # Paginated type aliases

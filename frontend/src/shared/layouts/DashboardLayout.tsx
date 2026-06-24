@@ -25,11 +25,13 @@ interface NavItem {
   label: string
   section: string
   icon: ReactNode
+  /** Hide this item on mobile-width browsers (< 768px). Tablet and wider still show it. */
+  tabletOnly?: boolean
 }
 
 const APP_NAV: NavItem[] = [
   { to: '/app/dashboard',     section: 'dashboard',     label: 'nav.dashboard',     icon: <span className="w-[18px] h-[18px] flex items-center justify-center text-base leading-none">🏠</span> },
-  { to: '/app/pos',           section: 'pos',           label: 'nav.checkout',      icon: <IconPOS       width="18" height="18" /> },
+  { to: '/app/pos',           section: 'pos',           label: 'nav.checkout',      icon: <IconPOS       width="18" height="18" />, tabletOnly: true },
   { to: '/app/sales',         section: 'sales',         label: 'nav.sales',         icon: <IconSales     width="18" height="18" /> },
   { to: '/app/products',      section: 'products',      label: 'nav.products',      icon: <IconProducts  width="18" height="18" /> },
   { to: '/app/inventory',     section: 'inventory',     label: 'nav.inventory',     icon: <IconInventory width="18" height="18" /> },
@@ -160,6 +162,7 @@ function SidebarContent({ navGroup, onClose, onSearch }: { navGroup: string; onC
             onClick={onClose}
             className={({ isActive }) => cn(
               'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left',
+              item.tabletOnly && 'hidden md:flex',
               isActive
                 ? 'bg-amber-500/15 border border-amber-500/30 text-amber-400'
                 : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 border border-transparent',

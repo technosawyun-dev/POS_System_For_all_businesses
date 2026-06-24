@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, field_validator
 class OpenSessionRequest(BaseModel):
     branch_id: uuid.UUID
     opening_balance: Decimal = Field(default=Decimal("0"), ge=0)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
     @field_validator("opening_balance")
     @classmethod
@@ -23,7 +23,7 @@ class OpenSessionRequest(BaseModel):
 
 class CloseSessionRequest(BaseModel):
     actual_balance: Decimal = Field(ge=0)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class CashierSessionResponse(BaseModel):

@@ -17,7 +17,7 @@ class CartItemRequest(BaseModel):
     unit_price: Decimal = Field(ge=0)
     discount_amount: Decimal = Field(default=Decimal("0"), ge=0)
     tax_rate: Decimal = Field(default=Decimal("0"), ge=0, le=1)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class CartItemUpdateRequest(BaseModel):
@@ -31,7 +31,7 @@ class CartCreateRequest(BaseModel):
     branch_id: uuid.UUID
     cashier_session_id: uuid.UUID | None = None
     customer_id: uuid.UUID | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class CartItemResponse(BaseModel):
@@ -83,14 +83,14 @@ class CheckoutItemRequest(BaseModel):
     unit_price: Decimal = Field(ge=0)
     discount_amount: Decimal = Field(default=Decimal("0"), ge=0)
     tax_rate: Decimal = Field(default=Decimal("0"), ge=0, le=1)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class CheckoutPaymentRequest(BaseModel):
-    payment_method: str
+    payment_method: str = Field(min_length=1, max_length=100)
     amount: Decimal = Field(gt=0)
-    reference_number: str | None = None
-    notes: str | None = None
+    reference_number: str | None = Field(default=None, max_length=255)
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class CheckoutRequest(BaseModel):
@@ -99,7 +99,7 @@ class CheckoutRequest(BaseModel):
     payments: list[CheckoutPaymentRequest] = Field(default_factory=list)
     customer_id: uuid.UUID | None = None
     discount_amount: Decimal = Field(default=Decimal("0"), ge=0)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
     @field_validator("items")
     @classmethod

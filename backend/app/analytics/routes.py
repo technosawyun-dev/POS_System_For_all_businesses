@@ -40,7 +40,7 @@ from app.api.deps import (
 )
 from app.core.cache import cache_get, cache_set
 from app.core.constants import UserRole
-from app.db.redis import get_redis
+from app.db.redis import get_redis_optional
 from app.models.user import User
 
 router = APIRouter()
@@ -59,7 +59,7 @@ async def get_dashboard(
     tenant_id: EffectiveTenantId,
     request_id: RequestId,
     branch_id: uuid.UUID | None = Query(default=None),
-    redis=Depends(get_redis),
+    redis=Depends(get_redis_optional),
 ) -> DashboardResponse:
     # Cashiers only see their own sales; everyone else sees branch/tenant-level data.
     cashier_user_id = current_user.id if current_user.role == UserRole.CASHIER.value else None
@@ -433,7 +433,9 @@ async def get_profit_report(
     )
 
 
-# CSV exports
+# Exports (CSV and XLSX)
+
+_XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 def _csv_response(data: bytes, filename: str) -> Response:
@@ -442,6 +444,20 @@ def _csv_response(data: bytes, filename: str) -> Response:
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def _xlsx_response(data: bytes, filename: str) -> Response:
+    return Response(
+        content=data,
+        media_type=_XLSX_MIME,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _export_response(data: bytes, basename: str, fmt: str) -> Response:
+    if fmt == "xlsx":
+        return _xlsx_response(data, f"{basename}.xlsx")
+    return _csv_response(data, f"{basename}.csv")
 
 
 @router.get(
@@ -455,6 +471,7 @@ async def export_sales_refunds(
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
     branch_id: uuid.UUID | None = Query(default=None),
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
 ) -> Response:
     svc = ExportService(db)
     data = await svc.export_sales_and_refunds(
@@ -462,9 +479,10 @@ async def export_sales_refunds(
         start_date=start_date,
         end_date=end_date,
         branch_id=branch_id,
+        fmt=fmt,
     )
     period = f"{start_date or 'all'}_{end_date or 'all'}"
-    return _csv_response(data, f"sales_refunds_{period}.csv")
+    return _export_response(data, f"sales_refunds_{period}", fmt)
 
 
 @router.get(
@@ -478,6 +496,7 @@ async def export_orders(
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
     branch_id: uuid.UUID | None = Query(default=None),
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
 ) -> Response:
     svc = ExportService(db)
     data = await svc.export_order_items(
@@ -485,6 +504,349 @@ async def export_orders(
         start_date=start_date,
         end_date=end_date,
         branch_id=branch_id,
+        fmt=fmt,
     )
     period = f"{start_date or 'all'}_{end_date or 'all'}"
-    return _csv_response(data, f"orders_{period}.csv")
+    return _export_response(data, f"orders_{period}", fmt)
+
+
+@router.get(
+    "/export/inventory-stocks",
+    dependencies=[check_reseller_access("analytics:inventory:view")],
+)
+async def export_inventory_stocks(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+    branch_id: uuid.UUID | None = Query(default=None),
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+) -> Response:
+    svc = ExportService(db)
+    data = await svc.export_inventory_stocks(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        fmt=fmt,
+    )
+    return _export_response(data, "inventory_stocks", fmt)
+
+
+@router.get(
+    "/export/top-products",
+    dependencies=[check_reseller_access("analytics:sales:view")],
+)
+async def export_top_products(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    branch_id: uuid.UUID | None = Query(default=None),
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+) -> Response:
+    svc = ExportService(db)
+    data = await svc.export_top_products(
+        tenant_id=tenant_id,
+        start_date=start_date,
+        end_date=end_date,
+        branch_id=branch_id,
+        fmt=fmt,
+    )
+    period = f"{start_date or 'all'}_{end_date or 'all'}"
+    return _export_response(data, f"top_products_{period}", fmt)
+
+
+@router.get(
+    "/export/sales-by-cashier",
+    dependencies=[check_reseller_access("analytics:sales:view")],
+)
+async def export_sales_by_cashier(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    branch_id: uuid.UUID | None = Query(default=None),
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+) -> Response:
+    svc = ExportService(db)
+    data = await svc.export_sales_by_cashier(
+        tenant_id=tenant_id,
+        start_date=start_date,
+        end_date=end_date,
+        branch_id=branch_id,
+        fmt=fmt,
+    )
+    period = f"{start_date or 'all'}_{end_date or 'all'}"
+    return _export_response(data, f"sales_by_cashier_{period}", fmt)
+
+
+@router.get(
+    "/export/sales-by-category",
+    dependencies=[check_reseller_access("analytics:sales:view")],
+)
+async def export_sales_by_category(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    branch_id: uuid.UUID | None = Query(default=None),
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+) -> Response:
+    svc = ExportService(db)
+    data = await svc.export_sales_by_category(
+        tenant_id=tenant_id,
+        start_date=start_date,
+        end_date=end_date,
+        branch_id=branch_id,
+        fmt=fmt,
+    )
+    period = f"{start_date or 'all'}_{end_date or 'all'}"
+    return _export_response(data, f"sales_by_category_{period}", fmt)
+
+
+@router.get(
+    "/export/payment-methods",
+    dependencies=[check_reseller_access("analytics:sales:view")],
+)
+async def export_payment_methods(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    branch_id: uuid.UUID | None = Query(default=None),
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+) -> Response:
+    svc = ExportService(db)
+    data = await svc.export_payment_methods(
+        tenant_id=tenant_id,
+        start_date=start_date,
+        end_date=end_date,
+        branch_id=branch_id,
+        fmt=fmt,
+    )
+    period = f"{start_date or 'all'}_{end_date or 'all'}"
+    return _export_response(data, f"payment_methods_{period}", fmt)
+
+
+@router.get(
+    "/export/sales-trend",
+    dependencies=[check_reseller_access("analytics:sales:view")],
+)
+async def export_sales_trend(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    branch_id: uuid.UUID | None = Query(default=None),
+    granularity: str = Query(default="daily", pattern="^(daily|weekly|monthly)$"),
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+) -> Response:
+    svc = ExportService(db)
+    data = await svc.export_sales_trend(
+        tenant_id=tenant_id,
+        start_date=start_date,
+        end_date=end_date,
+        branch_id=branch_id,
+        granularity=granularity,
+        fmt=fmt,
+    )
+    period = f"{start_date or 'all'}_{end_date or 'all'}"
+    return _export_response(data, f"sales_trend_{granularity}_{period}", fmt)
+
+
+@router.get(
+    "/export/profit-report",
+    dependencies=[check_reseller_access("report:profit")],
+)
+async def export_profit_report(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    branch_id: uuid.UUID | None = Query(default=None),
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+) -> Response:
+    svc = ExportService(db)
+    data = await svc.export_profit_report(
+        tenant_id=tenant_id,
+        start_date=start_date,
+        end_date=end_date,
+        branch_id=branch_id,
+        fmt=fmt,
+    )
+    period = f"{start_date or 'all'}_{end_date or 'all'}"
+    return _export_response(data, f"profit_report_{period}", fmt)
+
+
+@router.get(
+    "/export/low-stock",
+    dependencies=[check_reseller_access("analytics:inventory:view")],
+)
+async def export_low_stock(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+    branch_id: uuid.UUID | None = Query(default=None),
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+) -> Response:
+    svc = ExportService(db)
+    data = await svc.export_low_stock(
+        tenant_id=tenant_id,
+        branch_id=branch_id,
+        fmt=fmt,
+    )
+    return _export_response(data, "low_stock", fmt)
+
+
+@router.get(
+    "/export/fast-moving",
+    dependencies=[check_reseller_access("analytics:inventory:view")],
+)
+async def export_fast_moving(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    branch_id: uuid.UUID | None = Query(default=None),
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+) -> Response:
+    svc = ExportService(db)
+    data = await svc.export_fast_moving(
+        tenant_id=tenant_id,
+        start_date=start_date,
+        end_date=end_date,
+        branch_id=branch_id,
+        fmt=fmt,
+    )
+    period = f"{start_date or 'all'}_{end_date or 'all'}"
+    return _export_response(data, f"fast_moving_{period}", fmt)
+
+
+@router.get(
+    "/export/dead-stock",
+    dependencies=[check_reseller_access("analytics:inventory:view")],
+)
+async def export_dead_stock(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+    days: int = Query(default=90, ge=1, le=365),
+    branch_id: uuid.UUID | None = Query(default=None),
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+) -> Response:
+    svc = ExportService(db)
+    data = await svc.export_dead_stock(
+        tenant_id=tenant_id,
+        days=days,
+        branch_id=branch_id,
+        fmt=fmt,
+    )
+    return _export_response(data, f"dead_stock_{days}days", fmt)
+
+
+@router.get(
+    "/export/stock-movements",
+    dependencies=[check_reseller_access("analytics:inventory:view")],
+)
+async def export_stock_movements(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    branch_id: uuid.UUID | None = Query(default=None),
+    movement_type: str | None = Query(default=None),
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+) -> Response:
+    svc = ExportService(db)
+    data = await svc.export_stock_movements(
+        tenant_id=tenant_id,
+        start_date=start_date,
+        end_date=end_date,
+        branch_id=branch_id,
+        movement_type=movement_type,
+        fmt=fmt,
+    )
+    period = f"{start_date or 'all'}_{end_date or 'all'}"
+    return _export_response(data, f"stock_movements_{period}", fmt)
+
+
+@router.get(
+    "/export/customers",
+    dependencies=[check_reseller_access("analytics:sales:view")],
+)
+async def export_customers(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+) -> Response:
+    svc = ExportService(db)
+    data = await svc.export_customers(tenant_id=tenant_id, fmt=fmt)
+    return _export_response(data, "customers", fmt)
+
+
+@router.get(
+    "/export/purchase-orders",
+    dependencies=[check_reseller_access("analytics:financial:view")],
+)
+async def export_purchase_orders(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+) -> Response:
+    svc = ExportService(db)
+    data = await svc.export_purchase_orders(
+        tenant_id=tenant_id,
+        start_date=start_date,
+        end_date=end_date,
+        fmt=fmt,
+    )
+    period = f"{start_date or 'all'}_{end_date or 'all'}"
+    return _export_response(data, f"purchase_orders_{period}", fmt)
+
+
+@router.get(
+    "/export/goods-receipts",
+    dependencies=[check_reseller_access("analytics:financial:view")],
+)
+async def export_goods_receipts(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+) -> Response:
+    svc = ExportService(db)
+    data = await svc.export_goods_receipts(
+        tenant_id=tenant_id,
+        start_date=start_date,
+        end_date=end_date,
+        fmt=fmt,
+    )
+    period = f"{start_date or 'all'}_{end_date or 'all'}"
+    return _export_response(data, f"goods_receipts_{period}", fmt)
+
+
+@router.get(
+    "/export/supplier-payables",
+    dependencies=[check_reseller_access("analytics:financial:view")],
+)
+async def export_supplier_payables(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_manager_or_above)],
+    tenant_id: EffectiveTenantId,
+    fmt: str = Query(default="csv", alias="format", pattern="^(csv|xlsx)$"),
+) -> Response:
+    svc = ExportService(db)
+    data = await svc.export_supplier_payables(tenant_id=tenant_id, fmt=fmt)
+    return _export_response(data, "supplier_payables", fmt)

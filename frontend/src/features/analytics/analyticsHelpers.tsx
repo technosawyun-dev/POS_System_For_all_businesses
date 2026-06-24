@@ -29,9 +29,14 @@ export function useAnalyticsFilters() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBranch?.id])
 
+  // When no explicit date is chosen, default to "This month" so analytics pages always
+  // show a bounded, predictable range and the preset button always has an active state.
+  const effectiveFrom = from || format(startOfMonth(new Date()), 'yyyy-MM-dd')
+  const effectiveTo   = to   || format(new Date(), 'yyyy-MM-dd')
+
   const apiParams = {
-    ...(from   && { start_date: from }),
-    ...(to     && { end_date: to }),
+    start_date: effectiveFrom,
+    end_date:   effectiveTo,
     ...(branch && { branch_id: branch }),
   }
 
@@ -51,7 +56,7 @@ export function useAnalyticsFilters() {
     }, { replace: true })
   }
 
-  return { from, to, branch, apiParams, setFilters }
+  return { from, to, branch, apiParams, effectiveFrom, effectiveTo, setFilters }
 }
 
 const today = () => format(new Date(), 'yyyy-MM-dd')
@@ -65,7 +70,7 @@ export const DATE_PRESETS = [
 ]
 
 export function AnalyticsFilters({
-  from, to, branch, setFilters, showBranch = true, showDateRange = true,
+  from, to, branch, effectiveFrom, effectiveTo, setFilters, showBranch = true, showDateRange = true,
 }: ReturnType<typeof useAnalyticsFilters> & { showBranch?: boolean; showDateRange?: boolean }) {
   const { availableBranches } = useTenantStore()
 
@@ -87,15 +92,24 @@ export function AnalyticsFilters({
             className="bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-200 text-sm px-3 py-1.5 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
           />
           <div className="flex gap-1 flex-wrap">
-            {DATE_PRESETS.map(p => (
-              <button
-                key={p.label}
-                onClick={() => setFilters({ from: p.from(), to: p.to() })}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700 border border-zinc-700 transition-all duration-150"
-              >
-                {p.label}
-              </button>
-            ))}
+            {DATE_PRESETS.map(p => {
+              // Use effective dates so the implicit default ("This month") glows even
+              // when the URL has no explicit from/to params.
+              const isActive = effectiveFrom === p.from() && effectiveTo === p.to()
+              return (
+                <button
+                  key={p.label}
+                  onClick={() => setFilters({ from: p.from(), to: p.to() })}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all duration-150 ${
+                    isActive
+                      ? 'bg-amber-500/15 text-amber-400 border-amber-500/40 ring-1 ring-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.15)]'
+                      : 'bg-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700 border-zinc-700'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              )
+            })}
             {(from || to) && (
               <button
                 onClick={() => setFilters({ from: '', to: '' })}

@@ -13,7 +13,7 @@ from app.schemas.common import BaseSchema, PaginatedResponse, TimestampedSchema
 
 
 class PlanEntitlementCreate(BaseSchema):
-    feature_code: str
+    feature_code: str = Field(min_length=1, max_length=100)
     enabled: bool = True
     limit_value: int | None = None
 
@@ -26,12 +26,12 @@ class PlanEntitlementResponse(TimestampedSchema):
 
 
 class PlanCreateRequest(BaseSchema):
-    name: str
-    code: str
-    description: str | None = None
-    billing_cycle: str
+    name: str = Field(min_length=1, max_length=255)
+    code: str = Field(min_length=1, max_length=50)
+    description: str | None = Field(default=None, max_length=1000)
+    billing_cycle: str = Field(min_length=1, max_length=50)
     price: Decimal
-    currency: str = "MMK"
+    currency: str = Field(default="MMK", max_length=3)
     trial_days: int = Field(default=0, ge=0)
     is_active: bool = True
     is_trial: bool = False
@@ -50,11 +50,11 @@ class PlanCreateRequest(BaseSchema):
 
 
 class PlanUpdateRequest(BaseSchema):
-    name: str | None = None
-    description: str | None = None
-    billing_cycle: str | None = None
+    name: str | None = Field(default=None, max_length=255)
+    description: str | None = Field(default=None, max_length=1000)
+    billing_cycle: str | None = Field(default=None, max_length=50)
     price: Decimal | None = None
-    currency: str | None = None
+    currency: str | None = Field(default=None, max_length=3)
     trial_days: int | None = None
     is_active: bool | None = None
     is_trial: bool | None = None
@@ -144,7 +144,7 @@ class RegisterRequest(BaseSchema):
     email: EmailStr
     phone: str | None = None
     password: str = Field(min_length=8, max_length=128)
-    referral_code: str | None = None
+    referral_code: str | None = Field(default=None, max_length=50)
 
     @field_validator("password")
     @classmethod
@@ -198,7 +198,7 @@ class SubscriptionResponse(TimestampedSchema):
 class PaymentProofCreateRequest(BaseSchema):
     amount: Decimal
     currency: str = "MMK"
-    reference_number: str | None = None
+    reference_number: str | None = Field(default=None, max_length=255)
     proof_file_url: str
     action_type: ProofActionType = ProofActionType.INITIAL_ACTIVATION
     target_plan_id: uuid.UUID | None = None
@@ -250,7 +250,7 @@ class ChangePlanRequest(BaseSchema):
 
 
 class ReviewProofRequest(BaseSchema):
-    review_notes: str | None = None
+    review_notes: str | None = Field(default=None, max_length=1000)
 
 
 # Paginated type aliases
@@ -261,17 +261,17 @@ PaginatedPaymentProofs = PaginatedResponse[PaymentProofResponse]
 
 
 class TenantEntitlementOverrideCreateRequest(BaseSchema):
-    feature_code: str
+    feature_code: str = Field(min_length=1, max_length=100)
     enabled: bool | None = None
     limit_value: int | None = None
-    reason: str | None = None
+    reason: str | None = Field(default=None, max_length=500)
     expires_at: datetime | None = None
 
 
 class TenantEntitlementOverrideUpdateRequest(BaseSchema):
     enabled: bool | None = None
     limit_value: int | None = None
-    reason: str | None = None
+    reason: str | None = Field(default=None, max_length=500)
     expires_at: datetime | None = None
 
 
@@ -306,12 +306,12 @@ class SubscriptionOverviewResponse(BaseSchema):
 
 class ExtendSubscriptionRequest(BaseSchema):
     days: int = Field(ge=1, le=3650)
-    reason: str | None = None
+    reason: str | None = Field(default=None, max_length=500)
 
 
 class AdminChangePlanRequest(BaseSchema):
     plan_id: uuid.UUID
-    reason: str | None = None
+    reason: str | None = Field(default=None, max_length=500)
 
 
 # Paginated admin type aliases

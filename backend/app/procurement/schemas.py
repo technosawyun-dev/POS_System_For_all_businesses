@@ -39,7 +39,7 @@ class PurchaseOrderCreate(BaseSchema):
     supplier_id: uuid.UUID
     order_date: datetime
     expected_date: datetime | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=1000)
     discount_amount: Decimal = Field(default=Decimal("0"), ge=0)
     tax_amount: Decimal = Field(default=Decimal("0"), ge=0)
     items: list[PurchaseOrderItemCreate] = Field(min_length=1)
@@ -53,7 +53,7 @@ class PurchaseOrderCreate(BaseSchema):
 class PurchaseOrderUpdate(BaseSchema):
     order_date: datetime | None = None
     expected_date: datetime | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=1000)
     discount_amount: Decimal | None = None
     tax_amount: Decimal | None = None
     items: list[PurchaseOrderItemCreate] | None = None
@@ -114,7 +114,7 @@ class GoodsReceiptCreate(BaseSchema):
     purchase_order_id: uuid.UUID
     branch_id: uuid.UUID
     receipt_date: datetime
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=1000)
     items: list[GoodsReceiptItemCreate] = Field(min_length=1)
 
 
@@ -140,10 +140,10 @@ PaginatedGoodsReceipts = PaginatedResponse[GoodsReceiptSummary]
 
 class SupplierPaymentCreate(BaseSchema):
     payment_method: str = Field(min_length=1, max_length=50)
-    reference_number: str | None = None
+    reference_number: str | None = Field(default=None, max_length=255)
     amount: Decimal = Field(gt=0)
     payment_date: datetime
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
     @field_validator("amount", mode="before")
     @classmethod

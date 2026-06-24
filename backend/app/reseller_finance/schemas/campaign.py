@@ -4,6 +4,8 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
+from pydantic import Field
+
 from app.schemas.common import BaseSchema, TimestampedSchema
 
 
@@ -11,7 +13,7 @@ from app.schemas.common import BaseSchema, TimestampedSchema
 
 
 class NoteCreateRequest(BaseSchema):
-    note: str
+    note: str = Field(min_length=1, max_length=2000)
 
 
 class NoteResponse(BaseSchema):

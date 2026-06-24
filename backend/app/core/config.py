@@ -104,6 +104,13 @@ class Settings(BaseSettings):
     SUPER_ADMIN_FIRST_NAME: str = "Super"
     SUPER_ADMIN_LAST_NAME: str = "Admin"
 
+    @field_validator("JWT_SECRET_KEY", "APP_SECRET_KEY")
+    @classmethod
+    def validate_secret_length(cls, v: str) -> str:
+        if len(v) < 32:
+            raise ValueError("Secret key must be at least 32 characters for security")
+        return v
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: Any) -> list[str]:

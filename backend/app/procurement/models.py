@@ -86,7 +86,7 @@ class PurchaseOrder(Base):
     )
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=False
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -169,7 +169,7 @@ class GoodsReceipt(Base):
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     received_by: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=False
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
 
     items: Mapped[list[GoodsReceiptItem]] = relationship(
@@ -280,7 +280,7 @@ class SupplierPayment(Base):
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     recorded_by: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=False
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
 
     payable: Mapped[SupplierPayable] = relationship("SupplierPayable", back_populates="payments")

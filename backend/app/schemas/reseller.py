@@ -15,7 +15,7 @@ class ResellerAssignmentCreateRequest(BaseSchema):
     restricted_permissions: list[str] = Field(default_factory=list)
     access_starts_at: datetime | None = None
     access_expires_at: datetime | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class ResellerAssignmentUpdateRequest(BaseSchema):
@@ -24,7 +24,7 @@ class ResellerAssignmentUpdateRequest(BaseSchema):
     access_starts_at: datetime | None = None
     access_expires_at: datetime | None = None
     is_active: bool | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class ResellerAssignmentResponse(TimestampedSchema):

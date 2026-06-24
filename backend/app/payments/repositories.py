@@ -45,6 +45,26 @@ class PaymentRepository(BaseRepository[Payment]):
         )
         return result.scalar_one()
 
+    async def get_cash_refunds_for_session(
+        self,
+        cashier_session_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+    ) -> Decimal:
+        """Sum of cash refunds issued for orders belonging to a cashier session."""
+        from app.sales.models import Order
+        from app.payments.models import Refund
+
+        result = await self.session.execute(
+            select(func.coalesce(func.sum(Refund.amount), Decimal("0")))
+            .join(Order, Order.id == Refund.order_id)
+            .where(
+                Order.cashier_session_id == cashier_session_id,
+                Order.tenant_id == tenant_id,
+                Refund.refund_type == "CASH",
+            )
+        )
+        return result.scalar_one()
+
     async def get_by_tenant(
         self,
         tenant_id: uuid.UUID,

@@ -9,12 +9,13 @@ from app.schemas.common import BaseSchema
 
 class LoginRequest(BaseSchema):
     # Owner / admin / reseller login — email or phone
-    email: str | None = None
-    phone: str | None = None
+    email: str | None = Field(default=None, max_length=255)
+    phone: str | None = Field(default=None, max_length=50)
     # Staff login: business_code + identifier (phone or email)
-    business_code: str | None = None
-    identifier: str | None = None
-    password: str = Field(min_length=1)
+    business_code: str | None = Field(default=None, max_length=50)
+    identifier: str | None = Field(default=None, max_length=255)
+    # max_length=128 prevents bcrypt DoS via oversized password strings
+    password: str = Field(min_length=1, max_length=128)
 
     @model_validator(mode="after")
     def validate_mode(self) -> "LoginRequest":
@@ -34,11 +35,11 @@ class TokenResponse(BaseSchema):
 
 
 class LogoutRequest(BaseSchema):
-    refresh_token: str | None = None
+    refresh_token: str | None = Field(default=None, max_length=2048)
 
 
 class ChangePasswordRequest(BaseSchema):
-    current_password: str = Field(min_length=1)
+    current_password: str = Field(min_length=1, max_length=128)
     new_password: str = Field(min_length=8, max_length=128)
 
     @field_validator("new_password")
@@ -66,7 +67,7 @@ class ForgotPasswordRequest(BaseSchema):
 
 
 class ResetPasswordRequest(BaseSchema):
-    token: str = Field(min_length=1)
+    token: str = Field(min_length=1, max_length=256)
     new_password: str = Field(min_length=8, max_length=128)
 
     @field_validator("new_password")

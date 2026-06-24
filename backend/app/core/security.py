@@ -85,7 +85,7 @@ def decode_token(token: str) -> dict[str, Any]:
         )
         return payload
     except JWTError as exc:
-        raise TokenError(f"Invalid token: {exc}") from exc
+        raise TokenError() from exc
 
 
 def decode_refresh_token(token: str) -> dict[str, Any]:

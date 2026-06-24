@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 
 const TABS = [
@@ -12,6 +12,8 @@ const TABS = [
 ]
 
 export default function AnalyticsLayout() {
+  const location = useLocation()
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Tab bar */}
@@ -20,7 +22,7 @@ export default function AnalyticsLayout() {
           {TABS.map(tab => (
             <NavLink
               key={tab.to}
-              to={tab.to}
+              to={{ pathname: tab.to, search: location.search }}
               className={({ isActive }) => cn(
                 'px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-all duration-150',
                 isActive

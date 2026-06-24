@@ -29,7 +29,7 @@ export const customersService = {
     apiClient.get<PaginatedResponse<Customer>>('/customers', { params }).then(r => r.data),
 
   search: (query: string) =>
-    apiClient.get<Customer[]>('/customers/search', { params: { q: query } }).then(r => r.data),
+    apiClient.get<PaginatedResponse<Customer>>('/customers/search', { params: { q: query } }).then(r => r.data.items ?? []),
 
   get: (id: string) =>
     apiClient.get<Customer>(`/customers/${id}`).then(r => r.data),

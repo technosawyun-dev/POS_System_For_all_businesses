@@ -36,3 +36,17 @@ async def close_redis_pool() -> None:
 async def get_redis() -> AsyncGenerator[Redis, None]:
     pool = await get_redis_pool()
     yield pool
+
+
+async def get_redis_optional() -> AsyncGenerator[Redis | None, None]:
+    """Fail-open Redis dependency.
+
+    Yields the Redis connection when available, None when Redis is unreachable.
+    Use this for endpoints where Redis is used for rate-limiting or caching but
+    must never block the primary operation (login, password reset, etc.).
+    """
+    try:
+        pool = await get_redis_pool()
+        yield pool
+    except Exception:
+        yield None

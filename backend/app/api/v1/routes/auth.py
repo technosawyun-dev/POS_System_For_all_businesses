@@ -11,7 +11,7 @@ from app.api.deps import (
 )
 from app.core.config import settings
 from app.core.rate_limit import check_rate_limit, check_registration_rate_limit
-from app.db.redis import get_redis
+from app.db.redis import get_redis_optional
 from app.notifications.email import send_password_reset_email
 from app.schemas.auth import (
     ChangePasswordRequest,
@@ -37,6 +37,7 @@ async def login(
     ip: ClientIp,
     ua: UserAgent,
     request_id: RequestId,
+    redis=Depends(get_redis_optional),
 ) -> TokenResponse:
     service = AuthService(db)
     token_response, refresh_token = await service.login(
@@ -48,6 +49,7 @@ async def login(
         ip_address=ip,
         user_agent=ua,
         request_id=request_id,
+        redis=redis,
     )
     response.set_cookie(
         key=settings.JWT_REFRESH_TOKEN_COOKIE_NAME,
@@ -155,7 +157,7 @@ async def forgot_password(
     db: DbSession,
     request_id: RequestId,
     ip: ClientIp,
-    redis=Depends(get_redis),
+    redis=Depends(get_redis_optional),
 ) -> SuccessResponse:
     # Rate limit: 5 attempts per email per hour to prevent abuse
     await check_rate_limit(
@@ -183,7 +185,17 @@ async def reset_password(
     payload: ResetPasswordRequest,
     db: DbSession,
     request_id: RequestId,
+    ip: ClientIp,
+    redis=Depends(get_redis_optional),
 ) -> SuccessResponse:
+    # Rate limit: 10 attempts per IP per hour — token entropy is high but limit anyway
+    await check_rate_limit(
+        redis=redis,
+        key=f"rate:reset_password:{ip or 'unknown'}",
+        max_requests=10,
+        window_seconds=3600,
+        error_message="Too many password reset attempts. Please try again in an hour.",
+    )
     service = AuthService(db)
     await service.reset_password(
         token=payload.token,
@@ -201,7 +213,7 @@ async def register(
     ip: ClientIp,
     ua: UserAgent,
     request_id: RequestId,
-    redis=Depends(get_redis),
+    redis=Depends(get_redis_optional),
     ref: str | None = Query(default=None, description="Referral code from ?ref=CODE link"),
 ) -> RegistrationResponse:
     # Merge query-param referral code into payload (query param takes precedence)

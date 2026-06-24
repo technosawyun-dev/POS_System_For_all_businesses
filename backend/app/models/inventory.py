@@ -177,7 +177,7 @@ class StockMovement(Base):
 
     actor_user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
     )
 
@@ -219,7 +219,7 @@ class InventoryAdjustment(Base):
 
     actor_user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
     )
     # Approval fields — prepared for future approval workflow
@@ -316,7 +316,7 @@ class InventoryTransfer(Base):
 
     requested_by_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
     )
     approved_by_id: Mapped[uuid.UUID | None] = mapped_column(

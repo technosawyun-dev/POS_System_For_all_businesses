@@ -109,3 +109,14 @@ Thumbs.db
 # Profiling / benchmark output
 *.prof
 benchmark_results*.json
+
+# direnv
+.envrc
+
+# Secrets / credential files
+secrets/
+*.secret
+*.secrets
+
+# Python version management (pyenv)
+.python-version

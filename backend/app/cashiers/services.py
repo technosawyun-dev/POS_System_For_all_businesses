@@ -107,12 +107,16 @@ class CashierSessionService:
 
         now = datetime.now(timezone.utc)
 
-        # Calculate expected balance: opening + net cash sales
+        # Calculate expected balance: opening + cash sales - cash refunds
         cash_sales_total = await self.payment_repo.get_cash_total_for_session(
             cashier_session_id=session_id,
             tenant_id=tenant_id,
         )
-        expected_balance = cs.opening_balance + cash_sales_total
+        cash_refunds_total = await self.payment_repo.get_cash_refunds_for_session(
+            cashier_session_id=session_id,
+            tenant_id=tenant_id,
+        )
+        expected_balance = cs.opening_balance + cash_sales_total - cash_refunds_total
         discrepancy = actual_balance - expected_balance
 
         cs.status = CashierSessionStatus.CLOSED

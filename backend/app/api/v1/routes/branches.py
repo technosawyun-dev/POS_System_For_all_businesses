@@ -24,6 +24,20 @@ from app.services.branch_service import BranchService
 router = APIRouter()
 
 
+def _assert_tenant_access(current_user, tenant_id: uuid.UUID) -> None:
+    """Raise AuthorizationError when the caller's tenant does not match the path tenant.
+
+    SUPER_ADMIN bypasses this check and may operate on any tenant.
+    All other roles (including RESELLER) must own the tenant in their JWT.
+    """
+    from app.core.constants import UserRole
+    from app.core.exceptions import AuthorizationError
+    if current_user.role == UserRole.SUPER_ADMIN.value:
+        return
+    if not current_user.tenant_id or current_user.tenant_id != tenant_id:
+        raise AuthorizationError("Access denied: you do not have permission for this tenant")
+
+
 @router.post(
     "",
     response_model=BranchResponse,
@@ -38,6 +52,7 @@ async def create_branch(
     current_user: CurrentUser,
     request_id: RequestId,
 ) -> BranchResponse:
+    _assert_tenant_access(current_user, tenant_id)
     from app.core.constants import BranchStatus, UserRole
     from app.models.branch import Branch
     from sqlalchemy import func, select
@@ -74,6 +89,7 @@ async def list_branches(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=500),
 ) -> PaginatedResponse[BranchResponse]:
+    _assert_tenant_access(current_user, tenant_id)
     service = BranchService(db)
     branches, total = await service.list_branches(tenant_id=tenant_id, page=page, page_size=page_size)
     return PaginatedResponse.create(
@@ -95,6 +111,7 @@ async def get_branch(
     db: DbSession,
     current_user: CurrentUser,
 ) -> BranchResponse:
+    _assert_tenant_access(current_user, tenant_id)
     service = BranchService(db)
     branch = await service.get_branch(branch_id=branch_id, tenant_id=tenant_id)
     return BranchResponse.model_validate(branch)
@@ -114,6 +131,7 @@ async def update_branch(
     current_user: CurrentUser,
     request_id: RequestId,
 ) -> BranchResponse:
+    _assert_tenant_access(current_user, tenant_id)
     service = BranchService(db)
     branch = await service.update_branch(
         branch_id=branch_id,
@@ -139,6 +157,7 @@ async def update_branch_status(
     current_user: CurrentUser,
     request_id: RequestId,
 ) -> BranchResponse:
+    _assert_tenant_access(current_user, tenant_id)
     service = BranchService(db)
     branch = await service.update_branch_status(
         branch_id=branch_id,
@@ -163,6 +182,7 @@ async def delete_branch(
     current_user: CurrentUser,
     request_id: RequestId,
 ) -> SuccessResponse:
+    _assert_tenant_access(current_user, tenant_id)
     service = BranchService(db)
     await service.soft_delete_branch(
         branch_id=branch_id,

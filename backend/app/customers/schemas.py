@@ -51,12 +51,12 @@ class AddContactRequest(BaseSchema):
 
 
 class AddNoteRequest(BaseSchema):
-    note: str = Field(min_length=1)
+    note: str = Field(min_length=1, max_length=2000)
 
 
 class RecordPaymentRequest(BaseSchema):
     amount: Decimal = Field(gt=0)
-    note: str | None = None
+    note: str | None = Field(default=None, max_length=500)
     reference_type: str | None = Field(default=None, max_length=100)
     reference_id: str | None = Field(default=None, max_length=255)
 
@@ -64,7 +64,7 @@ class RecordPaymentRequest(BaseSchema):
 class AdjustBalanceRequest(BaseSchema):
     # Signed amount: positive = increase debt, negative = decrease debt / grant credit
     amount: Decimal
-    note: str | None = None
+    note: str | None = Field(default=None, max_length=500)
     reference_type: str | None = Field(default=None, max_length=100)
     reference_id: str | None = Field(default=None, max_length=255)
 

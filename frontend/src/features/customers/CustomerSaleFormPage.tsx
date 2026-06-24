@@ -118,14 +118,14 @@ export default function CustomerSaleFormPage() {
   const { data: productsData, isLoading: productsLoading } = useQuery({
     queryKey: ['customer-sale-products', debouncedSearch],
     queryFn: () =>
-      productsService.list({ search: debouncedSearch || undefined, page_size: 50, is_active: true }),
+      productsService.list({ search: debouncedSearch || undefined, page_size: 500, is_active: true }),
   })
 
   const branchId = activeSession?.branch_id ?? selectedBranch?.id ?? ''
 
   const { data: inventoryData } = useQuery({
     queryKey: ['inventory', branchId],
-    queryFn: () => inventoryService.getBranchInventory(branchId, { page_size: 200 }),
+    queryFn: () => inventoryService.getBranchInventory(branchId, { page_size: 500 }),
     enabled: !!branchId,
   })
 

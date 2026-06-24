@@ -65,13 +65,16 @@ class PaymentService:
         await self.session.flush()
         await self.session.refresh(payment)
 
-        # Recalculate order payment_status
+        # Recalculate order payment_status, accounting for any prior refunds
         all_payments = await self.payment_repo.get_by_order(order_id)
         total_paid = sum(p.amount for p in all_payments if p.payment_status == PaymentStatus.PAID)
-        if total_paid >= order.total_amount:
+        net_due = order.total_amount - order.refunded_amount
+        if total_paid >= net_due:
             order.payment_status = PaymentStatus.PAID
-        else:
+        elif total_paid > Decimal("0"):
             order.payment_status = PaymentStatus.PARTIAL
+        else:
+            order.payment_status = PaymentStatus.PENDING
         await self.session.flush()
 
         await self.audit.log(

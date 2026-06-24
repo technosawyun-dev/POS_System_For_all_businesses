@@ -69,9 +69,54 @@ export const analyticsService = {
   getProfitReport: (params?: AnalyticsParams & { by?: 'product' | 'category' | 'branch' }) =>
     apiClient.get<ProfitReport>('/analytics/financial/profit', { params }).then(r => r.data),
 
-  exportSalesRefunds: (params?: AnalyticsParams) =>
+  exportSalesRefunds: (params?: AnalyticsParams & { format?: 'csv' | 'xlsx' }) =>
     apiClient.get<Blob>('/analytics/export/sales-refunds', { params, responseType: 'blob' }).then(r => r.data),
 
-  exportOrders: (params?: AnalyticsParams) =>
+  exportOrders: (params?: AnalyticsParams & { format?: 'csv' | 'xlsx' }) =>
     apiClient.get<Blob>('/analytics/export/orders', { params, responseType: 'blob' }).then(r => r.data),
+
+  exportInventoryStocks: (params?: { branch_id?: string; format?: 'csv' | 'xlsx' }) =>
+    apiClient.get<Blob>('/analytics/export/inventory-stocks', { params, responseType: 'blob' }).then(r => r.data),
+
+  exportTopProducts: (params?: AnalyticsParams & { format?: 'csv' | 'xlsx' }) =>
+    apiClient.get<Blob>('/analytics/export/top-products', { params, responseType: 'blob' }).then(r => r.data),
+
+  exportSalesByCashier: (params?: AnalyticsParams & { format?: 'csv' | 'xlsx' }) =>
+    apiClient.get<Blob>('/analytics/export/sales-by-cashier', { params, responseType: 'blob' }).then(r => r.data),
+
+  exportSalesByCategory: (params?: AnalyticsParams & { format?: 'csv' | 'xlsx' }) =>
+    apiClient.get<Blob>('/analytics/export/sales-by-category', { params, responseType: 'blob' }).then(r => r.data),
+
+  exportPaymentMethods: (params?: AnalyticsParams & { format?: 'csv' | 'xlsx' }) =>
+    apiClient.get<Blob>('/analytics/export/payment-methods', { params, responseType: 'blob' }).then(r => r.data),
+
+  exportSalesTrend: (params?: AnalyticsParams & { granularity?: string; format?: 'csv' | 'xlsx' }) =>
+    apiClient.get<Blob>('/analytics/export/sales-trend', { params, responseType: 'blob' }).then(r => r.data),
+
+  exportProfitReport: (params?: AnalyticsParams & { format?: 'csv' | 'xlsx' }) =>
+    apiClient.get<Blob>('/analytics/export/profit-report', { params, responseType: 'blob' }).then(r => r.data),
+
+  exportLowStock: (params?: { branch_id?: string; format?: 'csv' | 'xlsx' }) =>
+    apiClient.get<Blob>('/analytics/export/low-stock', { params, responseType: 'blob' }).then(r => r.data),
+
+  exportFastMoving: (params?: AnalyticsParams & { format?: 'csv' | 'xlsx' }) =>
+    apiClient.get<Blob>('/analytics/export/fast-moving', { params, responseType: 'blob' }).then(r => r.data),
+
+  exportDeadStock: (params?: { branch_id?: string; days?: number; format?: 'csv' | 'xlsx' }) =>
+    apiClient.get<Blob>('/analytics/export/dead-stock', { params, responseType: 'blob' }).then(r => r.data),
+
+  exportStockMovements: (params?: AnalyticsParams & { movement_type?: string; format?: 'csv' | 'xlsx' }) =>
+    apiClient.get<Blob>('/analytics/export/stock-movements', { params, responseType: 'blob' }).then(r => r.data),
+
+  exportCustomers: (params?: { format?: 'csv' | 'xlsx' }) =>
+    apiClient.get<Blob>('/analytics/export/customers', { params, responseType: 'blob' }).then(r => r.data),
+
+  exportPurchaseOrders: (params?: { start_date?: string; end_date?: string; format?: 'csv' | 'xlsx' }) =>
+    apiClient.get<Blob>('/analytics/export/purchase-orders', { params, responseType: 'blob' }).then(r => r.data),
+
+  exportGoodsReceipts: (params?: { start_date?: string; end_date?: string; format?: 'csv' | 'xlsx' }) =>
+    apiClient.get<Blob>('/analytics/export/goods-receipts', { params, responseType: 'blob' }).then(r => r.data),
+
+  exportSupplierPayables: (params?: { format?: 'csv' | 'xlsx' }) =>
+    apiClient.get<Blob>('/analytics/export/supplier-payables', { params, responseType: 'blob' }).then(r => r.data),
 }

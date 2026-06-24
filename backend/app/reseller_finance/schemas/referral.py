@@ -3,6 +3,8 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
+from pydantic import Field
+
 from app.schemas.common import BaseSchema, PaginatedResponse, TimestampedSchema
 
 
@@ -15,7 +17,7 @@ class ReferralCodeCreateRequest(BaseSchema):
     If ``code`` is omitted, the system will auto-generate one.
     """
 
-    code: str | None = None
+    code: str | None = Field(default=None, max_length=50)
 
 
 class ReferralCodeUpdateRequest(BaseSchema):
@@ -27,7 +29,7 @@ class ReferralCodeUpdateRequest(BaseSchema):
 class AddTenantReferralRequest(BaseSchema):
     """Associate a tenant with a reseller via a referral code at registration."""
 
-    referral_code: str
+    referral_code: str = Field(min_length=1, max_length=50)
 
 
 # Response schemas

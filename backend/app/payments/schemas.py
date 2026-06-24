@@ -8,10 +8,10 @@ from pydantic import BaseModel, Field
 
 
 class AddPaymentRequest(BaseModel):
-    payment_method: str
+    payment_method: str = Field(min_length=1, max_length=100)
     amount: Decimal = Field(gt=0)
-    reference_number: str | None = None
-    notes: str | None = None
+    reference_number: str | None = Field(default=None, max_length=255)
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class PaymentResponse(BaseModel):
@@ -46,9 +46,9 @@ class RefundItemRequest(BaseModel):
 
 class RefundRequest(BaseModel):
     order_id: uuid.UUID
-    reason: str
+    reason: str = Field(min_length=1, max_length=500)
     items: list[RefundItemRequest] = Field(min_length=1)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
     refund_method: str = Field(default="CASH", pattern="^(CASH|REPLACEMENT)$")
 
 

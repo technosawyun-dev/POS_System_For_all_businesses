@@ -102,9 +102,23 @@ export default function PaymentOverlay() {
         tax_rate:        tenantTaxRate.toFixed(4),
       }
     })
+    // Normalize split payment amounts so their sum equals the order total.
+    // A cashier may tender more cash than the remaining balance (giving change),
+    // but only the actual charged amount should be stored in finance records.
+    const normalizedSplits = (() => {
+      const splitTotal = splitPayments.reduce((s, p) => s + p.amount, 0)
+      const excess = splitTotal - totals.total
+      if (excess <= 0) return splitPayments
+      // Trim the excess from the last payment in the list
+      return splitPayments.map((sp, i) =>
+        i === splitPayments.length - 1
+          ? { ...sp, amount: Math.max(0, sp.amount - excess) }
+          : sp
+      )
+    })()
     const payments: { payment_method: string; amount: string; notes?: string }[] =
       paymentMethod === 'split'
-        ? splitPayments.map(sp => ({
+        ? normalizedSplits.map(sp => ({
             payment_method: toBackendMethod(sp.method),
             amount: sp.amount.toFixed(2),
             notes: sp.notes || undefined,

@@ -65,6 +65,12 @@ apiClient.interceptors.response.use(
 
     const original = err.config as InternalAxiosRequestConfig & { _retry?: boolean }
 
+    if (err.response?.status === 429) {
+      // Surface rate-limit errors immediately — React Query will not retry them
+      // (shouldRetry blocks retries on 4xx), so no need to handle retry-after here.
+      return Promise.reject(err)
+    }
+
     if (err.response?.status === 402) {
       const code = (err.response?.data as any)?.error?.code
       if (code === 'SUBSCRIPTION_EXPIRED' || code === 'SUBSCRIPTION_SUSPENDED') {
@@ -124,6 +130,11 @@ apiClient.interceptors.response.use(
       } catch (refreshErr) {
         processQueue(refreshErr, null)
         tokenStorage.clear()
+        // Wipe persisted Zustand auth state synchronously before navigating.
+        // If we only clear the token, the next page load rehydrates isAuthenticated=true
+        // from localStorage, the RoleGuard passes, the dashboard fires requests → 401
+        // → refresh → 401 → back to login: an infinite blink loop.
+        localStorage.removeItem('nexuspos-auth')
         window.location.href = '/login'
         return Promise.reject(refreshErr)
       } finally {

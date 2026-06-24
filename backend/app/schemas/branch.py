@@ -40,8 +40,8 @@ class BranchStatusUpdateRequest(BaseSchema):
 
 class BranchSettingsUpdateRequest(BaseSchema):
     opening_hours: dict | None = None
-    receipt_header: str | None = None
-    receipt_footer: str | None = None
+    receipt_header: str | None = Field(default=None, max_length=500)
+    receipt_footer: str | None = Field(default=None, max_length=500)
     extra_settings: dict | None = None
 
 

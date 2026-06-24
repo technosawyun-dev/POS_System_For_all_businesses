@@ -20,7 +20,7 @@ class PayoutRequestCreate(BaseSchema):
     """
 
     amount: Decimal = Field(gt=0)
-    reason: str | None = None
+    reason: str | None = Field(default=None, max_length=500)
 
 
 class AdminPayoutCreate(BaseSchema):
@@ -28,13 +28,13 @@ class AdminPayoutCreate(BaseSchema):
 
     reseller_id: uuid.UUID
     amount: Decimal = Field(gt=0)
-    reason: str
+    reason: str = Field(min_length=1, max_length=500)
 
 
 class PayoutReviewRequest(BaseSchema):
     """Optional notes when approving or rejecting a payout."""
 
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class PayoutMarkPaidRequest(BaseSchema):
@@ -43,9 +43,9 @@ class PayoutMarkPaidRequest(BaseSchema):
     All fields are optional audit metadata; at least one is recommended.
     """
 
-    payout_method: str | None = None      # e.g. "bank_transfer", "mobile_money"
-    payout_reference: str | None = None   # external transaction / receipt number
-    payout_notes: str | None = None
+    payout_method: str | None = Field(default=None, max_length=100)
+    payout_reference: str | None = Field(default=None, max_length=255)
+    payout_notes: str | None = Field(default=None, max_length=500)
 
 
 # Response schemas

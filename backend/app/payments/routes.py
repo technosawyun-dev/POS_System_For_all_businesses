@@ -53,8 +53,7 @@ async def _enrich_refund_response(refund, db) -> RefundResponse:
 
     item_responses = []
     for ri in refund.items:
-        pname, vname = name_map.get(ri.id if hasattr(ri, 'id') else ri.order_item_id,
-                                    name_map.get(ri.order_item_id, ("", None)))
+        pname, vname = name_map.get(ri.order_item_id, ("", None))
         item_data = {
             "id": ri.id,
             "refund_id": ri.refund_id,

@@ -11,8 +11,7 @@ import { categoriesService } from '@/services/categories/categories.service'
 import { IconSearch, IconBarcode, IconCash, IconExpand, IconCompress } from '@/components/icons'
 import { Kbd, Spinner } from '@/components/ui'
 import { cn } from '@/lib/utils'
-import { ScannerInputCapture } from '@/scanner'
-import { lookupProductBySku } from '@/scanner'
+import { ScannerInputCapture, lookupProductBySku, lookupProductByBarcode } from '@/scanner'
 import type { Product } from '@/types'
 import type { Product as SharedProduct } from '@/shared/types'
 import CategoryFilter from '@/features/pos/CategoryFilter'
@@ -73,6 +72,14 @@ export default function POSScreen() {
   const [mobileTab, setMobileTab] = useState<'products' | 'cart'>('products')
   const [scannerOpen, setScannerOpen] = useState(false)
 
+  // Block POS on mobile-width browsers — tablet (≥700px) and wider only
+  const [isMobileWidth, setIsMobileWidth] = useState(() => window.innerWidth < 700)
+  useEffect(() => {
+    const fn = () => setIsMobileWidth(window.innerWidth < 700)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
+
   const { posFocusMode, togglePosFocusMode, setPosFocusMode } = useUIStore()
 
   // Desktop: hide sidebar + enter browser fullscreen together
@@ -124,14 +131,14 @@ export default function POSScreen() {
   // Fetch products
   const { data: productsData, isLoading: productsLoading } = useQuery({
     queryKey: ['products', debouncedSearch],
-    queryFn: () => productsService.list({ search: debouncedSearch || undefined, page_size: 200, is_active: true }),
+    queryFn: () => productsService.list({ search: debouncedSearch || undefined, page_size: 500, is_active: true }),
     enabled: !!activeSession,
   })
 
   // Fetch inventory for the session's branch
   const { data: inventoryData } = useQuery({
     queryKey: ['inventory', branchId],
-    queryFn: () => inventoryService.getBranchInventory(branchId, { page_size: 200 }),
+    queryFn: () => inventoryService.getBranchInventory(branchId, { page_size: 500 }),
     enabled: !!branchId,
   })
 
@@ -193,7 +200,9 @@ export default function POSScreen() {
 
   // Handle USB/Bluetooth keyboard-emulation scanner input
   const handleHardwareScan = useCallback(async (code: string) => {
-    const result = await lookupProductBySku(code)
+    setRawSearch('') // clear the one char that reached the input before burst was detected
+    let result = await lookupProductByBarcode(code)
+    if (result.status === 'not_found') result = await lookupProductBySku(code)
     if (result.status === 'found') {
       handleScanResult(result.product)
     } else if (result.status === 'not_found') {
@@ -229,12 +238,30 @@ export default function POSScreen() {
 
   if (!activeSession) return null
 
+  if (isMobileWidth) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-6 px-8 text-center">
+        <svg width="72" height="72" viewBox="0 0 24 24" fill="none" className="text-zinc-600" stroke="currentColor" strokeWidth="1.2">
+          <rect x="5" y="2" width="14" height="20" rx="2" />
+          <path d="M9 18h6" strokeLinecap="round" />
+        </svg>
+        <div>
+          <h2 className="text-xl font-bold text-zinc-100 mb-2">Tablet or Desktop Required</h2>
+          <p className="text-zinc-400 text-sm leading-relaxed max-w-xs mx-auto">
+            The POS checkout is not available on mobile-sized screens.
+            Please use a tablet or desktop browser.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-full overflow-hidden relative">
-      {/* USB/Bluetooth hardware scanner — always listening when POS is active */}
+      {/* USB/Bluetooth hardware scanner — disabled on mobile-width browsers */}
       <ScannerInputCapture
         onScan={handleHardwareScan}
-        enabled={!scannerOpen && checkoutStep === 'cart'}
+        enabled={!isMobileWidth && !scannerOpen && checkoutStep === 'cart'}
       />
 
       {/* Camera scanner modal — lazy-loaded; html5-qrcode only downloads when opened */}
@@ -319,14 +346,17 @@ export default function POSScreen() {
                 <Kbd keys="/" />
               </span>
             </div>
-            <button
-              onClick={() => setScannerOpen(true)}
-              className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-200 transition-colors"
-              aria-label="Scan barcode"
-              title="Scan barcode (camera)"
-            >
-              <IconBarcode width="17" height="17" />
-            </button>
+            {/* Camera scanner — hidden on mobile-width browsers (< 700px) */}
+            {!isMobileWidth && (
+              <button
+                onClick={() => setScannerOpen(true)}
+                className="flex w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 items-center justify-center text-zinc-500 hover:text-zinc-200 transition-colors"
+                aria-label="Scan barcode"
+                title="Scan barcode (camera)"
+              >
+                <IconBarcode width="17" height="17" />
+              </button>
+            )}
             <button
               onClick={toggleDesktopFocusMode}
               className="hidden lg:flex w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 items-center justify-center text-zinc-500 hover:text-zinc-200 transition-colors"

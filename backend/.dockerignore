@@ -16,6 +16,7 @@ env/
 .env.*.local
 .env.production
 .env.staging
+*.env
 
 # Claude Code session data
 .claude/
@@ -30,6 +31,8 @@ env/
 # Testing artifacts
 .pytest_cache
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 .tox/
 
@@ -40,6 +43,34 @@ htmlcov/
 # Logs
 logs/
 *.log
+
+# Database / Redis runtime files
+*.db
+*.sqlite3
+*.sql
+*.sql.gz
+*.dump
+dump.rdb
+*.rdb
+postgres_data/
+
+# Celery runtime files
+celerybeat-schedule
+celerybeat.pid
+
+# Temporary / backup / benchmark files
+*.bak
+*.backup
+*.tmp
+tmp/
+temp/
+benchmark_results*.json
+*.prof
+*.secret
+*.secrets
+
+# direnv
+.envrc
 
 # Git
 .git
@@ -52,6 +83,15 @@ docker-compose*.yml
 # OS
 .DS_Store
 Thumbs.db
+
+# Testing artifacts
+tests/
+
+# Development scripts (not needed in production image)
+scripts/
+
+# User-uploaded files (bind-mounted at runtime, not baked into image)
+uploads/
 
 # SSL certs
 nginx/certs/

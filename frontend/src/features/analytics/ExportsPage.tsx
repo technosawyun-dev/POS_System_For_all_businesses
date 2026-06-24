@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { format, startOfMonth } from 'date-fns'
 import { toast } from 'sonner'
 import { analyticsService } from '@/services/analytics/analytics.service'
 import { useAnalyticsFilters, AnalyticsFilters } from './analyticsHelpers'
@@ -26,7 +26,7 @@ function ExportCard({
   title: string
   description: string
   columns: { label: string; cols: string[] }[]
-  exports: { label: string; loading: boolean; onClick: () => void }[]
+  exports: { label: string; loading: boolean; onClick: () => void; variant?: 'csv' | 'xlsx' }[]
 }) {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
@@ -34,9 +34,7 @@ function ExportCard({
         <h3 className="text-sm font-semibold text-zinc-100">{title}</h3>
         <p className="text-xs text-zinc-500 mt-1">{description}</p>
       </div>
-
       <div className="px-5 py-4 space-y-4">
-        {/* Column previews */}
         {columns.map(group => (
           <div key={group.label}>
             <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-2">
@@ -54,20 +52,20 @@ function ExportCard({
             </div>
           </div>
         ))}
-
-        {/* Export buttons */}
         <div className="flex flex-wrap gap-2 pt-1">
           {exports.map(exp => (
             <Btn
               key={exp.label}
-              variant="secondary"
+              variant={exp.variant === 'xlsx' ? 'primary' : 'secondary'}
               size="sm"
               onClick={exp.onClick}
               disabled={exp.loading}
             >
               {exp.loading
                 ? <><Spinner size={14} /> Generating…</>
-                : <>↓ {exp.label}</>
+                : exp.variant === 'xlsx'
+                  ? <>⬇ {exp.label}</>
+                  : <>↓ {exp.label}</>
               }
             </Btn>
           ))}
@@ -77,17 +75,45 @@ function ExportCard({
   )
 }
 
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 pt-2">
+      <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">{label}</span>
+      <div className="flex-1 h-px bg-zinc-800" />
+    </div>
+  )
+}
+
+type LoadingKey =
+  | 'salesCsv' | 'salesXlsx'
+  | 'ordersCsv' | 'ordersXlsx'
+  | 'topProdCsv' | 'topProdXlsx'
+  | 'cashierCsv' | 'cashierXlsx'
+  | 'catCsv' | 'catXlsx'
+  | 'pmCsv' | 'pmXlsx'
+  | 'trendCsv' | 'trendXlsx'
+  | 'profitCsv' | 'profitXlsx'
+  | 'invCsv' | 'invXlsx'
+  | 'lowCsv' | 'lowXlsx'
+  | 'fastCsv' | 'fastXlsx'
+  | 'deadCsv' | 'deadXlsx'
+  | 'moveCsv' | 'moveXlsx'
+  | 'custCsv' | 'custXlsx'
+  | 'poCsv' | 'poXlsx'
+  | 'grCsv' | 'grXlsx'
+  | 'spCsv' | 'spXlsx'
+
 export default function ExportsPage() {
   const filters = useAnalyticsFilters()
   const { from, to, branch, apiParams } = filters
   const { availableBranches } = useTenantStore()
 
-  const [loadingSalesRefunds, setLoadingSalesRefunds] = useState(false)
-  const [loadingOrders, setLoadingOrders]             = useState(false)
+  const [loading, setLoading] = useState<Partial<Record<LoadingKey, boolean>>>({})
+  const setL = (key: LoadingKey, val: boolean) =>
+    setLoading(prev => ({ ...prev, [key]: val }))
 
-  // Default to current month if no date range selected
   const effectiveFrom = from || format(startOfMonth(new Date()), 'yyyy-MM-dd')
-  const effectiveTo   = to   || format(endOfMonth(new Date()), 'yyyy-MM-dd')
+  const effectiveTo   = to   || format(new Date(), 'yyyy-MM-dd')
 
   const effectiveParams = {
     ...apiParams,
@@ -95,36 +121,26 @@ export default function ExportsPage() {
     end_date:   effectiveTo,
   }
 
-  function buildFilename(prefix: string) {
+  function buildFilename(prefix: string, fmt: 'csv' | 'xlsx') {
     const branchName = branch
       ? (availableBranches.find(b => b.id === branch)?.name ?? branch)
       : 'all'
-    return `${prefix}_${effectiveFrom}_${effectiveTo}_${branchName}.csv`
+    return `${prefix}_${effectiveFrom}_${effectiveTo}_${branchName}.${fmt}`
   }
 
-  async function handleSalesRefunds() {
-    setLoadingSalesRefunds(true)
+  async function handle(key: LoadingKey, fn: () => Promise<Blob>, filename: string) {
+    setL(key, true)
     try {
-      const blob = await analyticsService.exportSalesRefunds(effectiveParams)
-      triggerDownload(blob, buildFilename('sales_refunds'))
+      const blob = await fn()
+      triggerDownload(blob, filename)
     } catch {
       toast.error('Export failed. Please try again.')
     } finally {
-      setLoadingSalesRefunds(false)
+      setL(key, false)
     }
   }
 
-  async function handleOrders() {
-    setLoadingOrders(true)
-    try {
-      const blob = await analyticsService.exportOrders(effectiveParams)
-      triggerDownload(blob, buildFilename('orders'))
-    } catch {
-      toast.error('Export failed. Please try again.')
-    } finally {
-      setLoadingOrders(false)
-    }
-  }
+  const branchParam = branch ? { branch_id: branch } : {}
 
   return (
     <div className="p-4 sm:p-6 space-y-5">
@@ -133,13 +149,12 @@ export default function ExportsPage() {
         <div>
           <h2 className="text-base font-semibold text-zinc-100">Data Exports</h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Download CSV files for the selected period. Files open directly in Google Sheets or Excel.
-            Each file includes a <span className="text-zinc-300 font-medium">TOTAL row</span> at the bottom.
+            Download CSV or <span className="text-emerald-400 font-medium">Excel (.xlsx)</span> files
+            for the selected period. Each file includes a{' '}
+            <span className="text-zinc-300 font-medium">TOTAL row</span> at the bottom.
           </p>
         </div>
-        {/* Filters */}
         <AnalyticsFilters {...filters} />
-        {/* Active period indicator */}
         <div className="flex items-center gap-2 text-xs text-zinc-500">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />
           Exporting: <span className="text-zinc-300 font-mono">{effectiveFrom}</span>
@@ -148,17 +163,20 @@ export default function ExportsPage() {
           {branch && availableBranches.length > 0 && (
             <>
               <span className="text-zinc-700">·</span>
-              <span className="text-zinc-300">{availableBranches.find(b => b.id === branch)?.name ?? 'Branch'}</span>
+              <span className="text-zinc-300">
+                {availableBranches.find(b => b.id === branch)?.name ?? 'Branch'}
+              </span>
             </>
           )}
         </div>
       </div>
 
-      {/* Export cards */}
+      {/* SALES DATA */}
+      <SectionHeader label="Sales Data" />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ExportCard
           title="Sales & Refunds"
-          description="Complete transaction record — sales orders followed by refund detail. One TOTAL row at the bottom of each section."
+          description="Complete transaction record — all orders followed by refund line items."
           columns={[
             {
               label: 'Sales columns',
@@ -175,16 +193,27 @@ export default function ExportsPage() {
           ]}
           exports={[
             {
-              label: 'Export Sales & Refunds CSV',
-              loading: loadingSalesRefunds,
-              onClick: handleSalesRefunds,
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.salesCsv,
+              onClick: () => handle('salesCsv',
+                () => analyticsService.exportSalesRefunds({ ...effectiveParams, format: 'csv' }),
+                buildFilename('sales_refunds', 'csv')),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.salesXlsx,
+              onClick: () => handle('salesXlsx',
+                () => analyticsService.exportSalesRefunds({ ...effectiveParams, format: 'xlsx' }),
+                buildFilename('sales_refunds', 'xlsx')),
             },
           ]}
         />
 
         <ExportCard
           title="Order Line Items"
-          description="Every order expanded into per-product rows. Ideal for COGS, margin, and product-level analysis."
+          description="Every order expanded into per-product rows — ideal for COGS and margin analysis."
           columns={[
             {
               label: 'Columns',
@@ -197,9 +226,485 @@ export default function ExportsPage() {
           ]}
           exports={[
             {
-              label: 'Export Orders CSV',
-              loading: loadingOrders,
-              onClick: handleOrders,
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.ordersCsv,
+              onClick: () => handle('ordersCsv',
+                () => analyticsService.exportOrders({ ...effectiveParams, format: 'csv' }),
+                buildFilename('orders', 'csv')),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.ordersXlsx,
+              onClick: () => handle('ordersXlsx',
+                () => analyticsService.exportOrders({ ...effectiveParams, format: 'xlsx' }),
+                buildFilename('orders', 'xlsx')),
+            },
+          ]}
+        />
+
+        <ExportCard
+          title="Top Products"
+          description="Products ranked by revenue for the selected period, with margin estimates."
+          columns={[
+            {
+              label: 'Columns',
+              cols: ['Rank', 'Product', 'SKU', 'Units Sold', 'Revenue',
+                     'Avg Unit Price', 'Profit Estimate', 'Margin %'],
+            },
+          ]}
+          exports={[
+            {
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.topProdCsv,
+              onClick: () => handle('topProdCsv',
+                () => analyticsService.exportTopProducts({ ...effectiveParams, format: 'csv' }),
+                buildFilename('top_products', 'csv')),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.topProdXlsx,
+              onClick: () => handle('topProdXlsx',
+                () => analyticsService.exportTopProducts({ ...effectiveParams, format: 'xlsx' }),
+                buildFilename('top_products', 'xlsx')),
+            },
+          ]}
+        />
+
+        <ExportCard
+          title="Sales by Cashier"
+          description="Staff performance breakdown — orders, revenue, refunds, and average ticket."
+          columns={[
+            {
+              label: 'Columns',
+              cols: ['Cashier', 'Orders', 'Gross Sales', 'Refunds', 'Net Sales', 'Avg Order Value'],
+            },
+          ]}
+          exports={[
+            {
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.cashierCsv,
+              onClick: () => handle('cashierCsv',
+                () => analyticsService.exportSalesByCashier({ ...effectiveParams, format: 'csv' }),
+                buildFilename('sales_by_cashier', 'csv')),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.cashierXlsx,
+              onClick: () => handle('cashierXlsx',
+                () => analyticsService.exportSalesByCashier({ ...effectiveParams, format: 'xlsx' }),
+                buildFilename('sales_by_cashier', 'xlsx')),
+            },
+          ]}
+        />
+
+        <ExportCard
+          title="Sales by Category"
+          description="Revenue and profit grouped by product category with percentage share."
+          columns={[
+            {
+              label: 'Columns',
+              cols: ['Category', 'Units Sold', 'Revenue', 'Share %', 'Profit Estimate'],
+            },
+          ]}
+          exports={[
+            {
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.catCsv,
+              onClick: () => handle('catCsv',
+                () => analyticsService.exportSalesByCategory({ ...effectiveParams, format: 'csv' }),
+                buildFilename('sales_by_category', 'csv')),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.catXlsx,
+              onClick: () => handle('catXlsx',
+                () => analyticsService.exportSalesByCategory({ ...effectiveParams, format: 'xlsx' }),
+                buildFilename('sales_by_category', 'xlsx')),
+            },
+          ]}
+        />
+
+        <ExportCard
+          title="Payment Methods"
+          description="Transaction count, total amount, and percentage share per payment method."
+          columns={[
+            {
+              label: 'Columns',
+              cols: ['Payment Method', 'Transactions', 'Total Amount', 'Share %'],
+            },
+          ]}
+          exports={[
+            {
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.pmCsv,
+              onClick: () => handle('pmCsv',
+                () => analyticsService.exportPaymentMethods({ ...effectiveParams, format: 'csv' }),
+                buildFilename('payment_methods', 'csv')),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.pmXlsx,
+              onClick: () => handle('pmXlsx',
+                () => analyticsService.exportPaymentMethods({ ...effectiveParams, format: 'xlsx' }),
+                buildFilename('payment_methods', 'xlsx')),
+            },
+          ]}
+        />
+
+        <ExportCard
+          title="Sales Trend (Daily)"
+          description="Day-by-day orders, gross sales, and net revenue for the selected period."
+          columns={[
+            {
+              label: 'Columns',
+              cols: ['Period', 'Orders', 'Gross Sales', 'Net Revenue'],
+            },
+          ]}
+          exports={[
+            {
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.trendCsv,
+              onClick: () => handle('trendCsv',
+                () => analyticsService.exportSalesTrend({ ...effectiveParams, granularity: 'daily', format: 'csv' }),
+                buildFilename('sales_trend_daily', 'csv')),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.trendXlsx,
+              onClick: () => handle('trendXlsx',
+                () => analyticsService.exportSalesTrend({ ...effectiveParams, granularity: 'daily', format: 'xlsx' }),
+                buildFilename('sales_trend_daily', 'xlsx')),
+            },
+          ]}
+        />
+      </div>
+
+      {/* FINANCIAL */}
+      <SectionHeader label="Financial" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ExportCard
+          title="Profit Report"
+          description="Gross profit and margin % broken down by product, category, and branch — all in one file."
+          columns={[
+            {
+              label: 'By Product / Category / Branch (3 sheets)',
+              cols: ['Dimension', 'Revenue', 'COGS', 'Gross Profit', 'Margin %'],
+            },
+          ]}
+          exports={[
+            {
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.profitCsv,
+              onClick: () => handle('profitCsv',
+                () => analyticsService.exportProfitReport({ ...effectiveParams, format: 'csv' }),
+                buildFilename('profit_report', 'csv')),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.profitXlsx,
+              onClick: () => handle('profitXlsx',
+                () => analyticsService.exportProfitReport({ ...effectiveParams, format: 'xlsx' }),
+                buildFilename('profit_report', 'xlsx')),
+            },
+          ]}
+        />
+      </div>
+
+      {/* INVENTORY */}
+      <SectionHeader label="Inventory" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ExportCard
+          title="Inventory Stocks"
+          description="Current stock snapshot — quantities, reorder thresholds, unit costs, and total stock value."
+          columns={[
+            {
+              label: 'Columns',
+              cols: ['Branch', 'Category', 'Product', 'Variant', 'SKU',
+                     'On Hand', 'Reserved', 'Available',
+                     'Reorder Point', 'Reorder Qty',
+                     'Unit Cost', 'Stock Value', 'Last Movement'],
+            },
+          ]}
+          exports={[
+            {
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.invCsv,
+              onClick: () => handle('invCsv',
+                () => analyticsService.exportInventoryStocks({ ...branchParam, format: 'csv' }),
+                `inventory_stocks_${branch ? (availableBranches.find(b => b.id === branch)?.name ?? branch) : 'all'}.csv`),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.invXlsx,
+              onClick: () => handle('invXlsx',
+                () => analyticsService.exportInventoryStocks({ ...branchParam, format: 'xlsx' }),
+                `inventory_stocks_${branch ? (availableBranches.find(b => b.id === branch)?.name ?? branch) : 'all'}.xlsx`),
+            },
+          ]}
+        />
+
+        <ExportCard
+          title="Low Stock Items"
+          description="Items below their reorder point — includes shortage quantity for immediate action."
+          columns={[
+            {
+              label: 'Columns',
+              cols: ['Branch', 'Product', 'SKU', 'On Hand', 'Reorder Point', 'Shortage'],
+            },
+          ]}
+          exports={[
+            {
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.lowCsv,
+              onClick: () => handle('lowCsv',
+                () => analyticsService.exportLowStock({ ...branchParam, format: 'csv' }),
+                `low_stock_${branch ? (availableBranches.find(b => b.id === branch)?.name ?? branch) : 'all'}.csv`),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.lowXlsx,
+              onClick: () => handle('lowXlsx',
+                () => analyticsService.exportLowStock({ ...branchParam, format: 'xlsx' }),
+                `low_stock_${branch ? (availableBranches.find(b => b.id === branch)?.name ?? branch) : 'all'}.xlsx`),
+            },
+          ]}
+        />
+
+        <ExportCard
+          title="Fast Moving Products"
+          description="Top 500 products ranked by units sold in the selected period."
+          columns={[
+            {
+              label: 'Columns',
+              cols: ['Rank', 'Product', 'SKU', 'Units Sold', 'Order Count'],
+            },
+          ]}
+          exports={[
+            {
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.fastCsv,
+              onClick: () => handle('fastCsv',
+                () => analyticsService.exportFastMoving({ ...effectiveParams, format: 'csv' }),
+                buildFilename('fast_moving', 'csv')),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.fastXlsx,
+              onClick: () => handle('fastXlsx',
+                () => analyticsService.exportFastMoving({ ...effectiveParams, format: 'xlsx' }),
+                buildFilename('fast_moving', 'xlsx')),
+            },
+          ]}
+        />
+
+        <ExportCard
+          title="Dead Stock"
+          description="Products with no sales activity in the last 90 days — useful for clearance planning."
+          columns={[
+            {
+              label: 'Columns',
+              cols: ['Product', 'SKU', 'On Hand', 'Last Sold', 'Days Without Sale'],
+            },
+          ]}
+          exports={[
+            {
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.deadCsv,
+              onClick: () => handle('deadCsv',
+                () => analyticsService.exportDeadStock({ ...branchParam, days: 90, format: 'csv' }),
+                `dead_stock_90d_${branch ? (availableBranches.find(b => b.id === branch)?.name ?? branch) : 'all'}.csv`),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.deadXlsx,
+              onClick: () => handle('deadXlsx',
+                () => analyticsService.exportDeadStock({ ...branchParam, days: 90, format: 'xlsx' }),
+                `dead_stock_90d_${branch ? (availableBranches.find(b => b.id === branch)?.name ?? branch) : 'all'}.xlsx`),
+            },
+          ]}
+        />
+
+        <ExportCard
+          title="Stock Movements"
+          description="Individual inventory movements — sales, purchases, adjustments, transfers (up to 10 000 rows)."
+          columns={[
+            {
+              label: 'Columns',
+              cols: ['Date', 'Branch', 'Product', 'Variant', 'SKU',
+                     'Movement Type', 'Qty Change', 'Unit Cost', 'Movement Value',
+                     'Reference Type', 'Reason', 'Notes'],
+            },
+          ]}
+          exports={[
+            {
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.moveCsv,
+              onClick: () => handle('moveCsv',
+                () => analyticsService.exportStockMovements({ ...effectiveParams, format: 'csv' }),
+                buildFilename('stock_movements', 'csv')),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.moveXlsx,
+              onClick: () => handle('moveXlsx',
+                () => analyticsService.exportStockMovements({ ...effectiveParams, format: 'xlsx' }),
+                buildFilename('stock_movements', 'xlsx')),
+            },
+          ]}
+        />
+      </div>
+
+      {/* CUSTOMERS */}
+      <SectionHeader label="Customers" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ExportCard
+          title="Customer List"
+          description="All customers with contact info, balance, credit limit, order history, and status."
+          columns={[
+            {
+              label: 'Columns',
+              cols: ['Code', 'Name', 'Phone', 'Email', 'Gender',
+                     'Balance', 'Credit Limit', 'Total Orders', 'Total Spent',
+                     'Status', 'Member Since'],
+            },
+          ]}
+          exports={[
+            {
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.custCsv,
+              onClick: () => handle('custCsv',
+                () => analyticsService.exportCustomers({ format: 'csv' }),
+                'customers_all.csv'),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.custXlsx,
+              onClick: () => handle('custXlsx',
+                () => analyticsService.exportCustomers({ format: 'xlsx' }),
+                'customers_all.xlsx'),
+            },
+          ]}
+        />
+      </div>
+
+      {/* PROCUREMENT */}
+      <SectionHeader label="Procurement" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ExportCard
+          title="Purchase Orders"
+          description="All PO line items — supplier, product, ordered vs received quantities, and costs."
+          columns={[
+            {
+              label: 'Columns',
+              cols: ['PO Number', 'Order Date', 'Supplier', 'Branch', 'Status',
+                     'Product', 'Variant', 'SKU',
+                     'Ordered Qty', 'Received Qty', 'Unit Cost', 'Line Total',
+                     'Expected Date', 'Notes'],
+            },
+          ]}
+          exports={[
+            {
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.poCsv,
+              onClick: () => handle('poCsv',
+                () => analyticsService.exportPurchaseOrders({ start_date: effectiveFrom, end_date: effectiveTo, format: 'csv' }),
+                buildFilename('purchase_orders', 'csv')),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.poXlsx,
+              onClick: () => handle('poXlsx',
+                () => analyticsService.exportPurchaseOrders({ start_date: effectiveFrom, end_date: effectiveTo, format: 'xlsx' }),
+                buildFilename('purchase_orders', 'xlsx')),
+            },
+          ]}
+        />
+
+        <ExportCard
+          title="Goods Receipts"
+          description="Received inventory line items — receipt number, PO reference, quantities, and costs."
+          columns={[
+            {
+              label: 'Columns',
+              cols: ['Receipt Number', 'Receipt Date', 'PO Reference', 'Supplier', 'Branch', 'Status',
+                     'Product', 'Variant', 'SKU',
+                     'Received Qty', 'Unit Cost', 'Line Total', 'Notes'],
+            },
+          ]}
+          exports={[
+            {
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.grCsv,
+              onClick: () => handle('grCsv',
+                () => analyticsService.exportGoodsReceipts({ start_date: effectiveFrom, end_date: effectiveTo, format: 'csv' }),
+                buildFilename('goods_receipts', 'csv')),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.grXlsx,
+              onClick: () => handle('grXlsx',
+                () => analyticsService.exportGoodsReceipts({ start_date: effectiveFrom, end_date: effectiveTo, format: 'xlsx' }),
+                buildFilename('goods_receipts', 'xlsx')),
+            },
+          ]}
+        />
+
+        <ExportCard
+          title="Supplier Payables"
+          description="Outstanding and paid supplier invoices — total, paid, remaining amounts, and status."
+          columns={[
+            {
+              label: 'Columns',
+              cols: ['Supplier', 'PO Number', 'PO Date', 'Branch',
+                     'Invoice Amount', 'Paid Amount', 'Remaining Amount', 'Status'],
+            },
+          ]}
+          exports={[
+            {
+              label: 'CSV',
+              variant: 'csv',
+              loading: !!loading.spCsv,
+              onClick: () => handle('spCsv',
+                () => analyticsService.exportSupplierPayables({ format: 'csv' }),
+                'supplier_payables_all.csv'),
+            },
+            {
+              label: 'Excel (.xlsx)',
+              variant: 'xlsx',
+              loading: !!loading.spXlsx,
+              onClick: () => handle('spXlsx',
+                () => analyticsService.exportSupplierPayables({ format: 'xlsx' }),
+                'supplier_payables_all.xlsx'),
             },
           ]}
         />
@@ -208,9 +713,11 @@ export default function ExportsPage() {
       {/* Help note */}
       <div className="rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3 text-xs text-zinc-500 space-y-1">
         <p className="font-medium text-zinc-400">How to open in Google Sheets</p>
-        <p>File → Import → Upload → select the .csv file → "Replace spreadsheet" → Import data.</p>
-        <p className="font-medium text-zinc-400 pt-1">How to open in Excel</p>
-        <p>Double-click the .csv file, or File → Open. Encoding is automatically detected (UTF-8).</p>
+        <p>File → Import → Upload → select the file → "Replace spreadsheet" → Import data.</p>
+        <p className="font-medium text-zinc-400 pt-1">Excel (.xlsx) files</p>
+        <p>Open directly in Excel or Google Sheets — headers are styled amber, numbers are numeric, columns are auto-sized.</p>
+        <p className="font-medium text-zinc-400 pt-1">CSV files</p>
+        <p>Double-click to open in Excel, or File → Open. Encoding is UTF-8 with BOM for automatic detection.</p>
       </div>
     </div>
   )

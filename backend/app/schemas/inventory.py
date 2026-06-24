@@ -64,13 +64,13 @@ class OpeningStockItemRequest(BaseSchema):
     variant_id: uuid.UUID | None = None
     quantity: Decimal = Field(gt=0)
     unit_cost: Decimal | None = Field(default=None, ge=0)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class OpeningStockRequest(BaseSchema):
     branch_id: uuid.UUID
     items: list[OpeningStockItemRequest] = Field(min_length=1)
-    reason: str | None = None
+    reason: str | None = Field(default=None, max_length=500)
 
 
 # Inventory Adjustment
@@ -81,7 +81,7 @@ class AdjustmentItemRequest(BaseSchema):
     # Signed: positive = add stock, negative = remove stock
     quantity_change: Decimal
     unit_cost: Decimal | None = Field(default=None, ge=0)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
     @field_validator("quantity_change")
     @classmethod
@@ -95,8 +95,8 @@ class InventoryAdjustmentCreateRequest(BaseSchema):
     branch_id: uuid.UUID
     adjustment_type: InventoryAdjustmentType
     items: list[AdjustmentItemRequest] = Field(min_length=1)
-    reason: str | None = None
-    notes: str | None = None
+    reason: str | None = Field(default=None, max_length=500)
+    notes: str | None = Field(default=None, max_length=500)
     reference_number: str | None = Field(default=None, max_length=100)
 
     @model_validator(mode="after")
@@ -155,14 +155,14 @@ class TransferItemRequest(BaseSchema):
     variant_id: uuid.UUID | None = None
     quantity_requested: Decimal = Field(gt=0)
     unit_cost: Decimal | None = Field(default=None, ge=0)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class InventoryTransferCreateRequest(BaseSchema):
     from_branch_id: uuid.UUID
     to_branch_id: uuid.UUID
     items: list[TransferItemRequest] = Field(min_length=1)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
     reference_number: str | None = Field(default=None, max_length=100)
 
     @model_validator(mode="after")
@@ -173,7 +173,7 @@ class InventoryTransferCreateRequest(BaseSchema):
 
 
 class TransferApproveRequest(BaseSchema):
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=500)
 
 
 class TransferCancelRequest(BaseSchema):
