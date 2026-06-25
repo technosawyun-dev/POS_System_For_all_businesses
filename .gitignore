@@ -120,3 +120,8 @@ secrets/
 
 # Python version management (pyenv)
 .python-version
+
+# Markdown docs (keep only README.md)
+*.md
+!README.md
+!**/README.md
