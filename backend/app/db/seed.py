@@ -81,6 +81,13 @@ async def seed_role_permissions(
 
 
 async def seed_super_admin(session: AsyncSession) -> User | None:
+    if settings.is_production:
+        logger.warning(
+            "seed_super_admin_skipped_in_production",
+            reason="Create the super admin manually in production via a secure method",
+        )
+        return None
+
     user_repo = UserRepository(session)
     existing = await user_repo.get_by_email(settings.SUPER_ADMIN_EMAIL)
     if existing:

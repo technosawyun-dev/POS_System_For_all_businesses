@@ -61,6 +61,7 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
   const [serialConnected, setSerialConnected] = useState(() => serialPrinterService.isConnected)
   const [directPrinting,  setDirectPrinting]  = useState(false)
   const [connecting,      setConnecting]      = useState(false)
+  const [detecting,       setDetecting]       = useState(false)
   const usbSupported    = thermalPrinterService.isSupported
   const serialSupported = serialPrinterService.isSupported
   const anyConnected    = usbConnected || serialConnected
@@ -183,6 +184,7 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
         }
       }
       if (serialSupported) {
+        setDetecting(true)
         await serialPrinterService.connect()
         setSerialConnected(true)
         toast.success(`Connected: ${serialPrinterService.portName}`)
@@ -192,6 +194,7 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
       if (!msg.includes('No port selected') && !msg.includes('cancelled')) toast.error(msg)
     } finally {
       setConnecting(false)
+      setDetecting(false)
     }
   }
 
@@ -209,8 +212,6 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
   }
 
   // Direct print (USB or Serial, whichever is connected)
-  // Read from live service state (not React state) so this works correctly even
-  // when called from the autoTrigger timeout, which may have a stale closure.
   async function handleDirectPrint() {
     setDirectPrinting(true)
     const printOpts = { taxInclusive, taxName, showTax: showTaxOnReceipt, logoDataUrl }
@@ -222,7 +223,7 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
         await serialPrinterService.printReceipt(receipt, size, printOpts)
         if (!serialPrinterService.isConnected) setSerialConnected(false)
       }
-      toast.success('Receipt printed')
+      toast.success('Sent to printer — check that it printed')
       onClose()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Print failed')
@@ -281,31 +282,39 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
           </div>
 
           {/* Direct printer row */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-zinc-500 w-20 flex-shrink-0">Printer</span>
-            {usbConnected ? (
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
-                <span className="text-xs text-green-400 truncate">{thermalPrinterService.deviceName}</span>
-                <button onClick={handleDisconnect} className="text-xs text-zinc-600 hover:text-zinc-400 flex-shrink-0 ml-1">Disconnect</button>
-              </div>
-            ) : serialConnected ? (
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
-                <span className="text-xs text-green-400 truncate">{serialPrinterService.portName}</span>
-                <button onClick={handleDisconnect} className="text-xs text-zinc-600 hover:text-zinc-400 flex-shrink-0 ml-1">Disconnect</button>
-              </div>
-            ) : directSupported ? (
-              <button
-                onClick={handleConnect}
-                disabled={connecting}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-zinc-700 bg-zinc-900 text-zinc-300 hover:text-zinc-100 hover:border-zinc-600 transition-colors disabled:opacity-50"
-              >
-                <IconUsb className="w-3.5 h-3.5" />
-                {connecting ? 'Connecting…' : 'Connect Printer'}
-              </button>
-            ) : (
-              <span className="text-xs text-zinc-600">Direct print requires Chrome or Edge</span>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-zinc-500 w-20 flex-shrink-0">Printer</span>
+              {usbConnected ? (
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                  <span className="text-xs text-green-400 truncate">{thermalPrinterService.deviceName}</span>
+                  <button onClick={handleDisconnect} className="text-xs text-zinc-600 hover:text-zinc-400 flex-shrink-0 ml-1">Disconnect</button>
+                </div>
+              ) : serialConnected ? (
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                  <span className="text-xs text-green-400 truncate">{serialPrinterService.portName}</span>
+                  <button onClick={handleDisconnect} className="text-xs text-zinc-600 hover:text-zinc-400 flex-shrink-0 ml-1">Disconnect</button>
+                </div>
+              ) : directSupported ? (
+                <button
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-zinc-700 bg-zinc-900 text-zinc-300 hover:text-zinc-100 hover:border-zinc-600 transition-colors disabled:opacity-50"
+                >
+                  <IconUsb className="w-3.5 h-3.5" />
+                  {detecting ? 'Detecting speed…' : connecting ? 'Connecting…' : 'Connect Printer'}
+                </button>
+              ) : (
+                <span className="text-xs text-zinc-600">Direct print requires Chrome or Edge</span>
+              )}
+            </div>
+            {/* Windows hint — shown only when not yet connected */}
+            {!usbConnected && !serialConnected && directSupported && navigator.userAgent.includes('Windows') && (
+              <p className="text-[11px] text-zinc-500 ml-[88px]">
+                On Windows, use the <span className="text-zinc-300">Bluetooth</span> COM port — USB is blocked by the Windows printer driver.
+              </p>
             )}
           </div>
         </div>
