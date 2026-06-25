@@ -24,12 +24,11 @@ const US_QWERTY: Record<string, [string, string]> = {
   Backquote: ['`','~'],
 }
 
-// Hardware scanners fire chars at < 10 ms each; humans rarely type below 50 ms.
-// 30 ms is the burst threshold: once two chars arrive within 30 ms we confirm
-// it's a scanner and start intercepting (preventDefault) so the chars don't
-// also land in the currently-focused input element.
-// onScan only fires after a confirmed burst — manual typing never triggers it.
-const BURST_MS = 30
+// Hardware scanners fire chars at < 10 ms each; humans rarely type below 100 ms.
+// 100 ms burst threshold works for virtually all USB/Bluetooth HID scanners,
+// including models with configurable inter-character delay up to 100ms.
+// It stays well below average human typing speed (~200ms per char).
+const BURST_MS = 100
 
 interface ScannerInputCaptureProps {
   onScan: (code: string) => void
@@ -41,15 +40,25 @@ interface ScannerInputCaptureProps {
 export function ScannerInputCapture({
   onScan,
   minLength = 3,
-  maxCharGap = 100,
+  maxCharGap = 150,
   enabled = true,
 }: ScannerInputCaptureProps) {
-  const bufferRef   = useRef('')
-  const lastTimeRef = useRef(0)
-  const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isBurstRef  = useRef(false)
+  const bufferRef        = useRef('')
+  const lastTimeRef      = useRef(0)
+  const timerRef         = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isBurstRef       = useRef(false)
+  // Track the focused input and its value snapshot at the moment the first
+  // scanner char arrives, so we can undo it once burst is confirmed.
+  const firstCharTargetRef = useRef<{ el: HTMLInputElement | HTMLTextAreaElement; before: string } | null>(null)
 
   useEffect(() => {
+    // Reset stale refs when the effect re-runs (e.g. onScan changed)
+    bufferRef.current        = ''
+    lastTimeRef.current      = 0
+    isBurstRef.current       = false
+    firstCharTargetRef.current = null
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
+
     if (!enabled) return
 
     function handleKeyDown(e: KeyboardEvent) {
@@ -60,9 +69,10 @@ export function ScannerInputCapture({
       if (e.key === 'Enter') {
         const code     = bufferRef.current.trim()
         const wasBurst = isBurstRef.current
-        bufferRef.current   = ''
-        lastTimeRef.current = 0
-        isBurstRef.current  = false
+        bufferRef.current        = ''
+        lastTimeRef.current      = 0
+        isBurstRef.current       = false
+        firstCharTargetRef.current = null
         if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
         if (wasBurst && code.length >= minLength) {
           e.preventDefault() // stop form submission on scanner Enter
@@ -81,13 +91,36 @@ export function ScannerInputCapture({
 
       const gap = now - lastTimeRef.current
       if (lastTimeRef.current > 0 && gap > maxCharGap) {
-        bufferRef.current  = ''
-        isBurstRef.current = false
+        bufferRef.current        = ''
+        isBurstRef.current       = false
+        firstCharTargetRef.current = null
+      }
+
+      if (bufferRef.current.length === 0) {
+        // Snapshot the focused input before the first char lands in it
+        const el = document.activeElement
+        if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+          firstCharTargetRef.current = { el, before: el.value }
+        }
       }
 
       // Confirm scanner burst when the second char arrives within BURST_MS
       if (bufferRef.current.length > 0 && gap < BURST_MS) {
-        isBurstRef.current = true
+        if (!isBurstRef.current) {
+          isBurstRef.current = true
+          // Undo the first char that landed in the focused input
+          const snap = firstCharTargetRef.current
+          if (snap && snap.el.isConnected) {
+            // Use the native setter so React's synthetic onChange fires correctly
+            const nativeSetter = Object.getOwnPropertyDescriptor(
+              snap.el instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype,
+              'value',
+            )?.set
+            nativeSetter?.call(snap.el, snap.before)
+            snap.el.dispatchEvent(new Event('input', { bubbles: true }))
+          }
+          firstCharTargetRef.current = null
+        }
       }
 
       // Once in burst mode, stop chars from reaching the focused input element
@@ -102,10 +135,11 @@ export function ScannerInputCapture({
       timerRef.current = setTimeout(() => {
         const code     = bufferRef.current.trim()
         const wasBurst = isBurstRef.current
-        bufferRef.current   = ''
-        lastTimeRef.current = 0
-        isBurstRef.current  = false
-        timerRef.current    = null
+        bufferRef.current        = ''
+        lastTimeRef.current      = 0
+        isBurstRef.current       = false
+        firstCharTargetRef.current = null
+        timerRef.current         = null
         if (wasBurst && code.length >= minLength) onScan(code)
       }, 200)
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
+import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -36,6 +36,16 @@ export function ProductFormModal({ product, initialBarcode, onClose, onSaved }: 
     window.addEventListener('resize', fn)
     return () => window.removeEventListener('resize', fn)
   }, [])
+
+  // Ref for the barcode input — auto-focused on open so scanner chars go there directly
+  const barcodeInputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (!isMobileWidth) {
+      // Slight delay so the modal's CSS transition doesn't fight focus
+      const t = setTimeout(() => barcodeInputRef.current?.focus(), 120)
+      return () => clearTimeout(t)
+    }
+  }, [isMobileWidth])
 
   const { data: categoriesData } = useQuery({
     queryKey: ['categories'],
@@ -206,7 +216,15 @@ export function ProductFormModal({ product, initialBarcode, onClose, onSaved }: 
             <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 text-xl leading-none">×</button>
           </div>
 
-          <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 p-6 space-y-4">
+          <form
+            onSubmit={handleSubmit}
+            onKeyDown={e => {
+              // Block Enter from submitting the form — scanner sends Enter after barcode;
+              // we handle it on the barcode input itself so the form must not also submit.
+              if (e.key === 'Enter') e.preventDefault()
+            }}
+            className="overflow-y-auto flex-1 p-6 space-y-4"
+          >
             {!isMobileWidth && (
               <button
                 type="button"
@@ -248,7 +266,36 @@ export function ProductFormModal({ product, initialBarcode, onClose, onSaved }: 
                   )}
                 </div>
               </div>
-              <Input label="Barcode" value={form.barcode} onChange={e => { set('barcode')(e); setBarcodeConflict(null) }} placeholder="auto-filled by scan" />
+              <div>
+                <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider block mb-1.5">Barcode</label>
+                <input
+                  ref={barcodeInputRef}
+                  type="text"
+                  value={form.barcode}
+                  onChange={e => { set('barcode')(e); setBarcodeConflict(null) }}
+                  onKeyDown={async e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      const code = form.barcode.trim()
+                      if (code && !isEdit) {
+                        // Check for conflicts when Enter is pressed in the barcode field
+                        // (handles both manual entry and slow-scanner auto-fill)
+                        setBarcodeChecking(true)
+                        setBarcodeConflict(null)
+                        try {
+                          const result = await lookupProductByBarcode(code)
+                          if (result.status === 'found') {
+                            setBarcodeConflict({ name: result.product.name, sku: result.product.sku })
+                          }
+                        } catch { /* network error — allow */ }
+                        setBarcodeChecking(false)
+                      }
+                    }
+                  }}
+                  placeholder="Scan or type barcode, then Enter"
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 transition-all duration-150 py-2.5 text-sm px-3"
+                />
+              </div>
             </div>
 
             <Input label="Name *" value={form.name} onChange={set('name')} placeholder="Product name" required />
@@ -387,8 +434,8 @@ export function ProductFormModal({ product, initialBarcode, onClose, onSaved }: 
           </form>
 
           <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-            <Btn variant="secondary" size="lg" fullWidth onClick={onClose} disabled={saving}>Cancel</Btn>
-            <Btn variant="primary" size="lg" fullWidth onClick={handleSubmit as any} disabled={!canSubmit}>
+            <Btn type="button" variant="secondary" size="lg" fullWidth onClick={onClose} disabled={saving}>Cancel</Btn>
+            <Btn type="button" variant="primary" size="lg" fullWidth onClick={handleSubmit as any} disabled={!canSubmit}>
               {saving ? <><Spinner size={16} /> Saving…</> : isEdit ? 'Save Changes' : 'Create Product'}
             </Btn>
           </div>

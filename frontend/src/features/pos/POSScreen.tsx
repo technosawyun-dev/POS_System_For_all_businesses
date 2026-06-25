@@ -107,7 +107,7 @@ export default function POSScreen() {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
   }, [setPosFocusMode])
 
-  const { activeSession }  = useSessionStore()
+  const { activeSession, clearSession } = useSessionStore()
   const addItem            = useCartStore(s => s.addItem)
   const items              = useCartStore(s => s.items)
   const clearCart          = useCartStore(s => s.clearCart)
@@ -121,10 +121,26 @@ export default function POSScreen() {
     return () => clearTimeout(id)
   }, [rawSearch])
 
-  // Redirect to session-open if no active session
+  // Redirect to session-open if no active session or session is closed
   useEffect(() => {
-    if (!activeSession) navigate('/app/session-open', { replace: true })
+    if (!activeSession || activeSession.status !== 'OPEN') {
+      navigate('/app/session-open', { replace: true })
+    }
   }, [activeSession, navigate])
+
+  // Verify the session is still OPEN on the server (catches stale localStorage state)
+  useEffect(() => {
+    if (!activeSession) return
+    import('@/services/sales/sales.service').then(({ sessionService }) => {
+      sessionService.get(activeSession.id).then(fresh => {
+        if (fresh.status !== 'OPEN') {
+          clearSession()
+          navigate('/app/session-open', { replace: true })
+        }
+      }).catch(() => { /* offline — trust the local state */ })
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSession?.id])
 
   const branchId = activeSession?.branch_id ?? ''
 
@@ -236,7 +252,7 @@ export default function POSScreen() {
     return () => document.removeEventListener('keydown', onKey)
   }, [items.length, checkoutStep, setCheckoutStep, clearCart])
 
-  if (!activeSession) return null
+  if (!activeSession || activeSession.status !== 'OPEN') return null
 
   if (isMobileWidth) {
     return (
@@ -335,7 +351,26 @@ export default function POSScreen() {
                 type="text"
                 value={rawSearch}
                 onChange={e => setRawSearch(e.target.value)}
-                placeholder="Search products…"
+                onKeyDown={async e => {
+                  if (e.key === 'Enter') {
+                    const code = rawSearch.trim()
+                    if (!code) return
+                    e.preventDefault()
+                    setRawSearch('')
+                    // Barcode/SKU lookup — works for both USB scanners and manual entry
+                    let result = await lookupProductByBarcode(code)
+                    if (result.status === 'not_found') result = await lookupProductBySku(code)
+                    if (result.status === 'found') {
+                      handleScanResult(result.product)
+                      toast.success(`Added: ${result.product.name}`)
+                    } else if (result.status === 'not_found') {
+                      toast.error(`Product not found: ${code}`)
+                    } else {
+                      toast.error(result.message)
+                    }
+                  }
+                }}
+                placeholder="Search or scan barcode + Enter…"
                 className={cn(
                   'w-full bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-600 text-sm',
                   'focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 transition-all duration-150',
