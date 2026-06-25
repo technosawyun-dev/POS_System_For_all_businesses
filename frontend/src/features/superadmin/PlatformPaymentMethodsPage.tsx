@@ -29,12 +29,9 @@ const METHOD_ICONS: Record<string, string> = {
   BANK_TRANSFER: '🏦', OTHER: '💳',
 }
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-
 function iconSrc(url: string | null | undefined) {
   if (!url) return null
-  if (url.startsWith('http')) return url
-  return `${API_BASE}${url}`
+  return url
 }
 
 function emptyMethod(): SubscriptionPaymentMethod {

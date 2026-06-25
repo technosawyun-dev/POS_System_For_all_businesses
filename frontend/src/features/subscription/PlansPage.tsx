@@ -85,12 +85,8 @@ const PAYMENT_METHOD_COLORS: Record<string, string> = {
   OTHER: 'border-zinc-700 bg-zinc-800/50',
 }
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-
 function PaymentMethodLogo({ method }: { method: SubscriptionPaymentMethod }) {
-  const src = method.icon_url
-    ? (method.icon_url.startsWith('http') ? method.icon_url : `${API_BASE}${method.icon_url}`)
-    : null
+  const src = method.icon_url ?? null
   if (src) {
     return (
       <img
