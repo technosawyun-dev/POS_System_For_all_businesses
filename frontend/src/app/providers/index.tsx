@@ -6,15 +6,25 @@ import { useUIStore } from '@/store/ui.store'
 import { useAuthStore } from '@/store/auth.store'
 import { useTenantStore } from '@/store/tenant.store'
 import { tenantService } from '@/services/tenant/tenant.service'
+import { BASE_URL } from '@/app/lib/axios'
 
 const PING_INTERVAL_MS = 10_000
 const PING_TIMEOUT_MS  = 5_000
+
+// /health is mounted at the API's root, not under BASE_URL's /api/v1 prefix, and
+// the frontend/API may be on entirely different origins (e.g. a Vercel-hosted
+// frontend calling a separately-hosted API) — so it can't be a bare relative
+// fetch('/health'), which resolves against the frontend's own origin. Derive the
+// API's origin from BASE_URL instead. When BASE_URL is itself relative (local dev,
+// where it defaults to '/api/v1'), this collapses back to the current origin and
+// relies on the Vite dev-server proxy for /health, matching /api and /uploads.
+const HEALTH_URL = `${new URL(BASE_URL, window.location.origin).origin}/health`
 
 async function pingServer(): Promise<boolean> {
   try {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), PING_TIMEOUT_MS)
-    const res = await fetch('/health', { method: 'GET', signal: controller.signal, cache: 'no-store' })
+    const res = await fetch(HEALTH_URL, { method: 'GET', signal: controller.signal, cache: 'no-store' })
     clearTimeout(timer)
     return res.ok
   } catch {
