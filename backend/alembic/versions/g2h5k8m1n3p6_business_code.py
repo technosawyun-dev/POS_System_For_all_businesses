@@ -16,19 +16,18 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Add column NOT NULL with a server_default so existing rows get a value immediately.
-    # The default uses md5(id) which is unique per tenant and needs no extension.
+    # Postgres forbids a DEFAULT expression from referencing another column of the
+    # same table (id here), so this has to be add-nullable -> backfill -> set-not-null
+    # rather than a single server_default. md5(id) is unique per tenant and needs no extension.
     op.add_column(
         "tenants",
-        sa.Column(
-            "business_code",
-            sa.String(20),
-            nullable=False,
-            server_default=sa.text("upper(substr(md5(id::text), 1, 8))"),
-        ),
+        sa.Column("business_code", sa.String(20), nullable=True),
     )
-    # Drop server_default — app code supplies the code for new tenants going forward
-    op.alter_column("tenants", "business_code", server_default=None)
+    op.execute(
+        "UPDATE tenants SET business_code = upper(substr(md5(id::text), 1, 8)) "
+        "WHERE business_code IS NULL"
+    )
+    op.alter_column("tenants", "business_code", nullable=False)
     op.create_unique_constraint("uq_tenants_business_code", "tenants", ["business_code"])
     op.create_index("ix_tenants_business_code", "tenants", ["business_code"])
 
