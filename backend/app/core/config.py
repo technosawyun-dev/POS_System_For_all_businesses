@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     JWT_REFRESH_TOKEN_COOKIE_NAME: str = "refresh_token"
+    # "lax" for same-site deployments (frontend and API on the same domain).
+    # "none" is required when the frontend is on a different domain than the API
+    # (e.g. Vercel frontend + separate API domain) — browsers only send SameSite=None
+    # cookies cross-site, and always require Secure alongside it.
+    JWT_REFRESH_TOKEN_COOKIE_SAMESITE: str = "lax"
     JWT_ISSUER: str = "pos-saas"
     JWT_AUDIENCE: str = "pos-saas-users"
 
@@ -111,6 +116,14 @@ class Settings(BaseSettings):
             raise ValueError("Secret key must be at least 32 characters for security")
         return v
 
+    @field_validator("JWT_REFRESH_TOKEN_COOKIE_SAMESITE")
+    @classmethod
+    def validate_cookie_samesite(cls, v: str) -> str:
+        v = v.lower()
+        if v not in ("lax", "strict", "none"):
+            raise ValueError('JWT_REFRESH_TOKEN_COOKIE_SAMESITE must be "lax", "strict", or "none"')
+        return v
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: Any) -> list[str]:
@@ -128,6 +141,12 @@ class Settings(BaseSettings):
     @property
     def is_development(self) -> bool:
         return self.APP_ENV == "development"
+
+    @property
+    def refresh_cookie_secure(self) -> bool:
+        # SameSite=None cookies are rejected by browsers unless Secure is also set,
+        # regardless of APP_ENV.
+        return self.is_production or self.JWT_REFRESH_TOKEN_COOKIE_SAMESITE == "none"
 
 
 @lru_cache

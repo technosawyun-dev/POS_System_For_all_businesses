@@ -61,11 +61,6 @@ services:
     restart: unless-stopped
     user: "1000:1000"
     env_file: ./backend/.env
-    environment:
-      DATABASE_URL: postgresql+asyncpg://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
     depends_on:
       postgres:
         condition: service_healthy
@@ -99,11 +94,6 @@ services:
     restart: unless-stopped
     user: "1000:1000"
     env_file: ./backend/.env
-    environment:
-      DATABASE_URL: postgresql+asyncpg://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
     # Fix 4: raised from 4 to 20 so background tasks don't queue under load
     command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=20 -Q default
     depends_on:
@@ -137,11 +127,6 @@ services:
     restart: unless-stopped
     user: "1000:1000"
     env_file: ./backend/.env
-    environment:
-      DATABASE_URL: postgresql+asyncpg://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
     command: celery -A app.tasks.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule
     depends_on:
       postgres:
@@ -165,13 +150,15 @@ services:
           memory: 128m
 
   # Nginx
+  # Not published to the public internet — Cloudflare Tunnel (see the
+  # cloudflared service below) is the only path in from outside. Bound to
+  # 127.0.0.1 only, for local debugging on the VPS itself.
   nginx:
     image: nginx:1.25-alpine
     container_name: pos_nginx
     restart: unless-stopped
     ports:
-      - "${NGINX_PORT:-80}:80"
-      - "443:443"
+      - "127.0.0.1:${NGINX_PORT:-80}:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
@@ -186,6 +173,29 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+
+  # Cloudflare Tunnel — the only route in from the public internet. Cloudflare
+  # terminates TLS at its edge and forwards to nginx over the tunnel, so nginx
+  # itself never needs to see or handle certificates.
+  # Setup: Cloudflare dashboard -> Zero Trust -> Networks -> Tunnels ->
+  # Create a tunnel -> Docker -> copy the token into CLOUDFLARE_TUNNEL_TOKEN,
+  # then add a Public Hostname route pointing at http://nginx:80.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: pos_cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      nginx:
+        condition: service_healthy
+    networks:
+      - pos_network
     deploy:
       resources:
         limits:

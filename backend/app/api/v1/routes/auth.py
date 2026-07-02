@@ -55,8 +55,8 @@ async def login(
         key=settings.JWT_REFRESH_TOKEN_COOKIE_NAME,
         value=refresh_token,
         httponly=True,
-        secure=settings.is_production,
-        samesite="lax",
+        secure=settings.refresh_cookie_secure,
+        samesite=settings.JWT_REFRESH_TOKEN_COOKIE_SAMESITE,
         max_age=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 86400,
     )
     return token_response
@@ -93,8 +93,8 @@ async def refresh_token(
         key=settings.JWT_REFRESH_TOKEN_COOKIE_NAME,
         value=new_refresh_token,
         httponly=True,
-        secure=settings.is_production,
-        samesite="lax",
+        secure=settings.refresh_cookie_secure,
+        samesite=settings.JWT_REFRESH_TOKEN_COOKIE_SAMESITE,
         max_age=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 86400,
     )
     return token_response
@@ -232,8 +232,8 @@ async def register(
         key=settings.JWT_REFRESH_TOKEN_COOKIE_NAME,
         value=result.refresh_token,
         httponly=True,
-        secure=settings.is_production,
-        samesite="lax",
+        secure=settings.refresh_cookie_secure,
+        samesite=settings.JWT_REFRESH_TOKEN_COOKIE_SAMESITE,
         max_age=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 86400,
     )
     return result

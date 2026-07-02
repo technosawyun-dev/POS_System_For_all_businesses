@@ -1,5 +1,17 @@
 # POS System
 
+## Environment setup
+
+`backend/.env` is the single source of truth for all environment config, including
+Docker Compose's own variables (`DATABASE_NAME`/`USER`/`PASSWORD`, `NGINX_PORT`).
+The root `.env` that Compose auto-loads is a symlink to it.
+
+```bash
+cp backend/.env.example backend/.env
+# fill in the values, then:
+ln -sf backend/.env .env
+```
+
 ## Branch workflow
 
 This repository uses main as the full project and separate worktrees for backend, frontend, and mobile.
