@@ -131,6 +131,16 @@ export interface ProductUpdateRequest extends Partial<ProductCreateRequest> {
   is_active?: boolean
 }
 
+export interface CatalogLookupResult {
+  found: boolean
+  name: string | null
+  description: string | null
+  category_id: string | null
+  category_name: string | null
+  brand_id: string | null
+  brand_name: string | null
+}
+
 
 export interface InventoryItem {
   id: string

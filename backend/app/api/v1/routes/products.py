@@ -17,6 +17,7 @@ from app.api.deps import (
 from app.schemas.common import PaginatedResponse, SuccessResponse
 from app.subscriptions.gates import validate_product_limit
 from app.schemas.product import (
+    CatalogLookupResponse,
     PriceHistoryResponse,
     ProductCreateRequest,
     ProductDetailResponse,
@@ -26,7 +27,7 @@ from app.schemas.product import (
     ProductVariantResponse,
     ProductVariantUpdateRequest,
 )
-from app.services.product_service import ProductService
+from app.services.product_service import GlobalCatalogService, ProductService
 
 router = APIRouter()
 
@@ -122,6 +123,31 @@ async def get_by_sku(
     service = ProductService(db)
     product = await service.get_by_sku(tenant_id, sku)
     return ProductResponse.model_validate(product)
+
+
+@router.get(
+    "/catalog/{barcode}",
+    response_model=CatalogLookupResponse,
+    summary="Autofill Name/Description/Category/Brand for a barcode from the cross-tenant catalog",
+    dependencies=[Depends(require_inventory_access)],
+)
+async def lookup_catalog(
+    barcode: str,
+    db: DbSession,
+    current_user: CurrentUser,
+    request_id: RequestId,
+    tenant_id: EffectiveTenantId,
+) -> CatalogLookupResponse:
+    service = GlobalCatalogService(db)
+    result = await service.lookup_by_barcode(
+        tenant_id=tenant_id,
+        barcode=barcode,
+        actor_id=current_user.id,
+        request_id=request_id,
+    )
+    if not result:
+        return CatalogLookupResponse(found=False)
+    return CatalogLookupResponse(found=True, **result)
 
 
 @router.get(

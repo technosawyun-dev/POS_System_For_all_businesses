@@ -1,5 +1,6 @@
 import apiClient from '@/app/lib/axios'
 import type {
+  CatalogLookupResult,
   Product,
   ProductCreateRequest,
   ProductUpdateRequest,
@@ -37,6 +38,9 @@ export const productsService = {
 
   getBySku: (sku: string) =>
     apiClient.get<Product>(`/products/sku/${sku}`).then(r => r.data),
+
+  lookupCatalog: (barcode: string) =>
+    apiClient.get<CatalogLookupResult>(`/products/catalog/${barcode}`).then(r => r.data),
 
   create: (payload: ProductCreateRequest) =>
     apiClient.post<Product>('/products', payload).then(r => r.data),

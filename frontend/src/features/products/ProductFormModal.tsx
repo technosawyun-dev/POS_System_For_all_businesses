@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { productsService } from '@/services/products/products.service'
@@ -28,6 +28,7 @@ export interface ProductFormModalProps {
 export function ProductFormModal({ product, initialBarcode, onClose, onSaved }: ProductFormModalProps) {
   const isEdit = !!product
   const selectedBranch = useTenantStore(s => s.selectedBranch)
+  const queryClient = useQueryClient()
 
   // Disable camera scanner and USB scanner on mobile-width browsers (< 700px)
   const [isMobileWidth, setIsMobileWidth] = useState(() => window.innerWidth < 700)
@@ -100,6 +101,31 @@ export function ProductFormModal({ product, initialBarcode, onClose, onSaved }: 
     if (rp != null) setForm(prev => ({ ...prev, reorder_point: String(Math.round(Number(rp))) }))
   }, [invData])
 
+  // When a barcode isn't already used in this tenant, check the cross-tenant catalog
+  // for Name/Description/Category/Brand and silently fill in whatever's still empty.
+  const applyCatalogAutofill = useCallback(async (code: string) => {
+    try {
+      const catalog = await productsService.lookupCatalog(code)
+      if (!catalog.found) return
+      if (catalog.category_id || catalog.brand_id) {
+        // find-or-create may have added a new Category/Brand for this tenant —
+        // refresh the dropdown data before pointing form state at its id.
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['categories'] }),
+          queryClient.invalidateQueries({ queryKey: ['brands'] }),
+        ])
+      }
+      setForm(prev => ({
+        ...prev,
+        name:        prev.name        || catalog.name        || prev.name,
+        description: prev.description || catalog.description || prev.description,
+        category_id: prev.category_id || catalog.category_id || prev.category_id,
+        brand_id:    prev.brand_id    || catalog.brand_id     || prev.brand_id,
+      }))
+      toast.success('Auto-filled from catalog')
+    } catch { /* non-fatal — leave the form as scanned */ }
+  }, [queryClient])
+
   const handleScan = useCallback(async (code: string) => {
     if (isEdit) {
       setForm(prev => ({ ...prev, sku: prev.sku || code, barcode: code }))
@@ -117,7 +143,8 @@ export function ProductFormModal({ product, initialBarcode, onClose, onSaved }: 
     if (conflict) { setBarcodeConflict(conflict); return }
     setForm(prev => ({ ...prev, sku: prev.sku || code, barcode: code }))
     toast.success(`Scanned: ${code}`)
-  }, [isEdit])
+    void applyCatalogAutofill(code)
+  }, [isEdit, applyCatalogAutofill])
 
 
   function set(field: string) {
@@ -282,13 +309,16 @@ export function ProductFormModal({ product, initialBarcode, onClose, onSaved }: 
                         // (handles both manual entry and slow-scanner auto-fill)
                         setBarcodeChecking(true)
                         setBarcodeConflict(null)
+                        let conflict = false
                         try {
                           const result = await lookupProductByBarcode(code)
                           if (result.status === 'found') {
+                            conflict = true
                             setBarcodeConflict({ name: result.product.name, sku: result.product.sku })
                           }
                         } catch { /* network error — allow */ }
                         setBarcodeChecking(false)
+                        if (!conflict) void applyCatalogAutofill(code)
                       }
                     }
                   }}

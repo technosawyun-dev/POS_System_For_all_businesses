@@ -187,6 +187,18 @@ class ProductDetailResponse(ProductResponse):
     variants: list[ProductVariantResponse] = Field(default_factory=list)
 
 
+# Global catalog (cross-tenant autofill by barcode)
+
+class CatalogLookupResponse(BaseSchema):
+    found: bool
+    name: str | None = None
+    description: str | None = None
+    category_id: uuid.UUID | None = None
+    category_name: str | None = None
+    brand_id: uuid.UUID | None = None
+    brand_name: str | None = None
+
+
 # Price History
 
 class PriceHistoryResponse(TimestampedSchema):

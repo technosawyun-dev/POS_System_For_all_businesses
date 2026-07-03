@@ -8,10 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import AuditAction, EntityType, PriceType
 from app.core.exceptions import ConflictError, NotFoundError
-from app.models.product import Brand, Category, Product, ProductVariant
+from app.models.product import Brand, Category, GlobalProductCatalog, Product, ProductVariant
 from app.repositories.product_repository import (
     BrandRepository,
     CategoryRepository,
+    GlobalProductCatalogRepository,
     ProductPriceHistoryRepository,
     ProductRepository,
     ProductVariantRepository,
@@ -158,6 +159,20 @@ class CategoryService:
             request_id=request_id,
         )
 
+    async def find_or_create_by_name(
+        self,
+        tenant_id: uuid.UUID,
+        name: str,
+        actor_id: uuid.UUID,
+        request_id: str | None = None,
+    ) -> Category:
+        existing = await self.repo.get_by_name(tenant_id, name)
+        if existing:
+            return existing
+        return await self.create_category(
+            tenant_id, CategoryCreateRequest(name=name), actor_id, request_id
+        )
+
 
 class BrandService:
     def __init__(self, session: AsyncSession) -> None:
@@ -262,6 +277,93 @@ class BrandService:
             request_id=request_id,
         )
 
+    async def find_or_create_by_name(
+        self,
+        tenant_id: uuid.UUID,
+        name: str,
+        actor_id: uuid.UUID,
+        request_id: str | None = None,
+    ) -> Brand:
+        existing = await self.repo.get_by_name(tenant_id, name)
+        if existing:
+            return existing
+        return await self.create_brand(
+            tenant_id, BrandCreateRequest(name=name), actor_id, request_id
+        )
+
+
+class GlobalCatalogService:
+    """Cross-tenant Name/Description/Category/Brand lookup and sync, keyed by barcode.
+
+    Every other product field (price, SKU, stock, tax, etc.) stays tenant-private —
+    see GlobalProductCatalog for the rationale.
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+        self.catalog_repo = GlobalProductCatalogRepository(session)
+        self.category_service = CategoryService(session)
+        self.brand_service = BrandService(session)
+
+    async def lookup_by_barcode(
+        self,
+        tenant_id: uuid.UUID,
+        barcode: str,
+        actor_id: uuid.UUID,
+        request_id: str | None = None,
+    ) -> dict | None:
+        entry = await self.catalog_repo.get_by_barcode(barcode)
+        if not entry:
+            return None
+
+        category = None
+        if entry.category_name:
+            category = await self.category_service.find_or_create_by_name(
+                tenant_id, entry.category_name, actor_id, request_id
+            )
+        brand = None
+        if entry.brand_name:
+            brand = await self.brand_service.find_or_create_by_name(
+                tenant_id, entry.brand_name, actor_id, request_id
+            )
+
+        return {
+            "name": entry.name,
+            "description": entry.description,
+            "category_id": category.id if category else None,
+            "category_name": category.name if category else entry.category_name,
+            "brand_id": brand.id if brand else None,
+            "brand_name": brand.name if brand else entry.brand_name,
+        }
+
+    async def sync_from_product(
+        self,
+        tenant_id: uuid.UUID,
+        barcode: str | None,
+        name: str,
+        description: str | None,
+        category_id: uuid.UUID | None,
+        brand_id: uuid.UUID | None,
+    ) -> None:
+        if not barcode:
+            return
+        category_name = None
+        if category_id:
+            category = await self.category_service.repo.get_by_id(category_id)
+            category_name = category.name if category else None
+        brand_name = None
+        if brand_id:
+            brand = await self.brand_service.repo.get_by_id(brand_id)
+            brand_name = brand.name if brand else None
+        await self.catalog_repo.upsert(
+            barcode=barcode,
+            name=name,
+            description=description,
+            category_name=category_name,
+            brand_name=brand_name,
+            tenant_id=tenant_id,
+        )
+
 
 class ProductService:
     def __init__(self, session: AsyncSession) -> None:
@@ -270,6 +372,7 @@ class ProductService:
         self.variant_repo = ProductVariantRepository(session)
         self.price_history_repo = ProductPriceHistoryRepository(session)
         self.audit = AuditService(session)
+        self.catalog = GlobalCatalogService(session)
 
     async def create_product(
         self,
@@ -315,6 +418,14 @@ class ProductService:
         )
 
         await self._record_initial_prices(product, actor_id, tenant_id)
+        await self.catalog.sync_from_product(
+            tenant_id=tenant_id,
+            barcode=product.barcode,
+            name=product.name,
+            description=product.description,
+            category_id=product.category_id,
+            brand_id=product.brand_id,
+        )
 
         await self.audit.log(
             action=AuditAction.PRODUCT_CREATED,
@@ -511,6 +622,16 @@ class ProductService:
             request_id=request_id,
         )
         await self.session.refresh(product)
+
+        if {"name", "description", "category_id", "brand_id", "barcode"} & update_data.keys():
+            await self.catalog.sync_from_product(
+                tenant_id=tenant_id,
+                barcode=product.barcode,
+                name=product.name,
+                description=product.description,
+                category_id=product.category_id,
+                brand_id=product.brand_id,
+            )
         return product
 
     async def delete_product(

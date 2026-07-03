@@ -4,7 +4,16 @@ import { toast } from 'sonner'
 import { Btn, Spinner } from '@/components/ui'
 import { subscriptionsService } from '@/services/subscriptions/subscriptions.service'
 import { extractApiMsg } from '@/lib/utils'
+import { BASE_URL } from '@/app/lib/axios'
 import type { SubscriptionPaymentMethod } from '@/shared/types'
+
+// The API can live on a different origin than this admin app (e.g. a
+// Vercel-hosted frontend + separate API domain), so a bare "/uploads/..."
+// path from the backend resolves against the wrong host unless prefixed
+// with the API's origin. Resolving BASE_URL against window.location.origin
+// works whether BASE_URL is relative (dev, behind Vite's proxy) or an
+// absolute URL (production), and whether or not it has a path suffix.
+const API_ORIGIN = new URL(BASE_URL, window.location.origin).origin
 
 const METHOD_TYPES = [
   { value: 'KPAY',          label: 'KBZ Pay' },
@@ -31,7 +40,8 @@ const METHOD_ICONS: Record<string, string> = {
 
 function iconSrc(url: string | null | undefined) {
   if (!url) return null
-  return url
+  if (/^https?:\/\//.test(url)) return url
+  return `${API_ORIGIN}${url}`
 }
 
 function emptyMethod(): SubscriptionPaymentMethod {

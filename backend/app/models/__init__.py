@@ -12,6 +12,7 @@ from app.models.reseller import ResellerAssignment
 from app.models.product import (
     Brand,
     Category,
+    GlobalProductCatalog,
     Product,
     ProductPriceHistory,
     ProductVariant,
@@ -77,6 +78,7 @@ __all__ = [
     "ResellerAssignment",
     "Category",
     "Brand",
+    "GlobalProductCatalog",
     "Product",
     "ProductVariant",
     "VariantAttribute",

@@ -4,12 +4,14 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.product import (
     Brand,
     Category,
+    GlobalProductCatalog,
     Product,
     ProductPriceHistory,
     ProductVariant,
@@ -73,6 +75,19 @@ class CategoryRepository(BaseRepository[Category]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_name(
+        self, tenant_id: uuid.UUID, name: str
+    ) -> Category | None:
+        """Case-insensitive lookup among top-level categories, for catalog auto-linking."""
+        stmt = select(Category).where(
+            Category.tenant_id == tenant_id,
+            func.lower(Category.name) == name.strip().lower(),
+            Category.parent_id.is_(None),
+            Category.is_deleted.is_(False),
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
 
 class BrandRepository(BaseRepository[Brand]):
     def __init__(self, session: AsyncSession) -> None:
@@ -107,6 +122,16 @@ class BrandRepository(BaseRepository[Brand]):
         stmt = select(Brand).where(
             Brand.id == brand_id,
             Brand.tenant_id == tenant_id,
+            Brand.is_deleted.is_(False),
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_by_name(self, tenant_id: uuid.UUID, name: str) -> Brand | None:
+        """Case-insensitive lookup, for catalog auto-linking."""
+        stmt = select(Brand).where(
+            Brand.tenant_id == tenant_id,
+            func.lower(Brand.name) == name.strip().lower(),
             Brand.is_deleted.is_(False),
         )
         result = await self.session.execute(stmt)
@@ -371,6 +396,65 @@ class ProductVariantRepository(BaseRepository[ProductVariant]):
         result = await self.session.execute(loaded_stmt)
         loaded_variant = result.scalar_one()
         return loaded_variant
+
+
+class GlobalProductCatalogRepository(BaseRepository[GlobalProductCatalog]):
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(GlobalProductCatalog, session)
+
+    async def get_by_barcode(self, barcode: str) -> GlobalProductCatalog | None:
+        stmt = select(GlobalProductCatalog).where(GlobalProductCatalog.barcode == barcode)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def upsert(
+        self,
+        barcode: str,
+        name: str,
+        description: str | None,
+        category_name: str | None,
+        brand_name: str | None,
+        tenant_id: uuid.UUID,
+    ) -> GlobalProductCatalog:
+        """Create or overwrite the catalog entry for this barcode (last write wins)."""
+        existing = await self.get_by_barcode(barcode)
+        if existing:
+            existing.name = name
+            existing.description = description
+            existing.category_name = category_name
+            existing.brand_name = brand_name
+            existing.updated_by_tenant_id = tenant_id
+            await self.session.flush()
+            return existing
+
+        # Guard against two tenants racing to create the first entry for the same
+        # new barcode: a SAVEPOINT keeps the failed insert from poisoning the
+        # caller's outer transaction, so we can fall back to an update.
+        try:
+            async with self.session.begin_nested():
+                entry = GlobalProductCatalog(
+                    barcode=barcode,
+                    name=name,
+                    description=description,
+                    category_name=category_name,
+                    brand_name=brand_name,
+                    created_by_tenant_id=tenant_id,
+                    updated_by_tenant_id=tenant_id,
+                )
+                self.session.add(entry)
+                await self.session.flush()
+            return entry
+        except IntegrityError:
+            existing = await self.get_by_barcode(barcode)
+            if not existing:
+                raise
+            existing.name = name
+            existing.description = description
+            existing.category_name = category_name
+            existing.brand_name = brand_name
+            existing.updated_by_tenant_id = tenant_id
+            await self.session.flush()
+            return existing
 
 
 class ProductPriceHistoryRepository(BaseRepository[ProductPriceHistory]):

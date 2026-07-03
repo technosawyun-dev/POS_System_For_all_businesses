@@ -282,6 +282,40 @@ class VariantValue(Base):
         return f"<VariantValue attribute={self.attribute_id} value={self.value}>"
 
 
+class GlobalProductCatalog(Base):
+    """Cross-tenant reference data for Name/Description/Category/Brand, keyed by barcode.
+
+    Not tenant-scoped by design: any tenant creating/editing a product with a given
+    barcode overwrites this entry (last write wins), so other tenants scanning the
+    same barcode later can autofill from it. Everything else about a Product (price,
+    SKU, stock, tax, etc.) stays tenant-private and is never stored here.
+    """
+
+    __tablename__ = "global_product_catalog"
+    __table_args__ = (
+        UniqueConstraint("barcode", name="uq_global_product_catalog_barcode"),
+    )
+
+    barcode: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    brand_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_by_tenant_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    updated_by_tenant_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    def __repr__(self) -> str:
+        return f"<GlobalProductCatalog barcode={self.barcode} name={self.name}>"
+
+
 class ProductPriceHistory(Base):
     __tablename__ = "product_price_history"
     __table_args__ = (
