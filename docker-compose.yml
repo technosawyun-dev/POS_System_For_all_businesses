@@ -59,7 +59,6 @@ services:
       target: app
     container_name: pos_api
     restart: unless-stopped
-    user: "1000:1000"
     # 4 uvicorn workers OOM'd the 512m limit on this shared VPS; 2 fits comfortably
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
     env_file: ./backend/.env
@@ -94,7 +93,6 @@ services:
       target: app
     container_name: pos_celery_worker
     restart: unless-stopped
-    user: "1000:1000"
     env_file: ./backend/.env
     # Concurrency 20 OOM'd the shared VPS's memory limit; 4 fits comfortably
     command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=4 -Q default
@@ -127,7 +125,6 @@ services:
       target: app
     container_name: pos_celery_beat
     restart: unless-stopped
-    user: "1000:1000"
     env_file: ./backend/.env
     command: celery -A app.tasks.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule
     depends_on:
