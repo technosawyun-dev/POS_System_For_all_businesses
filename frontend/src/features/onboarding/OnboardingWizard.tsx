@@ -221,6 +221,8 @@ export default function OnboardingWizard() {
                 <Input
                   label="Branch Phone (optional)"
                   type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
                   value={branchPhone}
                   onChange={e => setBranchPhone(e.target.value)}
                   placeholder="+1 234 567 8900"

@@ -6,6 +6,7 @@ import { tokenStorage } from '@/app/lib/axios'
 import { ROLE_HOME } from '@/shared/constants/rbac'
 import { Btn, Input, PasswordInput, Spinner, Divider } from '@/components/ui/index'
 import { IconAlert } from '@/components/icons'
+import { PASSWORD_REQUIREMENTS, isPasswordValid, PASSWORDS_DO_NOT_MATCH_MESSAGE } from '@/lib/validation/password'
 
 interface FormState {
   business_name: string
@@ -44,11 +45,7 @@ export default function RegisterPage() {
     }
   }
 
-  const pwHasUpper = /[A-Z]/.test(form.password)
-  const pwHasLower = /[a-z]/.test(form.password)
-  const pwHasDigit = /[0-9]/.test(form.password)
-  const pwLongEnough = form.password.length >= 8
-  const passwordValid = pwLongEnough && pwHasUpper && pwHasLower && pwHasDigit
+  const passwordValid = isPasswordValid(form.password)
 
   const canSubmit =
     form.business_name.trim().length >= 2 &&
@@ -62,7 +59,7 @@ export default function RegisterPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (form.password !== form.confirm_password) {
-      setError('Passwords do not match')
+      setError(PASSWORDS_DO_NOT_MATCH_MESSAGE)
       return
     }
     setIsLoading(true)
@@ -154,6 +151,8 @@ export default function RegisterPage() {
             <Input
               label="Phone (optional)"
               type="tel"
+              inputMode="tel"
+              autoComplete="tel"
               value={form.phone}
               onChange={set('phone')}
               placeholder="+1 234 567 8900"
@@ -185,14 +184,9 @@ export default function RegisterPage() {
               />
               {form.password.length > 0 && !passwordValid && (
                 <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
-                  {[
-                    { ok: pwLongEnough, label: '8+ chars' },
-                    { ok: pwHasUpper, label: 'Uppercase' },
-                    { ok: pwHasLower, label: 'Lowercase' },
-                    { ok: pwHasDigit, label: 'Number' },
-                  ].map(r => (
-                    <span key={r.label} className={`text-[11px] ${r.ok ? 'text-green-500' : 'text-zinc-500'}`}>
-                      {r.ok ? '✓' : '·'} {r.label}
+                  {PASSWORD_REQUIREMENTS.map(r => (
+                    <span key={r.label} className={`text-[11px] ${r.test(form.password) ? 'text-green-500' : 'text-zinc-500'}`}>
+                      {r.test(form.password) ? '✓' : '·'} {r.label}
                     </span>
                   ))}
                 </div>
@@ -209,7 +203,7 @@ export default function RegisterPage() {
             />
 
             {form.password && form.confirm_password && form.password !== form.confirm_password && (
-              <p className="text-red-400 text-xs">Passwords do not match</p>
+              <p className="text-red-400 text-xs">{PASSWORDS_DO_NOT_MATCH_MESSAGE}</p>
             )}
 
             {error && (

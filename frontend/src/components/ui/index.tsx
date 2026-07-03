@@ -201,7 +201,7 @@ export function Modal({ open, onClose, title, children, size = 'md', noPad = fal
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
             <h3 className="text-sm font-semibold text-zinc-100">{title}</h3>
-            <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800 transition-colors">
+            <button onClick={onClose} aria-label="Close" className="text-zinc-500 hover:text-zinc-200 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800 transition-colors">
               <IconX width="14" height="14" />
             </button>
           </div>

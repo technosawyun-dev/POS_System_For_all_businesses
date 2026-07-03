@@ -122,6 +122,9 @@ export default function CustomerFormPage() {
           <FormField label="Phone" error={errors.phone?.message} required>
             <input
               {...register('phone')}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
               placeholder="+1 555 000 0000"
               className={inputCls(!!errors.phone)}
             />

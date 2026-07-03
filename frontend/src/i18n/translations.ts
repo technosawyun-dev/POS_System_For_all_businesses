@@ -37,6 +37,8 @@ export const en: LangDict = {
   'common.delete':       'Delete',
   'common.deleting':     'Deleting…',
   'common.close':        'Close',
+  'common.close_menu':   'Close menu',
+  'common.open_menu':    'Open menu',
   'common.new':          'New',
   'common.add':          'Add',
   'common.print':        'Print',

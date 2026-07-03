@@ -146,7 +146,7 @@ function ResellerLayoutInner({ children }: { children?: ReactNode }) {
             <div className="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center text-black font-black text-sm">R</div>
             <span className="font-bold text-zinc-100 text-sm">Reseller</span>
           </div>
-          <button onClick={closeSidebar} className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800">
+          <button onClick={closeSidebar} aria-label="Close menu" className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800">
             <IconX width="16" height="16" />
           </button>
         </div>
@@ -165,7 +165,7 @@ function ResellerLayoutInner({ children }: { children?: ReactNode }) {
 
         {/* Mobile top bar */}
         <header className="lg:hidden flex items-center gap-3 px-4 py-2.5 border-b border-zinc-800 bg-zinc-950 flex-shrink-0">
-          <button onClick={toggleSidebar} className="text-zinc-500 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors">
+          <button onClick={toggleSidebar} aria-label="Open menu" className="text-zinc-500 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors">
             <IconMenu width="16" height="16" />
           </button>
           <div className="flex items-center gap-2">

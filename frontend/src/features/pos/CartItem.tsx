@@ -56,6 +56,7 @@ export default function CartItem({ item }: CartItemProps) {
         <div className="flex items-center gap-1">
           <button
             onClick={() => updateQty(item.id, item.qty - 1)}
+            aria-label="Decrease quantity"
             className="w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-zinc-100 transition-colors active:scale-90"
           >
             <IconMinus width="10" height="10" />
@@ -80,6 +81,7 @@ export default function CartItem({ item }: CartItemProps) {
           />
           <button
             onClick={() => updateQty(item.id, item.qty + 1)}
+            aria-label="Increase quantity"
             className="w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 flex items-center justify-center text-zinc-400 hover:text-zinc-100 transition-colors active:scale-90"
           >
             <IconPlus width="10" height="10" />

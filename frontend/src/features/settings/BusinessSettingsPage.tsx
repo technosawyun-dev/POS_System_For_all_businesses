@@ -110,7 +110,7 @@ export default function BusinessSettingsPage() {
             </div>
             <div>
               <label className="block text-xs text-zinc-400 mb-1">{t('settings.phone')}</label>
-              <input disabled={!canEdit} value={form.phone ?? ''} onChange={set('phone')} className={inputCls(!canEdit)} />
+              <input type="tel" inputMode="tel" autoComplete="tel" disabled={!canEdit} value={form.phone ?? ''} onChange={set('phone')} className={inputCls(!canEdit)} />
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs text-zinc-400 mb-1">{t('settings.address')}</label>

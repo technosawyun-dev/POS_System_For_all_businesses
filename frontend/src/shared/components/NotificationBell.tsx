@@ -26,6 +26,7 @@ export default function NotificationBell() {
   return (
     <button
       onClick={() => navigate(notificationsPath(user?.role))}
+      aria-label={count > 0 ? `View notifications (${count} unread)` : 'View notifications'}
       className="relative w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

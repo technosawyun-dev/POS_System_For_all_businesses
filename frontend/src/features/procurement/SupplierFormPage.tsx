@@ -120,7 +120,7 @@ export default function SupplierFormPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <FormField label="Phone" error={errors.phone?.message}>
-              <input {...register('phone')} placeholder="+1 555 000 0000" className={inputCls(!!errors.phone)} />
+              <input {...register('phone')} type="tel" inputMode="tel" autoComplete="tel" placeholder="+1 555 000 0000" className={inputCls(!!errors.phone)} />
             </FormField>
             <FormField label="Email" error={errors.email?.message}>
               <input {...register('email')} type="email" placeholder="contact@supplier.com" className={inputCls(!!errors.email)} />

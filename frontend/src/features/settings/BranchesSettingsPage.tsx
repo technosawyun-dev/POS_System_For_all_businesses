@@ -22,10 +22,11 @@ const INPUT = 'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 te
 const LABEL = 'block text-xs text-zinc-400 mb-1'
 
 function Field({
-  label, value, onChange, required, readOnly, placeholder,
+  label, value, onChange, required, readOnly, placeholder, type, inputMode, autoComplete,
 }: {
   label: string; value: string; onChange?: (v: string) => void
   required?: boolean; readOnly?: boolean; placeholder?: string
+  type?: string; inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode']; autoComplete?: string
 }) {
   return (
     <div>
@@ -33,6 +34,9 @@ function Field({
         {label}{required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       <input
+        type={type}
+        inputMode={inputMode}
+        autoComplete={autoComplete}
         value={value}
         readOnly={readOnly}
         placeholder={placeholder}
@@ -76,7 +80,7 @@ function AddBranchModal({ tenantId, onClose }: { tenantId: string; onClose: () =
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
           <h3 className="text-base font-semibold text-zinc-100">Add New Branch</h3>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-zinc-800">
+          <button onClick={onClose} aria-label="Close" className="text-zinc-500 hover:text-zinc-200 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-zinc-800">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
@@ -98,7 +102,7 @@ function AddBranchModal({ tenantId, onClose }: { tenantId: string; onClose: () =
 
           <Field label="Address"  value={form.address ?? ''} onChange={v => setForm(p => ({ ...p, address: v }))} />
           <Field label="City"     value={form.city    ?? ''} onChange={v => setForm(p => ({ ...p, city: v }))} />
-          <Field label="Phone"    value={form.phone   ?? ''} onChange={v => setForm(p => ({ ...p, phone: v }))} placeholder="+1 555 000 0000" />
+          <Field label="Phone"    value={form.phone   ?? ''} onChange={v => setForm(p => ({ ...p, phone: v }))} placeholder="+1 555 000 0000" type="tel" inputMode="tel" autoComplete="tel" />
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Timezone" value={form.timezone ?? 'UTC'} onChange={v => setForm(p => ({ ...p, timezone: v }))} placeholder="UTC" />
@@ -168,7 +172,7 @@ function EditBranchModal({
             <h3 className="text-base font-semibold text-zinc-100">Edit Branch</h3>
             <p className="text-xs text-zinc-500 mt-0.5 font-mono tracking-widest">{branch.code}</p>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-zinc-800">
+          <button onClick={onClose} aria-label="Close" className="text-zinc-500 hover:text-zinc-200 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-zinc-800">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
@@ -177,7 +181,7 @@ function EditBranchModal({
           <Field label="Branch Name" value={form.name}     onChange={set('name')}     required />
           <Field label="Address"     value={form.address}  onChange={set('address')}  />
           <Field label="City"        value={form.city}     onChange={set('city')}     />
-          <Field label="Phone"       value={form.phone}    onChange={set('phone')}    placeholder="+1 555 000 0000" />
+          <Field label="Phone"       value={form.phone}    onChange={set('phone')}    placeholder="+1 555 000 0000" type="tel" inputMode="tel" autoComplete="tel" />
           <div className="grid grid-cols-2 gap-3">
             <Field label="Timezone"  value={form.timezone} onChange={set('timezone')} placeholder="UTC" />
             <Field label="Currency"  value={form.currency} onChange={set('currency')} placeholder="Kyats" />

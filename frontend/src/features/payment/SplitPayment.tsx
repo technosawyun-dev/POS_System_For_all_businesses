@@ -108,6 +108,7 @@ export default function SplitPayment({ total, splitPayments, onAdd, onRemove, on
               <span className="flex-1 text-right font-mono text-sm font-semibold text-zinc-100">{fmt(p.amount)}</span>
               <button
                 onClick={() => onRemove(i)}
+                aria-label="Remove split payment"
                 className="w-5 h-5 rounded flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-950/50 transition-colors"
               >
                 <IconX width="11" height="11" />

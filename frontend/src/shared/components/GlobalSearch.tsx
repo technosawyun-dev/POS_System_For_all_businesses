@@ -177,7 +177,7 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps) {
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative w-full max-w-2xl bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-2xl bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl overflow-hidden focus-within:border-amber-500/60 transition-colors">
         {/* Input */}
         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-zinc-800">
           <span className="text-zinc-500 text-lg flex-shrink-0">🔍</span>

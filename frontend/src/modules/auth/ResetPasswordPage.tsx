@@ -3,14 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { Btn, PasswordInput, Spinner } from '@/components/ui/index'
 import { IconAlert } from '@/components/icons'
 import { authService } from '@/services/auth/auth.service'
-
-function validatePassword(pw: string): string | null {
-  if (pw.length < 8)              return 'Password must be at least 8 characters.'
-  if (!/[A-Z]/.test(pw))         return 'Password must contain at least one uppercase letter.'
-  if (!/[a-z]/.test(pw))         return 'Password must contain at least one lowercase letter.'
-  if (!/[0-9]/.test(pw))         return 'Password must contain at least one digit.'
-  return null
-}
+import { validateNewPassword, PASSWORDS_DO_NOT_MATCH_MESSAGE } from '@/lib/validation/password'
 
 export default function ResetPasswordPage() {
   const [searchParams]              = useSearchParams()
@@ -27,9 +20,9 @@ export default function ResetPasswordPage() {
     e.preventDefault()
     setError(null)
 
-    const pwError = validatePassword(password)
+    const pwError = validateNewPassword(password)
     if (pwError) { setError(pwError); return }
-    if (password !== confirm) { setError('Passwords do not match.'); return }
+    if (password !== confirm) { setError(PASSWORDS_DO_NOT_MATCH_MESSAGE); return }
 
     setLoading(true)
     try {

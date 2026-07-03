@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { cn, extractApiMsg } from '@/lib/utils'
+import { newPasswordZodSchema, PASSWORDS_DO_NOT_MATCH_MESSAGE } from '@/lib/validation/password'
 import { Btn, Divider, PasswordInput, Spinner } from '@/components/ui'
 import { ROLE_LABELS, ROLE_BADGE_STYLES } from '@/shared/constants/rbac'
 import { usersService } from '@/services/users/users.service'
@@ -38,14 +39,10 @@ type ProfileForm = z.infer<typeof profileSchema>
 
 const passwordSchema = z.object({
   current_password: z.string().min(1, 'Required'),
-  new_password: z.string()
-    .min(8, 'Min 8 characters')
-    .regex(/[A-Z]/, 'Must contain uppercase')
-    .regex(/[a-z]/, 'Must contain lowercase')
-    .regex(/[0-9]/, 'Must contain a number'),
+  new_password: newPasswordZodSchema,
   confirm_password: z.string().min(1, 'Required'),
 }).refine(d => d.new_password === d.confirm_password, {
-  message: 'Passwords do not match',
+  message: PASSWORDS_DO_NOT_MATCH_MESSAGE,
   path: ['confirm_password'],
 })
 type PasswordForm = z.infer<typeof passwordSchema>
@@ -144,6 +141,9 @@ export default function ProfileSettingsPage() {
           <FormField label="Phone" error={profileForm.formState.errors.phone?.message}>
             <input
               {...profileForm.register('phone')}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
               placeholder="e.g. +1 234 567 8900"
               className={inputCls(!!profileForm.formState.errors.phone)}
             />

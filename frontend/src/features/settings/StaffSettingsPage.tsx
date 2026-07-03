@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { cn, extractApiMsg, fmtDateTime } from '@/lib/utils'
+import { newPasswordZodSchema, PASSWORDS_DO_NOT_MATCH_MESSAGE } from '@/lib/validation/password'
 import { Btn, Badge, Table, Th, Td, Spinner, Divider, PasswordInput } from '@/components/ui'
 import { usersService } from '@/services/users/users.service'
 import { tenantService } from '@/services/tenant/tenant.service'
@@ -52,17 +53,13 @@ const createSchema = z.object({
   first_name:        z.string().min(1, 'Required'),
   last_name:         z.string().min(1, 'Required'),
   email:             z.string().email('Invalid email').or(z.literal('')).optional(),
-  password:          z.string()
-    .min(8, 'Min 8 characters')
-    .regex(/[A-Z]/, 'Must contain uppercase')
-    .regex(/[a-z]/, 'Must contain lowercase')
-    .regex(/[0-9]/, 'Must contain a number'),
+  password:          newPasswordZodSchema,
   confirm_password:  z.string().min(1, 'Required'),
   phone:             z.string().min(1, 'Phone number is required'),
   role:              z.enum(['MANAGER', 'CASHIER', 'INVENTORY_STAFF']),
   primary_branch_id: z.string().optional(),
 }).refine(d => d.password === d.confirm_password, {
-  message: 'Passwords do not match',
+  message: PASSWORDS_DO_NOT_MATCH_MESSAGE,
   path: ['confirm_password'],
 })
 type CreateForm = z.infer<typeof createSchema>
@@ -134,7 +131,7 @@ function CreateStaffModal({ onClose, tenantId }: { onClose: () => void; tenantId
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Phone" error={errors.phone?.message} required>
-              <input {...register('phone')} placeholder="+1 234 567 8900" className={inputCls(!!errors.phone)} />
+              <input {...register('phone')} type="tel" inputMode="tel" autoComplete="tel" placeholder="+1 234 567 8900" className={inputCls(!!errors.phone)} />
             </FormField>
             <FormField label="Role" required>
               <select {...register('role')} className={inputCls()}>
@@ -176,14 +173,10 @@ const editSchema = z.object({
 type EditForm = z.infer<typeof editSchema>
 
 const resetPwSchema = z.object({
-  new_password: z.string()
-    .min(8, 'Min 8 characters')
-    .regex(/[A-Z]/, 'Must contain uppercase')
-    .regex(/[a-z]/, 'Must contain lowercase')
-    .regex(/[0-9]/, 'Must contain a number'),
+  new_password: newPasswordZodSchema,
   confirm_password: z.string().min(1, 'Required'),
 }).refine(d => d.new_password === d.confirm_password, {
-  message: 'Passwords do not match',
+  message: PASSWORDS_DO_NOT_MATCH_MESSAGE,
   path: ['confirm_password'],
 })
 type ResetPwForm = z.infer<typeof resetPwSchema>
@@ -293,7 +286,7 @@ function EditStaffModal({ staff, isOwner, tenantId, onClose }: {
               </FormField>
             </div>
             <FormField label="Phone" error={editForm.formState.errors.phone?.message}>
-              <input {...editForm.register('phone')} placeholder="+1 234 567 8900" className={inputCls(!!editForm.formState.errors.phone)} />
+              <input {...editForm.register('phone')} type="tel" inputMode="tel" autoComplete="tel" placeholder="+1 234 567 8900" className={inputCls(!!editForm.formState.errors.phone)} />
             </FormField>
             {isOwner && (
               <FormField label="Role" required>

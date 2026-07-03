@@ -43,7 +43,7 @@ export default function PlanDetailPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3.5 border-b border-zinc-800">
-        <button onClick={() => navigate('/super-admin/plans')} className="text-zinc-500 hover:text-zinc-200 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800">
+        <button onClick={() => navigate('/super-admin/plans')} aria-label="Go back" className="text-zinc-500 hover:text-zinc-200 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <div className="flex-1 min-w-0">

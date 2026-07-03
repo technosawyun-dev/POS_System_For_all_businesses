@@ -297,6 +297,7 @@ export default function PlatformPaymentMethodsPage() {
                               type="button"
                               onClick={() => moveUp(idx)}
                               disabled={idx === 0}
+                              aria-label="Move up"
                               className="w-5 h-5 rounded flex items-center justify-center text-zinc-600 hover:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             >
                               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"/></svg>
@@ -305,6 +306,7 @@ export default function PlatformPaymentMethodsPage() {
                               type="button"
                               onClick={() => moveDown(idx)}
                               disabled={idx === methods.length - 1}
+                              aria-label="Move down"
                               className="w-5 h-5 rounded flex items-center justify-center text-zinc-600 hover:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             >
                               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
@@ -329,6 +331,7 @@ export default function PlatformPaymentMethodsPage() {
                           <button
                             type="button"
                             onClick={() => removeMethod(idx)}
+                            aria-label="Remove payment method"
                             className="flex-shrink-0 mt-4 w-7 h-7 rounded-lg flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-950/50 transition-colors"
                           >
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>

@@ -152,7 +152,7 @@ export default function RefundModal({ onClose, onSuccess }: Props) {
             <IconRefund width="16" height="16" className="text-amber-400" />
             <h2 className="text-sm font-semibold text-zinc-100">Process Refund</h2>
           </div>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800">
+          <button onClick={onClose} aria-label="Close" className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800">
             <IconX width="14" height="14" />
           </button>
         </div>

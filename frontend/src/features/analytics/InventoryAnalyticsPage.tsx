@@ -215,7 +215,7 @@ export default function InventoryAnalyticsPage() {
           <select
             value={deadDays}
             onChange={e => { setDeadDays(Number(e.target.value)); setDeadStockPage(1) }}
-            className="bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-400 text-xs px-2 py-1 focus:outline-none"
+            className="bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-400 text-xs px-2 py-1 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
           >
             {[30, 60, 90, 180].map(d => (
               <option key={d} value={d}>{d} days</option>

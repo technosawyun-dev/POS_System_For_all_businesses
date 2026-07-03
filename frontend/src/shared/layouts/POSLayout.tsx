@@ -35,12 +35,15 @@ export default function POSLayout({ children }: POSLayoutProps) {
         <button
           onClick={toggleOnline}
           title={isOnline ? 'Simulate offline' : 'Go online'}
+          aria-label={isOnline ? 'Simulate offline' : 'Go online'}
           className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isOnline ? 'text-zinc-600 hover:bg-zinc-800' : 'text-red-500 bg-red-950/40'}`}
         >
           {isOnline ? <IconWifi width="14" height="14" /> : <IconWifiOff width="14" height="14" />}
         </button>
         <button
           onClick={() => navigate('/app/session-close')}
+          title="Close Session"
+          aria-label="Close Session"
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-zinc-500 hover:text-red-400 rounded-lg hover:bg-red-950/30 transition-all border border-transparent hover:border-red-900/40"
         >
           <IconLogout width="13" height="13" />

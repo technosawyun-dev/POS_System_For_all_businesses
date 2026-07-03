@@ -117,10 +117,10 @@ export default function SuppliersPage() {
           <div className="flex items-center justify-between text-xs text-zinc-500">
             <span>Page {page} of {totalPages} · {total} total</span>
             <div className="flex gap-1">
-              <Btn variant="secondary" size="xs" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+              <Btn variant="secondary" size="xs" disabled={page === 1} onClick={() => setPage(p => p - 1)} aria-label="Previous page">
                 <IconChevLeft width="12" height="12" />
               </Btn>
-              <Btn variant="secondary" size="xs" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+              <Btn variant="secondary" size="xs" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} aria-label="Next page">
                 <IconChevRight width="12" height="12" />
               </Btn>
             </div>

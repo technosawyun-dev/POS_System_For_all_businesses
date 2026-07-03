@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { fmtDate, extractApiMsg } from '@/lib/utils'
+import { isPasswordValid, PASSWORD_REQUIREMENTS } from '@/lib/validation/password'
 import { Btn, Spinner, Empty, Badge } from '@/components/ui'
 import { usersService } from '@/services/users/users.service'
 import { tenantService } from '@/services/tenant/tenant.service'
@@ -42,14 +43,14 @@ function CreateResellerModal({ onClose }: { onClose: () => void }) {
   })
 
   const inp = 'w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-amber-500'
-  const isValid = form.first_name && form.last_name && form.email && form.password.length >= 8
+  const isValid = form.first_name && form.last_name && form.email && isPasswordValid(form.password)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
           <h3 className="text-base font-semibold text-zinc-100">New Reseller Account</h3>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-zinc-800">
+          <button onClick={onClose} aria-label="Close" className="text-zinc-500 hover:text-zinc-200 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-zinc-800">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
@@ -70,7 +71,7 @@ function CreateResellerModal({ onClose }: { onClose: () => void }) {
           </div>
           <div>
             <label className="block text-xs text-zinc-400 mb-1">Phone</label>
-            <input className={inp} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="Optional" />
+            <input type="tel" inputMode="tel" autoComplete="tel" className={inp} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="Optional" />
           </div>
           <div>
             <label className="block text-xs text-zinc-400 mb-1">Password * (min 8 chars, upper + lower + digit)</label>
@@ -86,6 +87,7 @@ function CreateResellerModal({ onClose }: { onClose: () => void }) {
                 onClick={() => setShowPassword(p => !p)}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
                 tabIndex={-1}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -101,6 +103,15 @@ function CreateResellerModal({ onClose }: { onClose: () => void }) {
                 )}
               </button>
             </div>
+            {form.password.length > 0 && !isPasswordValid(form.password) && (
+              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                {PASSWORD_REQUIREMENTS.map(r => (
+                  <span key={r.label} className={`text-[11px] ${r.test(form.password) ? 'text-green-500' : 'text-zinc-500'}`}>
+                    {r.test(form.password) ? '✓' : '·'} {r.label}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         <div className="px-5 py-4 border-t border-zinc-800 flex gap-2 justify-end">

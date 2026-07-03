@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { fmtDate, extractApiMsg } from '@/lib/utils'
+import { isPasswordValid, PASSWORD_REQUIREMENTS, PASSWORDS_DO_NOT_MATCH_MESSAGE } from '@/lib/validation/password'
 import { Badge, Btn, Spinner, Empty, Modal, PasswordInput } from '@/components/ui'
 import { cn } from '@/shared/utils'
 import { usersService } from '@/services/users/users.service'
@@ -75,8 +76,8 @@ export default function ResellerDetailPage() {
 
   function handleResetPassword(e: React.FormEvent) {
     e.preventDefault()
-    if (newPwd.length < 8) { toast.error('Password must be at least 8 characters'); return }
-    if (newPwd !== confirmPwd) { toast.error('Passwords do not match'); return }
+    if (!isPasswordValid(newPwd)) { toast.error('Password does not meet the requirements below'); return }
+    if (newPwd !== confirmPwd) { toast.error(PASSWORDS_DO_NOT_MATCH_MESSAGE); return }
     resetPwdMutation.mutate()
   }
 
@@ -95,6 +96,7 @@ export default function ResellerDetailPage() {
       <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3.5 border-b border-zinc-800">
         <button
           onClick={() => navigate('/super-admin/resellers')}
+          aria-label="Back to resellers"
           className="text-zinc-500 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors flex-shrink-0"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
@@ -336,14 +338,25 @@ export default function ResellerDetailPage() {
         size="sm"
       >
         <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
-          <PasswordInput
-            label="New Password"
-            name="new_password"
-            value={newPwd}
-            onChange={e => setNewPwd(e.target.value)}
-            placeholder="Min 8 characters"
-            autoComplete="new-password"
-          />
+          <div>
+            <PasswordInput
+              label="New Password"
+              name="new_password"
+              value={newPwd}
+              onChange={e => setNewPwd(e.target.value)}
+              placeholder="Min 8 chars, uppercase, lowercase, number"
+              autoComplete="new-password"
+            />
+            {newPwd.length > 0 && !isPasswordValid(newPwd) && (
+              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                {PASSWORD_REQUIREMENTS.map(r => (
+                  <span key={r.label} className={`text-[11px] ${r.test(newPwd) ? 'text-green-500' : 'text-zinc-500'}`}>
+                    {r.test(newPwd) ? '✓' : '·'} {r.label}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
           <PasswordInput
             label="Confirm Password"
             name="confirm_password"
@@ -353,7 +366,7 @@ export default function ResellerDetailPage() {
             autoComplete="new-password"
           />
           {confirmPwd && newPwd !== confirmPwd && (
-            <p className="text-xs text-red-400 -mt-2">Passwords do not match</p>
+            <p className="text-xs text-red-400 -mt-2">{PASSWORDS_DO_NOT_MATCH_MESSAGE}</p>
           )}
           <div className="flex gap-2 pt-1">
             <Btn
@@ -361,7 +374,7 @@ export default function ResellerDetailPage() {
               variant="danger"
               fullWidth
               loading={resetPwdMutation.isPending}
-              disabled={!newPwd || !confirmPwd || newPwd !== confirmPwd}
+              disabled={!isPasswordValid(newPwd) || !confirmPwd || newPwd !== confirmPwd}
             >
               Reset Password
             </Btn>

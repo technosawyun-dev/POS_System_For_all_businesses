@@ -46,6 +46,7 @@ function SaleItemRow({ item, onUpdateQty, onRemove }: SaleItemRowProps) {
       <div className="flex items-center gap-1 flex-shrink-0">
         <button
           onClick={() => onUpdateQty(item.product.id, item.quantity - 1)}
+          aria-label="Decrease quantity"
           className="w-6 h-6 rounded-lg bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 flex items-center justify-center transition-colors"
         >
           <IconMinus width="10" height="10" />
@@ -70,6 +71,7 @@ function SaleItemRow({ item, onUpdateQty, onRemove }: SaleItemRowProps) {
         />
         <button
           onClick={() => onUpdateQty(item.product.id, item.quantity + 1)}
+          aria-label="Increase quantity"
           className="w-6 h-6 rounded-lg bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 flex items-center justify-center transition-colors"
         >
           <IconPlus width="10" height="10" />
@@ -82,6 +84,7 @@ function SaleItemRow({ item, onUpdateQty, onRemove }: SaleItemRowProps) {
 
       <button
         onClick={() => onRemove(item.product.id)}
+        aria-label="Remove item"
         className="text-zinc-600 hover:text-red-400 transition-colors flex-shrink-0"
       >
         <IconTrash width="14" height="14" />

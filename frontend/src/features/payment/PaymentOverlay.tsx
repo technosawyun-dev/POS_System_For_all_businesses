@@ -213,6 +213,7 @@ export default function PaymentOverlay() {
             <span className="font-mono text-lg font-bold text-amber-400">{fmt(totals.total)}</span>
             <button
               onClick={() => !isProcessing && setCheckoutStep('cart')}
+              aria-label="Back to cart"
               className="w-8 h-8 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 flex items-center justify-center text-zinc-500 hover:text-zinc-100 transition-colors"
             >
               <IconX width="14" height="14" />
