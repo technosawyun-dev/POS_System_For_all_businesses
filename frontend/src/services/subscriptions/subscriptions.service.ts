@@ -36,6 +36,9 @@ export const subscriptionsService = {
   downgrade: (plan_id: string) =>
     apiClient.post<{ message: string }>('/subscriptions/downgrade', { plan_id }).then(r => r.data),
 
+  cancelPendingDowngrade: () =>
+    apiClient.post<{ message: string }>('/subscriptions/downgrade/cancel').then(r => r.data),
+
   cancel: () =>
     apiClient.post<Subscription>('/subscriptions/cancel').then(r => r.data),
 

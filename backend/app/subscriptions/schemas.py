@@ -240,6 +240,10 @@ class DowngradeScheduledResponse(BaseSchema):
     pending_downgrade_requested_at: datetime
 
 
+class MessageResponse(BaseSchema):
+    message: str
+
+
 class ActivateSubscriptionRequest(BaseSchema):
     plan_id: uuid.UUID
     extension_days: int = Field(default=30, ge=1)

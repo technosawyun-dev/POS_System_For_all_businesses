@@ -594,6 +594,48 @@ class SubscriptionService:
             "pending_downgrade_requested_at": now,
         }
 
+    async def cancel_pending_downgrade(
+        self,
+        tenant_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        request_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Cancel a scheduled downgrade before it takes effect, keeping the current plan."""
+        sub = await self.sub_repo.get_by_tenant(tenant_id)
+        if not sub:
+            raise NotFoundError("TenantSubscription", tenant_id)
+
+        if not sub.pending_downgrade_plan_id:
+            raise BusinessRuleError("No pending downgrade to cancel")
+
+        cancelled_plan_id = sub.pending_downgrade_plan_id
+        sub.pending_downgrade_plan_id = None
+        sub.pending_downgrade_requested_at = None
+
+        self._add_history(
+            sub,
+            change_type=SubscriptionChangeType.DOWNGRADE_CANCELLED,
+            old_plan_id=cancelled_plan_id,
+            new_plan_id=sub.plan_id,
+            old_status=sub.status,
+            new_status=sub.status,
+            note="Scheduled downgrade cancelled; remaining on current plan.",
+            changed_by_user_id=actor_id,
+        )
+        await self.session.flush()
+
+        await self.audit.log(
+            action=AuditAction.SUBSCRIPTION_DOWNGRADE_CANCELLED,
+            actor_user_id=actor_id,
+            tenant_id=tenant_id,
+            entity_type=EntityType.TENANT_SUBSCRIPTION,
+            entity_id=sub.id,
+            after_state={"cancelled_pending_downgrade_plan_id": str(cancelled_plan_id)},
+            request_id=request_id,
+        )
+
+        return {"message": "Pending downgrade cancelled"}
+
     async def cancel_subscription(
         self,
         tenant_id: uuid.UUID,
@@ -1244,8 +1286,23 @@ class PaymentProofService:
                 proof_currency=proof.currency,
                 request_id=request_id,
             )
+        elif proof.target_plan_id and proof.target_plan_id != sub.plan_id:
+            # INITIAL_ACTIVATION with a target plan that differs from the subscription's
+            # current plan — e.g. a trial tenant picking their first paid plan via the
+            # "Select Plan" proof flow, which does not set action_type explicitly and so
+            # defaults to INITIAL_ACTIVATION. Apply it the same way an UPGRADE proof
+            # would, so the subscription actually moves onto the plan that was paid for.
+            await self._apply_upgrade(
+                sub=sub,
+                target_plan_id=proof.target_plan_id,
+                actor_id=actor_id,
+                proof_amount=proof.amount,
+                proof_currency=proof.currency,
+                request_id=request_id,
+            )
         else:
-            # INITIAL_ACTIVATION — original behavior
+            # INITIAL_ACTIVATION — original behavior (activates the plan already on
+            # the subscription; no target plan was specified on the proof).
             plan = await self.plan_repo.get_by_id(sub.plan_id)
             if not plan:
                 raise NotFoundError("SubscriptionPlan", sub.plan_id)

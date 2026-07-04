@@ -6,8 +6,20 @@ import { Badge, Btn, Spinner } from '@/components/ui'
 import { cn } from '@/shared/utils'
 import { extractApiMsg } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth.store'
+import { BASE_URL } from '@/app/lib/axios'
 import type { ContactLinks, Plan, SubscriptionPaymentMethod } from '@/shared/types'
 import { ProofActionType } from '@/shared/types'
+
+// The API can live on a different origin than this app (e.g. a Vercel-hosted
+// frontend + separate API domain), so a bare "/uploads/..." path from the
+// backend resolves against the wrong host unless prefixed with the API's origin.
+const API_ORIGIN = new URL(BASE_URL, window.location.origin).origin
+
+function iconSrc(url: string | null | undefined) {
+  if (!url) return null
+  if (/^https?:\/\//.test(url)) return url
+  return `${API_ORIGIN}${url}`
+}
 
 const FEATURE_LABELS: Record<string, string> = {
   users:         'Users / Staff',
@@ -86,7 +98,7 @@ const PAYMENT_METHOD_COLORS: Record<string, string> = {
 }
 
 function PaymentMethodLogo({ method }: { method: SubscriptionPaymentMethod }) {
-  const src = method.icon_url ?? null
+  const src = iconSrc(method.icon_url)
   if (src) {
     return (
       <img
@@ -208,6 +220,7 @@ function UpgradeProofModal({ plan, paymentMethods, onClose }: { plan: Plan; paym
       reference_number: `Activate: ${plan.name}`,
       proof_file_url: proofUrl,
       target_plan_id: plan.id,
+      action_type: ProofActionType.UPGRADE,
     })
   }
 
@@ -541,6 +554,16 @@ export default function PlansPage() {
     },
   })
 
+  const cancelDowngradeMutation = useMutation({
+    mutationFn: () => subscriptionsService.cancelPendingDowngrade(),
+    onSuccess: data => {
+      qc.invalidateQueries({ queryKey: ['subscription'] })
+      qc.invalidateQueries({ queryKey: ['plans'] })
+      toast.success(data.message ?? 'Pending downgrade cancelled')
+    },
+    onError: err => toast.error(extractApiMsg(err) ?? 'Failed to cancel downgrade'),
+  })
+
   if (subLoading || plansLoading) {
     return <div className="flex items-center justify-center h-full"><Spinner size={28} /></div>
   }
@@ -611,15 +634,24 @@ export default function PlansPage() {
           {sub?.pending_downgrade_plan_id && (() => {
             const pendingPlan = plans.find(p => p.id === sub.pending_downgrade_plan_id)
             return (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 mb-6 flex items-start gap-3">
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 mb-6 flex items-start gap-3 flex-wrap">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400 flex-shrink-0 mt-0.5">
                   <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
-                <p className="text-sm text-amber-300">
+                <p className="text-sm text-amber-300 flex-1 min-w-[200px]">
                   Downgrade to{' '}
                   <span className="font-semibold">{pendingPlan?.name ?? 'a lower plan'}</span>{' '}
                   is scheduled for end of your current billing period.
                 </p>
+                {isOwner && (
+                  <Btn
+                    variant="secondary" size="sm"
+                    disabled={cancelDowngradeMutation.isPending}
+                    onClick={() => cancelDowngradeMutation.mutate()}
+                  >
+                    {cancelDowngradeMutation.isPending ? 'Cancelling…' : 'Cancel Downgrade'}
+                  </Btn>
+                )}
               </div>
             )
           })()}

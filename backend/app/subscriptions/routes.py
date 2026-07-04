@@ -21,6 +21,7 @@ from app.subscriptions.schemas import (
     ChangePlanRequest,
     DowngradeScheduledResponse,
     EffectiveEntitlementResponse,
+    MessageResponse,
     PaginatedPaymentProofs,
     PaginatedPlans,
     PaginatedSubscriptionHistory,
@@ -175,6 +176,24 @@ async def downgrade_subscription(
         tenant_id=tenant_id, data=data, actor_id=current_user.id, request_id=request_id
     )
     return DowngradeScheduledResponse(**result)
+
+
+@router.post(
+    "/downgrade/cancel",
+    response_model=MessageResponse,
+    summary="Cancel a scheduled downgrade before it takes effect",
+)
+async def cancel_pending_downgrade(
+    db: DbSession,
+    current_user: Annotated[User, Depends(require_tenant_admin)],
+    tenant_id: EffectiveTenantId,
+    request_id: RequestId,
+) -> MessageResponse:
+    svc = SubscriptionService(db)
+    result = await svc.cancel_pending_downgrade(
+        tenant_id=tenant_id, actor_id=current_user.id, request_id=request_id
+    )
+    return MessageResponse(**result)
 
 
 @router.post("/cancel", response_model=SubscriptionResponse)
