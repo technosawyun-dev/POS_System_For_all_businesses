@@ -129,7 +129,20 @@ export default function ProfileSettingsPage() {
         </div>
         <div>
           <p className="text-zinc-100 font-semibold text-base leading-tight">{user.full_name}</p>
-          <p className="text-zinc-500 text-xs mt-0.5">{user.email}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-zinc-500 text-xs">{user.email}</p>
+            {user.role === 'BUSINESS_OWNER' && (
+              user.email_verified_at ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-400">
+                  ✓ Verified
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-400">
+                  ✗ Email Unverified
+                </span>
+              )
+            )}
+          </div>
           <span
             className="inline-block mt-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium border"
             style={{ background: roleStyle.bg, color: roleStyle.text, borderColor: roleStyle.border }}

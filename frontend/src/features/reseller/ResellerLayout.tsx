@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { useUIStore } from '@/store/ui.store'
 import { ROLE_BADGE_STYLES } from '@/shared/constants/rbac'
 import { IconMenu, IconX, IconLogout } from '@/components/icons'
+import VerifyEmailBanner from '@/shared/components/VerifyEmailBanner'
 
 
 
@@ -159,6 +160,7 @@ function ResellerLayoutInner({ children }: { children?: ReactNode }) {
             <span className="text-amber-400 text-xs font-medium">Working offline — changes will sync when reconnected</span>
           </div>
         )}
+        <VerifyEmailBanner />
 
         {/* Mobile top bar */}
         <header className="lg:hidden flex items-center gap-3 px-4 py-2.5 border-b border-zinc-800 bg-zinc-950 flex-shrink-0">

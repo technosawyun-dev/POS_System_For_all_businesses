@@ -47,10 +47,17 @@ const passwordSchema = z.object({
 })
 type PasswordForm = z.infer<typeof passwordSchema>
 
+const emailSchema = z.object({
+  new_email: z.string().min(1, 'Required').email('Enter a valid email address'),
+  current_password: z.string().min(1, 'Required'),
+})
+type EmailForm = z.infer<typeof emailSchema>
+
 export default function ResellerProfilePage() {
   const user = useAuthStore(s => s.user)
   const qc   = useQueryClient()
   const [showPassword, setShowPassword] = useState(false)
+  const [showEmail, setShowEmail] = useState(false)
 
   const profileForm = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
@@ -64,6 +71,11 @@ export default function ResellerProfilePage() {
   const passwordForm = useForm<PasswordForm>({
     resolver: zodResolver(passwordSchema),
     defaultValues: { current_password: '', new_password: '', confirm_password: '' },
+  })
+
+  const emailForm = useForm<EmailForm>({
+    resolver: zodResolver(emailSchema),
+    defaultValues: { new_email: '', current_password: '' },
   })
 
   const profileMutation = useMutation({
@@ -86,6 +98,16 @@ export default function ResellerProfilePage() {
     onError: err => toast.error(extractApiMsg(err) ?? 'Failed to change password'),
   })
 
+  const emailMutation = useMutation({
+    mutationFn: (data: EmailForm) => authService.requestEmailChange(data.new_email, data.current_password),
+    onSuccess: (res) => {
+      toast.success(res.message ?? 'Check your new email for a confirmation link.')
+      emailForm.reset()
+      setShowEmail(false)
+    },
+    onError: err => toast.error(extractApiMsg(err) ?? 'Failed to request email change'),
+  })
+
   if (!user) return null
 
   const roleStyle = ROLE_BADGE_STYLES[user.role]
@@ -103,7 +125,18 @@ export default function ResellerProfilePage() {
         </div>
         <div>
           <p className="text-zinc-100 font-semibold text-base leading-tight">{user.full_name}</p>
-          <p className="text-zinc-500 text-xs mt-0.5">{user.email}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-zinc-500 text-xs">{user.email}</p>
+            {user.email_verified_at ? (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-400">
+                ✓ Verified
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-400">
+                ✗ Email Unverified
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 mt-1.5">
             <Badge variant="orange" size="xs">Reseller</Badge>
             {user.last_login_at && (
@@ -202,6 +235,58 @@ export default function ResellerProfilePage() {
               </Btn>
               <Btn type="submit" disabled={passwordMutation.isPending}>
                 {passwordMutation.isPending ? <><Spinner size={14} /> Changing…</> : 'Change Password'}
+              </Btn>
+            </div>
+          </form>
+        )}
+      </div>
+
+      {/* Change Email */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+        <button
+          type="button"
+          className="w-full flex items-center justify-between px-5 py-3.5 border-b border-zinc-800 text-left hover:bg-zinc-800/40 transition-colors"
+          onClick={() => setShowEmail(p => !p)}
+        >
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-100">Change Email</h3>
+            <p className="text-xs text-zinc-500 mt-0.5">Update the email address used to sign in</p>
+          </div>
+          <span className="text-zinc-500 text-sm">{showEmail ? '▲' : '▼'}</span>
+        </button>
+
+        {showEmail && (
+          <form
+            onSubmit={emailForm.handleSubmit(d => emailMutation.mutate(d))}
+            className="p-5 space-y-4"
+          >
+            <p className="text-xs text-zinc-500 -mt-1">
+              We'll send a confirmation link to the new address — your email won't change until
+              you click it. Current: <span className="text-zinc-300">{user.email}</span>
+            </p>
+            <FormField label="New Email" error={emailForm.formState.errors.new_email?.message}>
+              <input
+                {...emailForm.register('new_email')}
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                className={inputCls(!!emailForm.formState.errors.new_email)}
+              />
+            </FormField>
+            <Divider />
+            <FormField label="Current Password" error={emailForm.formState.errors.current_password?.message}>
+              <PasswordInput
+                {...emailForm.register('current_password')}
+                placeholder="Confirm it's you"
+                inputClassName={inputCls(!!emailForm.formState.errors.current_password)}
+              />
+            </FormField>
+            <div className="flex gap-3 justify-end pt-1">
+              <Btn type="button" variant="secondary" onClick={() => { setShowEmail(false); emailForm.reset() }}>
+                Cancel
+              </Btn>
+              <Btn type="submit" disabled={emailMutation.isPending}>
+                {emailMutation.isPending ? <><Spinner size={14} /> Sending…</> : 'Send Confirmation'}
               </Btn>
             </div>
           </form>

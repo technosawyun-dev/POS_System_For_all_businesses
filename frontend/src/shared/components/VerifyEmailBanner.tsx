@@ -5,16 +5,17 @@ import { authService } from '@/services/auth/auth.service'
 import { extractApiMsg } from '@/lib/utils'
 
 // Soft reminder only — verifying doesn't gate login. Scoped to BUSINESS_OWNER
-// since that's the only role that goes through self-service registration
-// (the flow that actually sends a verification email); staff accounts are
-// created by the owner via invite and never get one, so nagging them would
-// be a dead end.
+// and RESELLER — the only roles that manage their own email/password at all
+// (BUSINESS_OWNER via self-service registration, RESELLER via their profile
+// page after being created by an admin). Staff accounts (manager/cashier/
+// inventory) are created by the owner via invite and never get a
+// verification email, so nagging them would be a dead end.
 export default function VerifyEmailBanner() {
   const user = useAuthStore(s => s.user)
   const [dismissed, setDismissed] = useState(false)
   const [sending, setSending] = useState(false)
 
-  const isEligible = !!user && user.role === 'BUSINESS_OWNER' && !user.email_verified_at
+  const isEligible = !!user && (user.role === 'BUSINESS_OWNER' || user.role === 'RESELLER') && !user.email_verified_at
 
   if (!isEligible || dismissed) return null
 
