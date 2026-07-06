@@ -23,14 +23,19 @@ const LIMIT_FEATURES: { code: string; label: string; desc: string; placeholder: 
   { code: 'devices',   label: 'Max Devices',   desc: 'Maximum number of POS devices per tenant',            placeholder: 'e.g. 3' },
 ]
 
-const FIXED_CONTACT_KEYS = ['viber', 'telegram', 'facebook', 'tiktok'] as const
+const FIXED_CONTACT_KEYS = ['phone', 'email', 'viber', 'telegram', 'facebook', 'tiktok'] as const
 type FixedContactKey = typeof FIXED_CONTACT_KEYS[number]
 const FIXED_CONTACT_LABELS: Record<FixedContactKey, string> = {
+  phone: 'Phone Number', email: 'Email Address',
   viber: 'Viber URL', telegram: 'Telegram URL', facebook: 'Facebook URL', tiktok: 'TikTok URL',
 }
 const FIXED_CONTACT_PLACEHOLDERS: Record<FixedContactKey, string> = {
+  phone: '+95 9 123 456 789', email: 'sales@yourcompany.com',
   viber: 'viber://chat?number=+95...', telegram: 'https://t.me/yourusername',
   facebook: 'https://facebook.com/yourpage', tiktok: 'https://tiktok.com/@youraccount',
+}
+const FIXED_CONTACT_INPUT_TYPES: Record<FixedContactKey, string> = {
+  phone: 'tel', email: 'email', viber: 'text', telegram: 'text', facebook: 'text', tiktok: 'text',
 }
 
 type EntRow = { feature_code: string; enabled: boolean; limit_value: string }
@@ -75,7 +80,7 @@ export default function PlanFormPage() {
     price: '', currency: 'MMK', trial_days: '14', sort_order: '0', is_active: true,
     is_referral_plan: false, is_custom: false,
   })
-  const [fixedLinks, setFixedLinks] = useState<Record<FixedContactKey, string>>({ viber: '', telegram: '', facebook: '', tiktok: '' })
+  const [fixedLinks, setFixedLinks] = useState<Record<FixedContactKey, string>>({ phone: '', email: '', viber: '', telegram: '', facebook: '', tiktok: '' })
   const [customLinks, setCustomLinks] = useState<CustomLink[]>([])
   const [entitlements, setEntitlements] = useState<EntRow[]>(buildDefaultEntitlements)
 
@@ -102,6 +107,8 @@ export default function PlanFormPage() {
     })
     const cl = existingPlan.contact_links
     setFixedLinks({
+      phone:    cl?.phone    ?? '',
+      email:    cl?.email    ?? '',
       viber:    cl?.viber    ?? '',
       telegram: cl?.telegram ?? '',
       facebook: cl?.facebook ?? '',
@@ -136,6 +143,8 @@ export default function PlanFormPage() {
     const hasAnyFixed = FIXED_CONTACT_KEYS.some(k => fixedLinks[k].trim())
     const hasCustom = customLinks.some(l => l.label.trim() || l.url.trim())
     const contact_links = (form.is_custom && (hasAnyFixed || hasCustom)) ? {
+      phone:    fixedLinks.phone.trim()    || null,
+      email:    fixedLinks.email.trim()    || null,
       viber:    fixedLinks.viber.trim()    || null,
       telegram: fixedLinks.telegram.trim() || null,
       facebook: fixedLinks.facebook.trim() || null,
@@ -294,6 +303,7 @@ export default function PlanFormPage() {
                 <div key={key}>
                   <label className="block text-xs text-zinc-400 mb-1">{FIXED_CONTACT_LABELS[key]}</label>
                   <input
+                    type={FIXED_CONTACT_INPUT_TYPES[key]}
                     value={fixedLinks[key]}
                     onChange={e => setFixedLinks(p => ({ ...p, [key]: e.target.value }))}
                     placeholder={FIXED_CONTACT_PLACEHOLDERS[key]}
