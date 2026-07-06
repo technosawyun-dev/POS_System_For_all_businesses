@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -56,7 +56,6 @@ type EmailForm = z.infer<typeof emailSchema>
 
 export default function ProfileSettingsPage() {
   const user = useAuthStore(s => s.user)
-  const qc   = useQueryClient()
   const [showPassword, setShowPassword] = useState(false)
   const [showEmail, setShowEmail] = useState(false)
   const [isEditingProfile, setIsEditingProfile] = useState(false)
@@ -82,9 +81,12 @@ export default function ProfileSettingsPage() {
 
   const profileMutation = useMutation({
     mutationFn: (data: ProfileForm) => usersService.update(user!.id, data),
-    onSuccess: () => {
+    onSuccess: (updatedUser) => {
       toast.success('Profile updated')
-      qc.invalidateQueries({ queryKey: ['auth', 'me'] })
+      // The logged-in user lives in this Zustand store, not React Query —
+      // invalidating a query key here was a no-op and left stale name/phone
+      // showing elsewhere in the app until the next login.
+      useAuthStore.getState().setUser(updatedUser)
       setIsEditingProfile(false)
     },
     onError: (err) => toast.error(extractApiMsg(err) ?? 'Failed to update profile'),

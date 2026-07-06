@@ -27,6 +27,7 @@ from app.core.config import settings
 from app.models.user import User
 from app.repositories.auth_repository import AuthRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.tenant_repository import TenantRepository
 from app.schemas.auth import TokenResponse
 from app.services.audit_service import AuditService
 
@@ -38,6 +39,7 @@ class AuthService:
         self.session = session
         self.user_repo = UserRepository(session)
         self.auth_repo = AuthRepository(session)
+        self.tenant_repo = TenantRepository(session)
         self.audit_service = AuditService(session)
 
     async def login(
@@ -569,6 +571,14 @@ class AuthService:
         user.email = record.new_email
         user.email_verified_at = datetime.now(timezone.utc)
         record.is_used = True
+
+        # The tenant's own contact email is a denormalized copy of its owner's
+        # email, set once at registration; keep it in sync so Settings/Admin
+        # Overview reflect the new address instead of the one from signup.
+        if user.tenant_id:
+            tenant = await self.tenant_repo.get_active_by_id(user.tenant_id)
+            if tenant and tenant.owner_id == user.id and tenant.email != user.email:
+                await self.tenant_repo.update(tenant, email=user.email)
 
         await self.audit_service.log(
             action=AuditAction.EMAIL_CHANGED,

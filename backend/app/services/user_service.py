@@ -12,6 +12,7 @@ from app.core.security import hash_password_async, normalize_phone
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.repositories.branch_repository import BranchRepository
+from app.repositories.tenant_repository import TenantRepository
 from app.services.audit_service import AuditService
 from app.schemas.user import UserCreateRequest, UserUpdateRequest
 
@@ -21,6 +22,7 @@ class UserService:
         self.session = session
         self.user_repo = UserRepository(session)
         self.branch_repo = BranchRepository(session)
+        self.tenant_repo = TenantRepository(session)
         self.audit_service = AuditService(session)
 
     async def create_user(
@@ -186,6 +188,15 @@ class UserService:
         }
 
         user = await self.user_repo.update(user, **update_data)
+
+        # The tenant's own contact phone is a denormalized copy of its owner's
+        # phone, set once at registration (see registration_service.py) and
+        # never touched again. Keep it in sync so Settings/Admin Overview
+        # don't keep showing a phone number the owner changed long ago.
+        if "phone" in update_data and user.tenant_id:
+            tenant = await self.tenant_repo.get_active_by_id(user.tenant_id)
+            if tenant and tenant.owner_id == user.id and tenant.phone != user.phone:
+                await self.tenant_repo.update(tenant, phone=user.phone)
 
         # JSONB columns require JSON-serializable types; convert uuid.UUID → str
         audit_data = {k: str(v) if isinstance(v, uuid.UUID) else v for k, v in update_data.items()}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -55,7 +55,6 @@ type EmailForm = z.infer<typeof emailSchema>
 
 export default function ResellerProfilePage() {
   const user = useAuthStore(s => s.user)
-  const qc   = useQueryClient()
   const [showPassword, setShowPassword] = useState(false)
   const [showEmail, setShowEmail] = useState(false)
 
@@ -80,9 +79,9 @@ export default function ResellerProfilePage() {
 
   const profileMutation = useMutation({
     mutationFn: (data: ProfileForm) => usersService.update(user!.id, data),
-    onSuccess: () => {
+    onSuccess: (updatedUser) => {
       toast.success('Profile updated')
-      qc.invalidateQueries({ queryKey: ['auth', 'me'] })
+      useAuthStore.getState().setUser(updatedUser)
     },
     onError: err => toast.error(extractApiMsg(err) ?? 'Failed to update profile'),
   })
