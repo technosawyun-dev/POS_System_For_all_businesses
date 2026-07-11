@@ -144,6 +144,82 @@ function ChangePlanModal({ tenantId, currentPlanId, onClose }: { tenantId: strin
   )
 }
 
+function ToggleRow({ checked, onChange, disabled, label, description }: {
+  checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; label: string; description: string
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-zinc-100">{label}</p>
+        <p className="text-xs text-zinc-500 mt-0.5">{description}</p>
+      </div>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          'relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 disabled:opacity-50',
+          checked ? 'bg-amber-500' : 'bg-zinc-700',
+        )}
+      >
+        <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white transition-transform', checked ? 'translate-x-6' : 'translate-x-1')} />
+      </button>
+    </div>
+  )
+}
+
+// Super-admin-only POS access toggles — writing features_enabled is rejected
+// server-side for anyone but SUPER_ADMIN (see PATCH /tenants/{id}/settings).
+function PosAccessCard({ tenantId }: { tenantId: string }) {
+  const qc = useQueryClient()
+  const settingsQuery = useQuery({
+    queryKey: ['tenant-settings', tenantId],
+    queryFn: () => tenantService.getTenantSettings(tenantId),
+  })
+  const features = settingsQuery.data?.features_enabled
+  const smallScreenCheckout = features?.pos_small_screen_checkout ?? false
+  const cameraScanner = features?.pos_camera_scanner ?? true
+
+  const mutation = useMutation({
+    mutationFn: (patch: Record<string, boolean>) =>
+      tenantService.updateTenantSettings(tenantId, { features_enabled: patch }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tenant-settings', tenantId] })
+      toast.success('Updated')
+    },
+    onError: err => toast.error(extractApiMsg(err) ?? 'Failed to update'),
+  })
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+      <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">POS Access</h3>
+      <p className="text-xs text-zinc-600 mb-4">Super-admin only — this business's own users cannot change these.</p>
+      {settingsQuery.isLoading ? (
+        <div className="flex justify-center py-6"><Spinner size={20} /></div>
+      ) : (
+        <div className="space-y-4">
+          <ToggleRow
+            checked={smallScreenCheckout}
+            disabled={mutation.isPending}
+            onChange={v => mutation.mutate({ pos_small_screen_checkout: v })}
+            label="Allow Checkout on Small Screens"
+            description="By default, POS checkout requires a tablet or desktop screen. Enable to also allow checkout on phone-sized screens."
+          />
+          <div className="pt-4 border-t border-zinc-800">
+            <ToggleRow
+              checked={cameraScanner}
+              disabled={mutation.isPending}
+              onChange={v => mutation.mutate({ pos_camera_scanner: v })}
+              label="Camera Barcode Scanner"
+              description="Show the camera scan button on the POS checkout screen."
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function OverrideModal({
   tenantId,
   featureCode,
@@ -927,6 +1003,8 @@ export default function BusinessDetailPage() {
                     ))}
                   </dl>
                 </div>
+
+                {id && <PosAccessCard tenantId={id} />}
               </div>
             ) : null}
           </div>

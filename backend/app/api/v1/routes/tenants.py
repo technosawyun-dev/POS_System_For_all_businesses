@@ -166,6 +166,8 @@ async def update_tenant_settings(
     db: DbSession,
     current_user: CurrentUser,
 ) -> TenantSettingsResponse:
+    if payload.features_enabled is not None and current_user.role != UserRole.SUPER_ADMIN.value:
+        raise AuthorizationError("Only a super admin can update POS access features")
     if current_user.role == UserRole.RESELLER.value:
         from app.reseller_finance.routes.reseller_routes import _assert_referred_tenant
         await _assert_referred_tenant(db, current_user.id, tenant_id)

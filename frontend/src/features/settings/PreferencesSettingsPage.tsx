@@ -11,10 +11,8 @@ import { Btn, Spinner } from '@/components/ui'
 import { extractApiMsg } from '@/lib/utils'
 
 const schema = z.object({
-  auto_print_receipt:          z.boolean(),
-  default_payment_method:      z.string(),
-  pos_small_screen_checkout:   z.boolean(),
-  pos_camera_scanner:          z.boolean(),
+  auto_print_receipt:      z.boolean(),
+  default_payment_method:  z.string(),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -60,22 +58,17 @@ export default function PreferencesSettingsPage() {
   const { register, handleSubmit, reset, watch, setValue, formState: { isDirty, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      auto_print_receipt:        false,
-      default_payment_method:    'CASH',
-      pos_small_screen_checkout: false,
-      pos_camera_scanner:        true,
+      auto_print_receipt:     false,
+      default_payment_method: 'CASH',
     },
   })
 
   useEffect(() => {
     if (settings) {
       const ex = settings.extra_settings as Record<string, unknown>
-      const feat = settings.features_enabled
       reset({
-        auto_print_receipt:        (ex.auto_print_receipt as boolean)    ?? false,
-        default_payment_method:    (ex.default_payment_method as string) ?? 'CASH',
-        pos_small_screen_checkout: feat.pos_small_screen_checkout        ?? false,
-        pos_camera_scanner:        feat.pos_camera_scanner               ?? true,
+        auto_print_receipt:     (ex.auto_print_receipt as boolean)    ?? false,
+        default_payment_method: (ex.default_payment_method as string) ?? 'CASH',
       })
     }
   }, [settings, reset])
@@ -86,10 +79,6 @@ export default function PreferencesSettingsPage() {
         extra_settings: {
           auto_print_receipt:     values.auto_print_receipt,
           default_payment_method: values.default_payment_method,
-        },
-        features_enabled: {
-          pos_small_screen_checkout: values.pos_small_screen_checkout,
-          pos_camera_scanner:        values.pos_camera_scanner,
         },
       }),
     onSuccess: () => {
@@ -114,22 +103,6 @@ export default function PreferencesSettingsPage() {
               onChange={v => setValue('auto_print_receipt', v, { shouldDirty: true })}
               label={t('settings.preferences.auto_print_label')}
               description={t('settings.preferences.auto_print_desc')}
-            />
-          </div>
-          <div className="pt-3">
-            <Toggle
-              checked={watch('pos_small_screen_checkout')}
-              onChange={v => setValue('pos_small_screen_checkout', v, { shouldDirty: true })}
-              label={t('settings.preferences.small_screen_checkout_label')}
-              description={t('settings.preferences.small_screen_checkout_desc')}
-            />
-          </div>
-          <div className="pt-3">
-            <Toggle
-              checked={watch('pos_camera_scanner')}
-              onChange={v => setValue('pos_camera_scanner', v, { shouldDirty: true })}
-              label={t('settings.preferences.camera_scanner_label')}
-              description={t('settings.preferences.camera_scanner_desc')}
             />
           </div>
         </div>
