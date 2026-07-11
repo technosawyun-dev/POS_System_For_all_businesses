@@ -42,6 +42,7 @@ class TenantSettingsUpdateRequest(BaseSchema):
     tax_rate: float | None = Field(default=None, ge=0, le=100)
     tax_inclusive: bool | None = None
     extra_settings: dict | None = None
+    features_enabled: dict[str, bool] | None = None
 
 
 class TenantSettingsResponse(BaseSchema):
@@ -49,6 +50,7 @@ class TenantSettingsResponse(BaseSchema):
     tax_rate: float | None
     tax_inclusive: bool
     extra_settings: dict
+    features_enabled: dict[str, bool]
 
 
 class TenantResponse(TimestampedSchema):

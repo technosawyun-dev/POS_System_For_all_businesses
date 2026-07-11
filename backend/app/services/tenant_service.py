@@ -165,11 +165,17 @@ class TenantService:
             update_kwargs["tax_rate"] = data.tax_rate
         if data.tax_inclusive is not None:
             update_kwargs["tax_inclusive"] = data.tax_inclusive
-        if data.extra_settings is not None:
+        existing = None
+        if data.extra_settings is not None or data.features_enabled is not None:
             existing = await self.tenant_repo.get_settings(tenant_id)
+        if data.extra_settings is not None:
             merged = dict(existing.extra_settings) if existing and existing.extra_settings else {}
             merged.update(data.extra_settings)
             update_kwargs["extra_settings"] = merged
+        if data.features_enabled is not None:
+            merged_features = dict(existing.features_enabled) if existing and existing.features_enabled else {}
+            merged_features.update(data.features_enabled)
+            update_kwargs["features_enabled"] = merged_features
         return await self.tenant_repo.update_settings(tenant_id, **update_kwargs)
 
     async def soft_delete_tenant(

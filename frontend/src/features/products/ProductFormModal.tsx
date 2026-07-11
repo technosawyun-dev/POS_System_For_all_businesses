@@ -65,7 +65,8 @@ export function ProductFormModal({ product, initialBarcode, onClose, onSaved }: 
   const selectedBranch = useTenantStore(s => s.selectedBranch)
   const queryClient = useQueryClient()
 
-  // Disable camera scanner and USB scanner on mobile-width browsers (< 700px)
+  // Used only to skip auto-focusing the barcode input on mobile-width browsers
+  // (avoids popping the on-screen keyboard); scanning itself works at all widths.
   const [isMobileWidth, setIsMobileWidth] = useState(() => window.innerWidth < 700)
   useEffect(() => {
     const fn = () => setIsMobileWidth(window.innerWidth < 700)
@@ -264,7 +265,7 @@ export function ProductFormModal({ product, initialBarcode, onClose, onSaved }: 
 
   return (
     <>
-      <ScannerInputCapture onScan={handleScan} enabled={!showScanner && !isMobileWidth} />
+      <ScannerInputCapture onScan={handleScan} enabled={!showScanner} />
       {showScanner && (
         <RawScannerModal
           title={t('products.form.scan_barcode_title')}

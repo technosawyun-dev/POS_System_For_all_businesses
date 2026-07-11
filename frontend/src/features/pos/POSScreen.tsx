@@ -5,9 +5,11 @@ import { toast } from 'sonner'
 import { useCartStore, useCartTotals } from '@/store/cartStore'
 import { useSessionStore } from '@/store/session.store'
 import { useUIStore } from '@/store/ui.store'
+import { useAuthStore } from '@/store/auth.store'
 import { productsService } from '@/services/products/products.service'
 import { inventoryService } from '@/services/inventory/inventory.service'
 import { categoriesService } from '@/services/categories/categories.service'
+import { tenantService } from '@/services/tenant/tenant.service'
 import { IconSearch, IconBarcode, IconCash, IconExpand, IconCompress } from '@/components/icons'
 import { Kbd, Spinner } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -82,6 +84,22 @@ export default function POSScreen() {
     window.addEventListener('resize', fn)
     return () => window.removeEventListener('resize', fn)
   }, [])
+
+  // Tenant-admin-configurable toggles (Settings → Preferences)
+  const tenantId = useAuthStore(s => s.user?.tenant_id)
+  const { data: tenantSettings, isLoading: settingsLoading } = useQuery({
+    queryKey: ['tenant-settings', tenantId],
+    queryFn: () => tenantService.getTenantSettings(tenantId!),
+    enabled: !!tenantId,
+    staleTime: 5 * 60 * 1000,
+  })
+  const features = tenantSettings?.features_enabled
+  const smallScreenCheckoutEnabled = features?.pos_small_screen_checkout ?? false
+  const cameraScannerEnabled       = features?.pos_camera_scanner ?? true
+  const isCheckoutBlocked = isMobileWidth && !smallScreenCheckoutEnabled
+  // On a narrow screen, wait for the toggle to load before deciding — otherwise a
+  // tenant with the toggle on would see a flash of the "blocked" screen first.
+  const isCheckoutGateLoading = isMobileWidth && settingsLoading
 
   const { posFocusMode, togglePosFocusMode, setPosFocusMode } = useUIStore()
 
@@ -257,7 +275,17 @@ export default function POSScreen() {
 
   if (!activeSession || activeSession.status !== 'OPEN') return null
 
-  if (isMobileWidth) {
+  // Wait for the small-screen-checkout toggle to load before deciding whether to
+  // block — avoids a flash of the "blocked" screen for tenants who enabled it.
+  if (isCheckoutGateLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Spinner size={28} />
+      </div>
+    )
+  }
+
+  if (isCheckoutBlocked) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-6 px-8 text-center">
         <svg width="72" height="72" viewBox="0 0 24 24" fill="none" className="text-zinc-600" stroke="currentColor" strokeWidth="1.2">
@@ -276,10 +304,10 @@ export default function POSScreen() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden relative">
-      {/* USB/Bluetooth hardware scanner — disabled on mobile-width browsers */}
+      {/* USB/Bluetooth hardware scanner — follows the same small-screen-checkout toggle as the block screen */}
       <ScannerInputCapture
         onScan={handleHardwareScan}
-        enabled={!isMobileWidth && !scannerOpen && checkoutStep === 'cart'}
+        enabled={!isCheckoutBlocked && !scannerOpen && checkoutStep === 'cart'}
       />
 
       {/* Camera scanner modal — lazy-loaded; html5-qrcode only downloads when opened */}
@@ -383,8 +411,8 @@ export default function POSScreen() {
                 <Kbd keys="/" />
               </span>
             </div>
-            {/* Camera scanner — hidden on mobile-width browsers (< 700px) */}
-            {!isMobileWidth && (
+            {/* Camera scanner — admin-configurable in Settings → Preferences */}
+            {cameraScannerEnabled && (
               <button
                 onClick={() => setScannerOpen(true)}
                 className="flex w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 items-center justify-center text-zinc-500 hover:text-zinc-200 transition-colors"

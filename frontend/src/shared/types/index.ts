@@ -799,12 +799,14 @@ export interface TenantSettings {
   tax_rate: number | null
   tax_inclusive: boolean
   extra_settings: Record<string, unknown>
+  features_enabled: Record<string, boolean>
 }
 
 export interface TenantSettingsUpdateRequest {
   tax_rate?: number | null
   tax_inclusive?: boolean
   extra_settings?: Record<string, unknown>
+  features_enabled?: Record<string, boolean>
 }
 
 export interface UserCreateRequest {
