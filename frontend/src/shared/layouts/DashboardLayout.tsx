@@ -87,6 +87,17 @@ function SidebarContent({ navGroup, onClose, onSearch }: { navGroup: string; onC
     staleTime: 10 * 60 * 1000,
   })
 
+  // Admin-configurable: whether the Checkout nav link should also show below
+  // the tablet breakpoint (mirrors the same flag POSScreen.tsx gates on).
+  const { data: tenantSettings } = useQuery({
+    queryKey: ['tenant-settings', tenantId],
+    queryFn: () => tenantService.getTenantSettings(tenantId!),
+    enabled: !!tenantId && navGroup === 'app',
+    staleTime: 0,
+    refetchOnMount: 'always',
+  })
+  const smallScreenCheckoutEnabled = tenantSettings?.features_enabled?.pos_small_screen_checkout ?? false
+
   const tz       = tenant?.timezone ?? 'UTC'
   const locale   = tenant?.locale   ?? 'en-US'
   const currency = tenant?.currency ?? 'MMK'
@@ -192,7 +203,7 @@ function SidebarContent({ navGroup, onClose, onSearch }: { navGroup: string; onC
               onClick={onClose}
               className={({ isActive }) => cn(
                 'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left',
-                item.tabletOnly && 'hidden md:flex',
+                item.tabletOnly && !smallScreenCheckoutEnabled && 'hidden md:flex',
                 (isActive || extraActive)
                   ? 'bg-amber-500/15 border border-amber-500/30 text-amber-400'
                   : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 border border-transparent',

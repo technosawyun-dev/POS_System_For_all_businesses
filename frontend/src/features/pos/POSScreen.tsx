@@ -85,21 +85,26 @@ export default function POSScreen() {
     return () => window.removeEventListener('resize', fn)
   }, [])
 
-  // Tenant-admin-configurable toggles (Settings → Preferences)
+  // Admin-configurable toggles (superadmin-only, set per tenant). Always refetched
+  // fresh on mount — this value can change server-side at any time (an admin flips
+  // it), so a cached/stale copy from an earlier visit must never be trusted here.
   const tenantId = useAuthStore(s => s.user?.tenant_id)
-  const { data: tenantSettings, isLoading: settingsLoading } = useQuery({
+  const { data: tenantSettings, isFetching: settingsFetching } = useQuery({
     queryKey: ['tenant-settings', tenantId],
     queryFn: () => tenantService.getTenantSettings(tenantId!),
     enabled: !!tenantId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
   const features = tenantSettings?.features_enabled
   const smallScreenCheckoutEnabled = features?.pos_small_screen_checkout ?? false
   const cameraScannerEnabled       = features?.pos_camera_scanner ?? true
   const isCheckoutBlocked = isMobileWidth && !smallScreenCheckoutEnabled
-  // On a narrow screen, wait for the toggle to load before deciding — otherwise a
-  // tenant with the toggle on would see a flash of the "blocked" screen first.
-  const isCheckoutGateLoading = isMobileWidth && settingsLoading
+  // On a narrow screen, wait for a fresh answer before deciding whether to block —
+  // but only on the very first fetch (no cached value at all yet). Once we have a
+  // value, use it immediately and let a background refetch correct it silently on
+  // arrival, rather than popping a spinner over an already-active session.
+  const isCheckoutGateLoading = isMobileWidth && settingsFetching && tenantSettings === undefined
 
   const { posFocusMode, togglePosFocusMode, setPosFocusMode } = useUIStore()
 
