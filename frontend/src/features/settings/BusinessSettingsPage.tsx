@@ -11,13 +11,7 @@ import type { TenantUpdateRequest } from '@/shared/types'
 import { TIMEZONES, CURRENCIES } from '@/shared/constants/localization'
 
 const LANGUAGE_OPTIONS = [
-  { value: 'en-US', label: 'English (US)' },
-  { value: 'en-GB', label: 'English (UK)' },
-  { value: 'fr-FR', label: 'Français' },
-  { value: 'de-DE', label: 'Deutsch' },
-  { value: 'ja-JP', label: '日本語' },
-  { value: 'zh-CN', label: '中文 (简体)' },
-  { value: 'th-TH', label: 'ภาษาไทย' },
+  { value: 'en-US', label: 'English' },
   { value: 'my-MM', label: 'မြန်မာဘာသာ' },
 ]
 
