@@ -97,22 +97,44 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
   const hasLogo          = !!ex?.receipt_logo_url
   const showTaxOnReceipt = (ex?.show_tax_on_receipt as boolean) ?? true
 
-  // Fetch logo as base64 so it embeds reliably in the popup window
+  // Fetch logo as base64 so it embeds reliably in the popup window.
+  // `logoResolved` tracks whether this chain has reached a final answer
+  // (loaded, confirmed-absent, or failed) — auto-print below waits on it so
+  // it doesn't snapshot the DOM before the <img> element even exists.
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null)
+  const [logoResolved, setLogoResolved] = useState(false)
   useEffect(() => {
-    if (!hasLogo || !tenantId) { setLogoDataUrl(null); return }
+    if (!taxSettings) return // tenant settings (and thus hasLogo) not known yet
+    if (!hasLogo || !tenantId) {
+      setLogoDataUrl(null)
+      setLogoResolved(true)
+      return
+    }
     let cancelled = false
     apiClient
       .get(`/tenants/${tenantId}/logo`, { responseType: 'blob' })
       .then(r => {
         if (cancelled) return
         const reader = new FileReader()
-        reader.onload = () => { if (!cancelled) setLogoDataUrl(reader.result as string) }
+        reader.onload = () => {
+          if (cancelled) return
+          setLogoDataUrl(reader.result as string)
+          setLogoResolved(true)
+        }
+        reader.onerror = () => { if (!cancelled) setLogoResolved(true) }
         reader.readAsDataURL(r.data)
       })
-      .catch(() => { if (!cancelled) setLogoDataUrl(null) })
+      .catch(() => { if (!cancelled) { setLogoDataUrl(null); setLogoResolved(true) } })
     return () => { cancelled = true }
-  }, [hasLogo, tenantId])
+  }, [hasLogo, tenantId, taxSettings])
+
+  // Safety net — if tenant settings / the logo fetch never resolve (e.g. a
+  // dropped request), don't block auto-print forever waiting on it.
+  useEffect(() => {
+    if (logoResolved) return
+    const fallback = setTimeout(() => setLogoResolved(true), 4000)
+    return () => clearTimeout(fallback)
+  }, [logoResolved])
 
   function changeSize(s: ReceiptSize) {
     setSize(s)
@@ -237,8 +259,10 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
   // Auto-trigger for auto-print setting.
   // Read live service state, not React state — auto-reconnect may have finished
   // after mount but before this 350ms timer fires, making React state stale.
+  // Also waits on `logoResolved` — printing before the logo fetch finishes
+  // silently produces a receipt with no logo (see logoResolved effect above).
   useEffect(() => {
-    if (autoTrigger) {
+    if (autoTrigger && logoResolved) {
       const t = setTimeout(() => {
         if (thermalPrinterService.isConnected || serialPrinterService.isConnected) handleDirectPrint()
         else handleBrowserPrint()
@@ -246,7 +270,7 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
       return () => clearTimeout(t)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoTrigger])
+  }, [autoTrigger, logoResolved])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
