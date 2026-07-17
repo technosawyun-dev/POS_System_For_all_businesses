@@ -277,6 +277,10 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
   }
 
   async function handleDisconnect() {
+    if (agentConnected) {
+      printAgentService.disconnect()
+      setAgentConnected(false)
+    }
     if (usbConnected) {
       await thermalPrinterService.disconnect()
       thermalPrinterService.clearPreference()
@@ -363,7 +367,7 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
             <h2 className="text-base font-bold text-zinc-100">{t('print.print_receipt')}</h2>
             <p className="text-xs text-zinc-500">{receipt.receipt_number}</p>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 text-xl leading-none">Ã—</button>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 text-xl leading-none">&times;</button>
         </div>
 
         {/* Toolbar: paper size + USB printer */}
@@ -544,7 +548,7 @@ img { max-width: 100%; display: block; }
             <h2 className="text-base font-bold text-zinc-100">{t('products.detail.print')}</h2>
             <p className="text-xs text-zinc-500">{product.name}</p>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 text-xl leading-none">Ã—</button>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 text-xl leading-none">&times;</button>
         </div>
 
         {/* Options */}
