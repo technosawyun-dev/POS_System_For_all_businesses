@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { tenantService } from '@/services/tenant/tenant.service'
 import { thermalPrinterService } from '@/services/thermal/printer.service'
 import { serialPrinterService } from '@/services/thermal/serial.service'
+import { printAgentService } from '@/services/thermal/printAgent.service'
 import apiClient from '@/app/lib/axios'
 import { useLocaleStore } from '@/i18n/localeStore'
 
@@ -58,7 +59,10 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
   )
   const printAreaRef = useRef<HTMLDivElement>(null)
 
-  // Direct print state — USB (Mac/Linux) or Serial COM port (Windows)
+  // Direct print state â€” USB (Mac/Linux) or Serial COM port (Windows)
+  const [agentConnected, setAgentConnected] = useState(() => printAgentService.isConnected)
+  const [agentAvailable, setAgentAvailable] = useState<boolean | null>(null)
+  const [checkingAgent, setCheckingAgent] = useState(false)
   const [usbConnected,    setUsbConnected]    = useState(() => thermalPrinterService.isConnected)
   const [serialConnected, setSerialConnected] = useState(() => serialPrinterService.isConnected)
   const [directPrinting,  setDirectPrinting]  = useState(false)
@@ -66,14 +70,22 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
   const [detecting,       setDetecting]       = useState(false)
   const usbSupported    = thermalPrinterService.isSupported
   const serialSupported = serialPrinterService.isSupported
-  const anyConnected    = usbConnected || serialConnected
-  const directSupported = usbSupported || serialSupported
+  const anyConnected    = agentConnected || usbConnected || serialConnected
+  const directSupported = printAgentService.isSupported || usbSupported || serialSupported
 
   // Auto-reconnect previously-granted printer when modal opens (no picker shown)
   useEffect(() => {
     if (anyConnected) return
     let cancelled = false
     ;(async () => {
+      const available = await printAgentService.isAvailable()
+      if (cancelled) return
+      setAgentAvailable(available)
+      if (available) {
+        const native = await printAgentService.autoConnect()
+        if (cancelled) return
+        if (native) { setAgentConnected(true); return }
+      }
       const usb = await thermalPrinterService.autoReconnect()
       if (cancelled) return
       if (usb) { setUsbConnected(true); return }
@@ -99,7 +111,7 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
 
   // Fetch logo as base64 so it embeds reliably in the popup window.
   // `logoResolved` tracks whether this chain has reached a final answer
-  // (loaded, confirmed-absent, or failed) — auto-print below waits on it so
+  // (loaded, confirmed-absent, or failed) â€” auto-print below waits on it so
   // it doesn't snapshot the DOM before the <img> element even exists.
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null)
   const [logoResolved, setLogoResolved] = useState(false)
@@ -128,7 +140,7 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
     return () => { cancelled = true }
   }, [hasLogo, tenantId, taxSettings])
 
-  // Safety net — if tenant settings / the logo fetch never resolve (e.g. a
+  // Safety net â€” if tenant settings / the logo fetch never resolve (e.g. a
   // dropped request), don't block auto-print forever waiting on it.
   useEffect(() => {
     if (logoResolved) return
@@ -143,7 +155,7 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
 
   // Browser print
   // Clones the receipt into a top-level DOM node and uses @media print CSS to
-  // hide everything else. Calls window.print() directly — the only method that
+  // hide everything else. Calls window.print() directly â€” the only method that
   // works on iOS/iPadOS (Chrome & Safari), Android Chrome, and all desktops.
   // (iframe.contentWindow.print() is silently ignored on iOS WebKit.)
   const handleBrowserPrint = useCallback(() => {
@@ -190,7 +202,49 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
     window.print()
   }, [size, receipt.receipt_number])
 
-  // Connect printer — tries USB first, falls back to Serial (COM port)
+  async function checkAgent() {
+    setCheckingAgent(true)
+    const available = await printAgentService.isAvailable()
+    setAgentAvailable(available)
+    if (available) toast.success('Sawyun Print Agent is running')
+    else toast.error('Sawyun Print Agent is not running')
+    setCheckingAgent(false)
+  }
+
+  async function connectWired() {
+    setConnecting(true)
+    try {
+      await printAgentService.connect()
+      setAgentAvailable(true)
+      setAgentConnected(true)
+      toast.success(`${t('print.connected')}: ${printAgentService.printerName}`)
+    } catch (err) { toast.error(err instanceof Error ? err.message : t('print.connection_failed')) }
+    finally { setConnecting(false) }
+  }
+
+  async function connectBluetooth() {
+    setConnecting(true)
+    setDetecting(true)
+    try {
+      await serialPrinterService.connect()
+      setSerialConnected(true)
+      toast.success(`${t('print.connected')}: ${serialPrinterService.portName}`)
+    } catch (err) { toast.error(err instanceof Error ? err.message : t('print.connection_failed')) }
+    finally { setConnecting(false); setDetecting(false) }
+  }
+
+  async function connectWifi() {
+    setConnecting(true)
+    try {
+      await printAgentService.connectWifi()
+      setAgentAvailable(true)
+      setAgentConnected(true)
+      toast.success(`${t('print.connected')}: ${printAgentService.printerName}`)
+    } catch (err) { toast.error(err instanceof Error ? err.message : t('print.connection_failed')) }
+    finally { setConnecting(false) }
+  }
+
+  // Connect printer â€” tries USB first, falls back to Serial (COM port)
   async function handleConnect() {
     setConnecting(true)
     try {
@@ -202,9 +256,9 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
           return
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : ''
-          // User cancelled picker — don't fall through to serial
+          // User cancelled picker â€” don't fall through to serial
           if (msg.includes('No device selected') || msg.includes('cancelled')) return
-          // Access denied on Windows (driver conflict) — try serial next
+          // Access denied on Windows (driver conflict) â€” try serial next
         }
       }
       if (serialSupported) {
@@ -240,7 +294,9 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
     setDirectPrinting(true)
     const printOpts = { taxInclusive, taxName, showTax: showTaxOnReceipt, logoDataUrl }
     try {
-      if (thermalPrinterService.isConnected) {
+      if (printAgentService.isConnected) {
+        await printAgentService.printReceipt(receipt, size, printOpts)
+      } else if (thermalPrinterService.isConnected) {
         await thermalPrinterService.printReceipt(receipt, size, printOpts)
         if (!thermalPrinterService.isConnected) setUsbConnected(false)
       } else {
@@ -256,15 +312,40 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
     }
   }
 
+  // Sawyun Print Agent primary action: configure the native printer if needed,
+  // then send ESC/POS directly. Never open the browser/system print dialog.
+  async function handleAgentPrint() {
+    if (!printAgentService.isSupported) {
+      handleBrowserPrint()
+      return
+    }
+    setDirectPrinting(true)
+    try {
+      if (!printAgentService.isConnected) {
+        await printAgentService.connect()
+        setAgentConnected(true)
+      }
+      const printOpts = { taxInclusive, taxName, showTax: showTaxOnReceipt, logoDataUrl }
+      await printAgentService.printReceipt(receipt, size, printOpts)
+      toast.success(t('print.sent_to_printer'))
+      onClose()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t('print.print_failed')
+      if (!msg.toLowerCase().includes('cancel')) toast.error(msg)
+    } finally {
+      setDirectPrinting(false)
+    }
+  }
+
   // Auto-trigger for auto-print setting.
-  // Read live service state, not React state — auto-reconnect may have finished
+  // Read live service state, not React state â€” auto-reconnect may have finished
   // after mount but before this 350ms timer fires, making React state stale.
-  // Also waits on `logoResolved` — printing before the logo fetch finishes
+  // Also waits on `logoResolved` â€” printing before the logo fetch finishes
   // silently produces a receipt with no logo (see logoResolved effect above).
   useEffect(() => {
     if (autoTrigger && logoResolved) {
       const t = setTimeout(() => {
-        if (thermalPrinterService.isConnected || serialPrinterService.isConnected) handleDirectPrint()
+        if (printAgentService.isConnected || thermalPrinterService.isConnected || serialPrinterService.isConnected) handleDirectPrint()
         else handleBrowserPrint()
       }, 350)
       return () => clearTimeout(t)
@@ -282,7 +363,7 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
             <h2 className="text-base font-bold text-zinc-100">{t('print.print_receipt')}</h2>
             <p className="text-xs text-zinc-500">{receipt.receipt_number}</p>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 text-xl leading-none">×</button>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 text-xl leading-none">Ã—</button>
         </div>
 
         {/* Toolbar: paper size + USB printer */}
@@ -311,7 +392,13 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-zinc-500 w-20 flex-shrink-0">{t('print.printer')}</span>
-              {usbConnected ? (
+              {agentConnected ? (
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                  <span className="text-xs text-green-400 truncate">{printAgentService.printerName}</span>
+                  <button onClick={handleDisconnect} className="text-xs text-zinc-600 hover:text-zinc-400 flex-shrink-0 ml-1">{t('print.disconnect')}</button>
+                </div>
+              ) : usbConnected ? (
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
                   <span className="text-xs text-green-400 truncate">{thermalPrinterService.deviceName}</span>
@@ -323,24 +410,26 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
                   <span className="text-xs text-green-400 truncate">{serialPrinterService.portName}</span>
                   <button onClick={handleDisconnect} className="text-xs text-zinc-600 hover:text-zinc-400 flex-shrink-0 ml-1">{t('print.disconnect')}</button>
                 </div>
-              ) : directSupported ? (
-                <button
-                  onClick={handleConnect}
-                  disabled={connecting}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-zinc-700 bg-zinc-900 text-zinc-300 hover:text-zinc-100 hover:border-zinc-600 transition-colors disabled:opacity-50"
-                >
-                  <IconUsb className="w-3.5 h-3.5" />
-                  {detecting ? t('print.detecting_speed') : connecting ? t('print.connecting') : t('print.connect_printer')}
-                </button>
               ) : (
-                <span className="text-xs text-zinc-600">{t('print.direct_print_requires_chrome')}</span>
+                <div className="flex gap-2 flex-wrap">
+                  <button onClick={connectWired} disabled={connecting || agentAvailable === false} className="px-3 py-1.5 rounded-lg text-xs font-medium border border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-amber-500/50 disabled:opacity-40">USB / Wired</button>
+                  <button onClick={connectBluetooth} disabled={connecting || !serialSupported} className="px-3 py-1.5 rounded-lg text-xs font-medium border border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-blue-500/50 disabled:opacity-40">Bluetooth</button>
+                  <button onClick={connectWifi} disabled={connecting || agentAvailable === false} className="px-3 py-1.5 rounded-lg text-xs font-medium border border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-green-500/50 disabled:opacity-40">Wi-Fi</button>
+                </div>
               )}
             </div>
-            {/* Windows hint — shown only when not yet connected */}
-            {!usbConnected && !serialConnected && directSupported && navigator.userAgent.includes('Windows') && (
-              <p className="text-[11px] text-zinc-500 ml-[88px]">
-                {t('print.windows_bluetooth_hint_prefix')} <span className="text-zinc-300">{t('print.bluetooth')}</span> {t('print.windows_bluetooth_hint_suffix')}
-              </p>
+            {!agentConnected && agentAvailable === false && (
+              <div className="ml-[88px] rounded-lg border border-amber-500/25 bg-amber-500/5 p-3 text-[11px] text-zinc-400">
+                <p className="font-medium text-amber-400">Sawyun Print Agent is not running</p>
+                <p className="mt-1">Download the agent, run the EXE, then click Check Agent.</p>
+                <div className="mt-2 flex gap-2">
+                  <a href="/downloads/Sawyun-Print-Agent.exe" download className="rounded-md bg-amber-500 px-2.5 py-1.5 font-semibold text-black hover:bg-amber-400">Download EXE</a>
+                  <button onClick={checkAgent} disabled={checkingAgent} className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-zinc-300 hover:bg-zinc-800 disabled:opacity-50">{checkingAgent ? 'Checking…' : 'Check Agent'}</button>
+                </div>
+              </div>
+            )}
+            {!agentConnected && agentAvailable === true && (
+              <p className="ml-[88px] text-[11px] text-green-400">Print Agent is running. Choose USB / Wired or Wi-Fi.</p>
             )}
           </div>
         </div>
@@ -364,7 +453,7 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
             {t('common.cancel')}
           </button>
 
-          {/* Browser print — always available as fallback when direct is connected */}
+          {/* Browser print â€” always available as fallback when direct is connected */}
           {anyConnected && (
             <button
               onClick={handleBrowserPrint}
@@ -386,10 +475,11 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
             </button>
           ) : (
             <button
-              onClick={handleBrowserPrint}
+              onClick={agentConnected ? handleAgentPrint : handleBrowserPrint}
+              disabled={directPrinting}
               className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-black text-sm font-bold transition-colors"
             >
-              {t('print.print_receipt')}
+              {directPrinting ? t('print.printing') : t('print.print_receipt')}
             </button>
           )}
         </div>
@@ -399,7 +489,7 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
 }
 
 
-// Label Modal (unchanged — labels use browser print only)
+// Label Modal (unchanged â€” labels use browser print only)
 
 interface LabelPreviewProps {
   product: Product
@@ -454,7 +544,7 @@ img { max-width: 100%; display: block; }
             <h2 className="text-base font-bold text-zinc-100">{t('products.detail.print')}</h2>
             <p className="text-xs text-zinc-500">{product.name}</p>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 text-xl leading-none">×</button>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 text-xl leading-none">Ã—</button>
         </div>
 
         {/* Options */}
