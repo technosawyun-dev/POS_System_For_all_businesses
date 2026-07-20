@@ -146,6 +146,7 @@ export const en: LangDict = {
   'settings.tab.receipt':      'Receipt',
   'settings.tab.tax':          'Tax',
   'settings.tab.preferences':  'Preferences',
+  'settings.tab.devices':      'Devices',
   // Settings - Business page
   'settings.business_info':       'Business Information',
   'settings.business_name':       'Business Name *',

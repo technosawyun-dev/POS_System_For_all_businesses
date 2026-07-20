@@ -425,9 +425,8 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
             {!agentConnected && agentAvailable === false && (
               <div className="ml-[88px] rounded-lg border border-amber-500/25 bg-amber-500/5 p-3 text-[11px] text-zinc-400">
                 <p className="font-medium text-amber-400">Sawyun Print Agent is not running</p>
-                <p className="mt-1">Download the agent, run the EXE, then click Check Agent.</p>
+                <p className="mt-1">Start the Print Agent, then check the connection. You can get the agent from Settings → Devices.</p>
                 <div className="mt-2 flex gap-2">
-                  <a href="/downloads/Sawyun-Print-Agent.exe" download className="rounded-md bg-amber-500 px-2.5 py-1.5 font-semibold text-black hover:bg-amber-400">Download EXE</a>
                   <button onClick={checkAgent} disabled={checkingAgent} className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-zinc-300 hover:bg-zinc-800 disabled:opacity-50">{checkingAgent ? 'Checking…' : 'Check Agent'}</button>
                 </div>
               </div>

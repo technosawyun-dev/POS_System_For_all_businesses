@@ -8,7 +8,7 @@ import { IconSmartphone, IconMonitor, IconYoutube, IconPhoneCall, IconTelegram, 
 import type { AppDownloadLinks } from '@/shared/types'
 
 const EMPTY: AppDownloadLinks = {
-  android: '', ios: '', windows: '',
+  android: '', ios: '', windows: '', print_agent: '',
   youtube: '', phone: '', telegram: '', viber: '', email: '', facebook: '', tiktok: '',
 }
 
@@ -27,7 +27,9 @@ const FIELDS: Field[] = [
     hint: 'iOS only allows installs via the App Store or TestFlight. A direct file link (e.g. Google Drive) lets users download the file but they can\'t actually install it — use a TestFlight link here if the app isn\'t on the App Store yet.',
     group: 'download',
   },
-  { key: 'windows', icon: IconMonitor, label: 'Windows', placeholder: 'https://.../SawYunPos-Setup.exe', group: 'download' },
+  { key: 'windows', icon: IconMonitor, label: 'Windows App', placeholder: 'https://.../SawYunPos-Setup.exe', group: 'download' },
+
+  { key: 'print_agent', icon: IconMonitor, label: 'Windows Print Agent', placeholder: 'https://.../sawyun-print-agent.exe', group: 'download' },
   { key: 'youtube', icon: IconYoutube, label: 'YouTube Channel', placeholder: 'https://youtube.com/@yourchannel', group: 'channel' },
   { key: 'telegram', icon: IconTelegram, label: 'Telegram', placeholder: 'https://t.me/yourhandle', group: 'channel' },
   { key: 'viber', icon: IconViber, label: 'Viber', placeholder: 'https://invite.viber.com/?g=...', group: 'channel' },
@@ -122,7 +124,7 @@ export default function AppDownloadLinksPage() {
 
   useEffect(() => {
     if (savedLinks) {
-      setLinks(savedLinks)
+      setLinks({ ...EMPTY, ...savedLinks })
       setDirty(false)
     }
   }, [savedLinks])

@@ -9,6 +9,7 @@ const TABS = [
   { to: '/app/settings/receipt',     labelKey: 'settings.tab.receipt' },
   { to: '/app/settings/tax',         labelKey: 'settings.tab.tax' },
   { to: '/app/settings/preferences', labelKey: 'settings.tab.preferences' },
+  { to: '/app/settings/devices',     labelKey: 'settings.tab.devices' },
 ]
 
 export default function SettingsLayout() {

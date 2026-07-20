@@ -73,6 +73,7 @@ const StaffSettingsPage           = lazy(() => import('@/features/settings/Staff
 const ReceiptSettingsPage         = lazy(() => import('@/features/settings/ReceiptSettingsPage'))
 const TaxSettingsPage             = lazy(() => import('@/features/settings/TaxSettingsPage'))
 const PreferencesSettingsPage     = lazy(() => import('@/features/settings/PreferencesSettingsPage'))
+const DevicesSettingsPage         = lazy(() => import('@/features/settings/DevicesSettingsPage'))
 const BusinessDashboardPage = lazy(() => import('@/features/dashboard/BusinessDashboardPage'))
 const StaffDashboardPage    = lazy(() => import('@/features/dashboard/StaffDashboardPage'))
 
@@ -350,6 +351,7 @@ export const router = createBrowserRouter([
                   { path: 'receipt',      element: S(ReceiptSettingsPage)      },
                   { path: 'tax',          element: S(TaxSettingsPage)          },
                   { path: 'preferences',  element: S(PreferencesSettingsPage)  },
+                  { path: 'devices',      element: S(DevicesSettingsPage)      },
                 ],
               },
             ],

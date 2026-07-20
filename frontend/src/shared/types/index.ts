@@ -598,6 +598,7 @@ export interface AppDownloadLinks {
   android: string
   ios: string
   windows: string
+  print_agent: string
   youtube: string
   phone: string
   telegram: string
