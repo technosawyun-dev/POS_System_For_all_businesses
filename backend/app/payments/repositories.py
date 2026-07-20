@@ -45,6 +45,41 @@ class PaymentRepository(BaseRepository[Payment]):
         )
         return result.scalar_one()
 
+    async def get_totals_by_method_for_session(
+        self,
+        cashier_session_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+    ) -> dict[str, Decimal]:
+        """Gross amount collected per payment method for orders in a cashier
+        session (PAID payments only) — e.g. {"CASH": 50000, "KPAY": 12000}.
+        Methods with no payments this session are simply absent from the dict.
+
+        Not netted against refunds for non-cash methods: Refund.refund_type
+        only distinguishes CASH refunds from everything else (FULL/PARTIAL/
+        REPLACEMENT are refund *scope*, not a payment method), so a reliable
+        per-method refund breakdown isn't derivable from the current schema.
+        Cash is the one method refunds can be netted against precisely — see
+        get_cash_total_for_session / get_cash_refunds_for_session, which the
+        cash-drawer reconciliation (expected_balance) actually uses.
+        """
+        from app.sales.models import Order
+        from app.core.constants import PaymentStatus
+
+        result = await self.session.execute(
+            select(
+                Payment.payment_method,
+                func.coalesce(func.sum(Payment.amount), Decimal("0")),
+            )
+            .join(Order, Order.id == Payment.order_id)
+            .where(
+                Order.cashier_session_id == cashier_session_id,
+                Order.tenant_id == tenant_id,
+                Payment.payment_status == PaymentStatus.PAID,
+            )
+            .group_by(Payment.payment_method)
+        )
+        return {method: total for method, total in result.all()}
+
     async def get_cash_refunds_for_session(
         self,
         cashier_session_id: uuid.UUID,

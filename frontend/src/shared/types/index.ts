@@ -206,6 +206,18 @@ export interface CashierSession {
   updated_at: string
 }
 
+export interface CashierSessionClosePreview {
+  opening_balance: string
+  // opening_balance + cash sales - cash refunds, for this session, as of now.
+  expected_cash_balance: string
+  // Sum of (total_amount - refunded_amount), excluding VOIDED/CANCELLED orders.
+  net_revenue: string
+  order_count: number
+  // Gross amount collected per payment method this session, e.g. { CASH: "50000", KPAY: "12000" }.
+  // Methods with no payments this session are absent from the object.
+  payment_method_totals: Record<string, string>
+}
+
 export interface OpenSessionRequest {
   branch_id: string
   opening_balance: string

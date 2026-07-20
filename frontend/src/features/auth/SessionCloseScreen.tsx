@@ -4,12 +4,18 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/auth.store'
 import { useSessionStore } from '@/store/session.store'
-import { sessionService, checkoutService } from '@/services/sales/sales.service'
+import { sessionService } from '@/services/sales/sales.service'
 import { ROLE_LABELS, ROLE_BADGE_STYLES } from '@/shared/constants/rbac'
 import { fmt, fmtDateTime, extractApiMsg } from '@/lib/utils'
 import { Btn, Divider, Spinner } from '@/components/ui/index'
 import { IconLogout, IconCash, IconCard, IconAlert } from '@/components/icons'
 import { useLocaleStore } from '@/i18n/localeStore'
+import { getPaymentMethodLabel, CARD_SUB_METHODS } from '@/lib/paymentMethod'
+
+const METHOD_DOT_CLASS: Record<string, string> = {
+  CASH: 'bg-green-400',
+  ...Object.fromEntries(CARD_SUB_METHODS.map(m => [m.id, m.dotClass])),
+}
 
 export default function SessionCloseScreen() {
   const navigate   = useNavigate()
@@ -22,10 +28,13 @@ export default function SessionCloseScreen() {
   const [notes, setNotes]           = useState('')
   const [loading, setLoading]       = useState(false)
 
-  // Fetch orders for this session to compute revenue
-  const { data: ordersData } = useQuery({
-    queryKey: ['session-orders', activeSession?.id],
-    queryFn: () => checkoutService.listOrders({ page_size: 200 }),
+  // Same figures close_session() will actually record — computed backend-side
+  // from live orders/payments so this preview can never drift from what
+  // clicking "Close Session" commits (previously this screen reimplemented a
+  // simplified, buggy version of this math client-side).
+  const { data: preview, isLoading: previewLoading } = useQuery({
+    queryKey: ['session-close-preview', activeSession?.id],
+    queryFn: () => sessionService.closePreview(activeSession!.id),
     enabled: !!activeSession,
   })
 
@@ -40,13 +49,14 @@ export default function SessionCloseScreen() {
   const roleStyle = ROLE_BADGE_STYLES[user.role]
   const initials  = `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`
 
-  const sessionOrders = (ordersData?.items ?? []).filter(
-    o => o.cashier_session_id === activeSession?.id && o.order_status !== 'VOIDED',
-  )
-
-  const totalRevenue  = sessionOrders.reduce((s, o) => s + parseFloat(o.total_amount),  0)
-  const openingBal    = parseFloat(activeSession.opening_balance)
-  const expectedCash  = openingBal  // simplified: opening + cash portion
+  const orderCount    = preview?.order_count ?? 0
+  const totalRevenue  = parseFloat(preview?.net_revenue ?? '0')
+  const openingBal    = parseFloat(preview?.opening_balance ?? activeSession.opening_balance)
+  const expectedCash  = parseFloat(preview?.expected_cash_balance ?? activeSession.opening_balance)
+  const paymentMethodTotals = Object.entries(preview?.payment_method_totals ?? {})
+    .map(([method, amount]) => ({ method, amount: parseFloat(amount) }))
+    .filter(({ amount }) => amount > 0)
+    .sort((a, b) => b.amount - a.amount)
 
   const actual      = parseFloat(actualCash) || 0
   const discrepancy = actualCash !== '' ? actual - expectedCash : null
@@ -125,11 +135,11 @@ export default function SessionCloseScreen() {
             <div className="grid grid-cols-3 gap-3">
               <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-3 text-center">
                 <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{t('auth.session_close.orders')}</p>
-                <p className="text-2xl font-bold font-mono text-zinc-100">{sessionOrders.length}</p>
+                <p className="text-2xl font-bold font-mono text-zinc-100">{previewLoading ? '—' : orderCount}</p>
               </div>
               <div className="rounded-xl border border-amber-800/40 bg-amber-500/5 p-3 text-center">
                 <p className="text-xs text-amber-600 uppercase tracking-wider mb-1">{t('auth.session_close.revenue')}</p>
-                <p className="text-xl font-bold font-mono text-amber-400">{fmt(totalRevenue)}</p>
+                <p className="text-xl font-bold font-mono text-amber-400">{previewLoading ? '—' : fmt(totalRevenue)}</p>
               </div>
               <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-3 text-center">
                 <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{t('auth.session_close.opening')}</p>
@@ -155,10 +165,30 @@ export default function SessionCloseScreen() {
                     <IconCard width="15" height="15" className="text-zinc-500" />
                     {t('auth.session_close.expected_in_drawer')}
                   </div>
-                  <span className="font-mono text-zinc-100 text-sm font-semibold">{fmt(expectedCash)}</span>
+                  <span className="font-mono text-zinc-100 text-sm font-semibold">
+                    {previewLoading ? <Spinner size={12} /> : fmt(expectedCash)}
+                  </span>
                 </div>
               </div>
             </div>
+
+            {/* Payment method breakdown — only methods with sales this session */}
+            {!previewLoading && paymentMethodTotals.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">{t('auth.session_close.payment_methods')}</p>
+                <div className="space-y-2">
+                  {paymentMethodTotals.map(({ method, amount }) => (
+                    <div key={method} className="flex items-center justify-between py-1.5">
+                      <div className="flex items-center gap-2 text-zinc-400 text-sm">
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${METHOD_DOT_CLASS[method] ?? 'bg-zinc-500'}`} />
+                        {getPaymentMethodLabel(method)}
+                      </div>
+                      <span className="font-mono text-zinc-200 text-sm">{fmt(amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Actual cash input */}
             <div>

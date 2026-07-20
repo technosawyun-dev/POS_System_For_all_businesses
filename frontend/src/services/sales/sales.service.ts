@@ -9,6 +9,7 @@ import type {
   RefundRequest,
   RefundRecord,
   CashierSession,
+  CashierSessionClosePreview,
   OpenSessionRequest,
   CloseSessionRequest,
   PaginatedResponse,
@@ -65,6 +66,9 @@ export const sessionService = {
 
   close: (sessionId: string, payload: CloseSessionRequest) =>
     apiClient.post<CashierSession>(`/cashier-sessions/${sessionId}/close`, payload).then(r => r.data),
+
+  closePreview: (sessionId: string) =>
+    apiClient.get<CashierSessionClosePreview>(`/cashier-sessions/${sessionId}/close-preview`).then(r => r.data),
 
   get: (sessionId: string) =>
     apiClient.get<CashierSession>(`/cashier-sessions/${sessionId}`).then(r => r.data),

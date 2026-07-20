@@ -51,3 +51,16 @@ class CashierSessionListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class CashierSessionClosePreviewResponse(BaseModel):
+    opening_balance: Decimal
+    # opening_balance + cash sales - cash refunds, for this session, as of now.
+    expected_cash_balance: Decimal
+    # Sum of (total_amount - refunded_amount) across all payment methods,
+    # excluding VOIDED/CANCELLED orders.
+    net_revenue: Decimal
+    order_count: int
+    # Gross amount collected per payment method, e.g. {"CASH": "50000", "KPAY": "12000"}.
+    # Methods with no payments this session are simply absent.
+    payment_method_totals: dict[str, Decimal]

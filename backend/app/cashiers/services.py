@@ -18,6 +18,7 @@ from app.events.base import DomainEvent
 from app.events.publisher import event_publisher
 from app.events.types import EventType
 from app.payments.repositories import PaymentRepository
+from app.sales.repositories import OrderRepository
 from app.services.audit_service import AuditService
 
 
@@ -26,6 +27,7 @@ class CashierSessionService:
         self.session = session
         self.session_repo = CashierSessionRepository(session)
         self.payment_repo = PaymentRepository(session)
+        self.order_repo = OrderRepository(session)
         self.audit = AuditService(session)
 
     async def open_session(
@@ -107,15 +109,7 @@ class CashierSessionService:
         now = datetime.now(timezone.utc)
 
         # Calculate expected balance: opening + cash sales - cash refunds
-        cash_sales_total = await self.payment_repo.get_cash_total_for_session(
-            cashier_session_id=session_id,
-            tenant_id=tenant_id,
-        )
-        cash_refunds_total = await self.payment_repo.get_cash_refunds_for_session(
-            cashier_session_id=session_id,
-            tenant_id=tenant_id,
-        )
-        expected_balance = cs.opening_balance + cash_sales_total - cash_refunds_total
+        expected_balance = await self._compute_expected_cash_balance(cs, tenant_id)
         discrepancy = actual_balance - expected_balance
 
         cs.status = CashierSessionStatus.CLOSED
@@ -171,6 +165,56 @@ class CashierSessionService:
         if not cs:
             raise NotFoundError("CashierSession", session_id)
         return cs
+
+    async def _compute_expected_cash_balance(
+        self, cs: CashierSession, tenant_id: uuid.UUID,
+    ) -> Decimal:
+        """Opening float + cash sales - cash refunds. Shared by close_session
+        (the authoritative figure recorded on close) and get_close_preview
+        (the same figure shown to the cashier before they commit to closing)
+        so the two can never drift apart."""
+        cash_sales_total = await self.payment_repo.get_cash_total_for_session(
+            cashier_session_id=cs.id,
+            tenant_id=tenant_id,
+        )
+        cash_refunds_total = await self.payment_repo.get_cash_refunds_for_session(
+            cashier_session_id=cs.id,
+            tenant_id=tenant_id,
+        )
+        return cs.opening_balance + cash_sales_total - cash_refunds_total
+
+    async def get_close_preview(
+        self,
+        session_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+    ) -> dict:
+        """Everything the close-session screen needs to show *before* the
+        cashier commits: net revenue, order count, and the same
+        opening+cash-sales-minus-refunds expected cash balance that
+        close_session() will actually record. Read-only — computed live from
+        current orders/payments, valid as of the moment it's requested (a
+        sale that lands between viewing this and clicking "Close Session"
+        won't retroactively appear — the same is true of any point-in-time
+        reconciliation figure)."""
+        cs = await self.get_session(session_id, tenant_id)
+
+        expected_cash_balance = await self._compute_expected_cash_balance(cs, tenant_id)
+        net_revenue, order_count = await self.order_repo.get_revenue_summary_for_session(
+            cashier_session_id=session_id,
+            tenant_id=tenant_id,
+        )
+        payment_method_totals = await self.payment_repo.get_totals_by_method_for_session(
+            cashier_session_id=session_id,
+            tenant_id=tenant_id,
+        )
+
+        return {
+            "opening_balance": cs.opening_balance,
+            "expected_cash_balance": expected_cash_balance,
+            "net_revenue": net_revenue,
+            "order_count": order_count,
+            "payment_method_totals": payment_method_totals,
+        }
 
     async def get_my_open_sessions(self, cashier_user_id: uuid.UUID) -> list[CashierSession]:
         return await self.session_repo.get_open_sessions_for_user(cashier_user_id)

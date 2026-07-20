@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import and_, func, select
@@ -187,6 +188,35 @@ class OrderRepository(BaseRepository[Order]):
         result = await self.session.execute(stmt)
         items = list(result.scalars().all())
         return items, total
+
+    async def get_revenue_summary_for_session(
+        self,
+        cashier_session_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+    ) -> tuple[Decimal, int]:
+        """Net revenue (total_amount minus refunded_amount) and order count
+        for a cashier session, excluding orders that never completed a real
+        sale (VOIDED/CANCELLED). Used for the session-close preview — a
+        single aggregate query instead of fetching+summing full order rows
+        client-side (which also risked silent truncation past a page size)."""
+        from app.core.constants import OrderStatus
+
+        result = await self.session.execute(
+            select(
+                func.coalesce(
+                    func.sum(Order.total_amount - Order.refunded_amount), Decimal("0")
+                ),
+                func.count(),
+            ).where(
+                Order.cashier_session_id == cashier_session_id,
+                Order.tenant_id == tenant_id,
+                Order.order_status.notin_(
+                    [OrderStatus.VOIDED, OrderStatus.CANCELLED]
+                ),
+            )
+        )
+        net_revenue, order_count = result.one()
+        return net_revenue, order_count
 
     async def get_by_id_and_tenant(
         self,

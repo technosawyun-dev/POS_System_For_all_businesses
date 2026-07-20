@@ -14,6 +14,7 @@ from app.api.deps import (
     scope_branch_filter,
 )
 from app.cashiers.schemas import (
+    CashierSessionClosePreviewResponse,
     CashierSessionListResponse,
     CashierSessionResponse,
     CloseSessionRequest,
@@ -104,6 +105,24 @@ async def close_session(
         request_id=request_id,
     )
     return CashierSessionResponse.model_validate(session)
+
+
+@router.get(
+    "/{session_id}/close-preview",
+    response_model=CashierSessionClosePreviewResponse,
+    summary="Preview cash reconciliation figures before closing a session",
+)
+async def get_close_preview(
+    session_id: uuid.UUID,
+    db: DbSession,
+    current_user: User = _cashier_access,
+    tenant_id: EffectiveTenantId = None,
+) -> CashierSessionClosePreviewResponse:
+    svc = CashierSessionService(db)
+    existing = await svc.get_session(session_id, tenant_id)
+    assert_branch_access(current_user, existing.branch_id)
+    preview = await svc.get_close_preview(session_id, tenant_id)
+    return CashierSessionClosePreviewResponse(**preview)
 
 
 @router.get(
