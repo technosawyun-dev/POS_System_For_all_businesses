@@ -254,7 +254,34 @@ export default function RegisterPage() {
       </div>
 
       <p className="text-center text-zinc-600 text-[11px] mt-4">
-        {t('auth.terms_agreement')}
+        {t('auth.terms_agreement_prefix')}{' '}
+        <a
+          href="https://www.sawyuntech.com/legal/terms"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-amber-400 font-medium underline underline-offset-2 hover:text-amber-300 transition-colors drop-shadow-[0_0_6px_rgba(251,191,36,0.65)]"
+        >
+          {t('auth.terms_of_service')}
+        </a>
+        {', '}
+        <a
+          href="https://www.sawyuntech.com/legal/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-amber-400 font-medium underline underline-offset-2 hover:text-amber-300 transition-colors drop-shadow-[0_0_6px_rgba(251,191,36,0.65)]"
+        >
+          {t('auth.privacy_policy')}
+        </a>
+        {' '}{t('auth.terms_agreement_and')}{' '}
+        <a
+          href="https://www.sawyuntech.com/legal/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-amber-400 font-medium underline underline-offset-2 hover:text-amber-300 transition-colors drop-shadow-[0_0_6px_rgba(251,191,36,0.65)]"
+        >
+          {t('auth.cookie_use')}
+        </a>
+        .
       </p>
     </div>
   )
