@@ -15,14 +15,20 @@ export default function SyncBadge() {
   return (
     <div className="inline-flex items-center gap-2">
       {isOnline ? (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-950 border border-green-800 text-green-400 text-xs font-medium">
-          <IconWifi width="13" height="13" />
-          <span>{t('sync.online')}</span>
+        <span
+          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-950 border border-green-800 text-green-400"
+          title={t('sync.online')}
+          aria-label={t('sync.online')}
+        >
+          <IconWifi width="14" height="14" />
         </span>
       ) : (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-950 border border-red-800 text-red-400 text-xs font-medium">
-          <IconWifiOff width="13" height="13" />
-          <span>{t('sync.offline_status')}</span>
+        <span
+          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-950 border border-red-800 text-red-400"
+          title={t('sync.offline_status')}
+          aria-label={t('sync.offline_status')}
+        >
+          <IconWifiOff width="14" height="14" />
         </span>
       )}
 

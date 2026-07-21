@@ -7,14 +7,20 @@ import { Badge, Btn, Spinner, Empty } from '@/components/ui'
 import { cn } from '@/shared/utils'
 import { useAuthStore } from '@/store/auth.store'
 import { subscriptionsService } from '@/services/subscriptions/subscriptions.service'
-import { apiClient } from '@/app/lib/axios'
+import { apiClient, BASE_URL } from '@/app/lib/axios'
 import type { PaymentProofCreateRequest } from '@/shared/types'
 import { useLocaleStore } from '@/i18n/localeStore'
+
+// The API can live on a different origin than this app (e.g. a Vercel-hosted
+// frontend + separate API domain), so a bare "/uploads/..." path from the
+// backend resolves against the wrong host unless prefixed with the API's origin.
+const API_ORIGIN = new URL(BASE_URL, window.location.origin).origin
 
 async function openProofFile(url: string, t: (k: string) => string) {
   const token = localStorage.getItem('sawyunpos_access_token') ?? ''
   try {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    const absoluteUrl = /^https?:\/\//.test(url) ? url : `${API_ORIGIN}${url}`
+    const res = await fetch(absoluteUrl, { headers: { Authorization: `Bearer ${token}` } })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const blob = await res.blob()
     const blobUrl = URL.createObjectURL(blob)

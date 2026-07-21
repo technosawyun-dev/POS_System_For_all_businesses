@@ -19,6 +19,16 @@ type LabelSize = '40x30' | '50x30'
 
 const RECEIPT_SIZE_KEY = 'pos_receipt_size'
 
+// The Print Agent only ever exists for Windows (it drives Windows' native
+// printer API). On Mac/Linux, Wi-Fi/network printing has no agent to fall
+// back to — network printers there go through the OS print dialog instead
+// (Browser Print), not this raw ESC/POS flow.
+function isWindowsPlatform(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const uaPlatform = (navigator as unknown as { userAgentData?: { platform?: string } }).userAgentData?.platform
+  return /win/i.test(uaPlatform || navigator.platform || navigator.userAgent)
+}
+
 // Icons (inline to avoid extra imports)
 function IconUsb({ className }: { className?: string }) {
   return (
@@ -72,6 +82,7 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
   const serialSupported = serialPrinterService.isSupported
   const anyConnected    = agentConnected || usbConnected || serialConnected
   const directSupported = printAgentService.isSupported || usbSupported || serialSupported
+  const [isWindows] = useState(isWindowsPlatform)
 
   // Auto-reconnect previously-granted printer when modal opens (no picker shown)
   useEffect(() => {
@@ -211,15 +222,34 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
     setCheckingAgent(false)
   }
 
+  // Prefer the native Print Agent when it's running (best experience on
+  // Windows — uses the installed printer driver). Otherwise fall back to
+  // WebUSB directly, which needs no extra software and works on any OS the
+  // browser supports it on (Windows, macOS, Linux, ChromeOS — not Safari).
   async function connectWired() {
     setConnecting(true)
     try {
-      await printAgentService.connect()
-      setAgentAvailable(true)
-      setAgentConnected(true)
-      toast.success(`${t('print.connected')}: ${printAgentService.printerName}`)
-    } catch (err) { toast.error(err instanceof Error ? err.message : t('print.connection_failed')) }
-    finally { setConnecting(false) }
+      if (agentAvailable) {
+        await printAgentService.connect()
+        setAgentAvailable(true)
+        setAgentConnected(true)
+        toast.success(`${t('print.connected')}: ${printAgentService.printerName}`)
+        return
+      }
+      if (usbSupported) {
+        await thermalPrinterService.connect()
+        setUsbConnected(true)
+        toast.success(`${t('print.connected')}: ${thermalPrinterService.deviceName}`)
+        return
+      }
+      throw new Error(t('print.connection_failed'))
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : ''
+      if (msg.includes('No device selected') || msg.includes('cancelled')) return
+      toast.error(msg || t('print.connection_failed'))
+    } finally {
+      setConnecting(false)
+    }
   }
 
   async function connectBluetooth() {
@@ -242,38 +272,6 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
       toast.success(`${t('print.connected')}: ${printAgentService.printerName}`)
     } catch (err) { toast.error(err instanceof Error ? err.message : t('print.connection_failed')) }
     finally { setConnecting(false) }
-  }
-
-  // Connect printer â€” tries USB first, falls back to Serial (COM port)
-  async function handleConnect() {
-    setConnecting(true)
-    try {
-      if (usbSupported) {
-        try {
-          await thermalPrinterService.connect()
-          setUsbConnected(true)
-          toast.success(`${t('print.connected')}: ${thermalPrinterService.deviceName}`)
-          return
-        } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : ''
-          // User cancelled picker â€” don't fall through to serial
-          if (msg.includes('No device selected') || msg.includes('cancelled')) return
-          // Access denied on Windows (driver conflict) â€” try serial next
-        }
-      }
-      if (serialSupported) {
-        setDetecting(true)
-        await serialPrinterService.connect()
-        setSerialConnected(true)
-        toast.success(`${t('print.connected')}: ${serialPrinterService.portName}`)
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('print.connection_failed')
-      if (!msg.includes('No port selected') && !msg.includes('cancelled')) toast.error(msg)
-    } finally {
-      setConnecting(false)
-      setDetecting(false)
-    }
   }
 
   async function handleDisconnect() {
@@ -416,23 +414,29 @@ export function ReceiptPrintPreviewModal({ receipt, onClose, autoTrigger = false
                 </div>
               ) : (
                 <div className="flex gap-2 flex-wrap">
-                  <button onClick={connectWired} disabled={connecting || agentAvailable === false} className="px-3 py-1.5 rounded-lg text-xs font-medium border border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-amber-500/50 disabled:opacity-40">USB / Wired</button>
+                  <button onClick={connectWired} disabled={connecting || (agentAvailable === false && !usbSupported)} className="px-3 py-1.5 rounded-lg text-xs font-medium border border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-amber-500/50 disabled:opacity-40">USB / Wired</button>
                   <button onClick={connectBluetooth} disabled={connecting || !serialSupported} className="px-3 py-1.5 rounded-lg text-xs font-medium border border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-blue-500/50 disabled:opacity-40">Bluetooth</button>
-                  <button onClick={connectWifi} disabled={connecting || agentAvailable === false} className="px-3 py-1.5 rounded-lg text-xs font-medium border border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-green-500/50 disabled:opacity-40">Wi-Fi</button>
+                  {isWindows && (
+                    <button onClick={connectWifi} disabled={connecting || agentAvailable === false} className="px-3 py-1.5 rounded-lg text-xs font-medium border border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-green-500/50 disabled:opacity-40">Wi-Fi</button>
+                  )}
                 </div>
               )}
             </div>
-            {!agentConnected && agentAvailable === false && (
+            {!agentConnected && isWindows && agentAvailable === false && (
               <div className="ml-[88px] rounded-lg border border-amber-500/25 bg-amber-500/5 p-3 text-[11px] text-zinc-400">
                 <p className="font-medium text-amber-400">Sawyun Print Agent is not running</p>
                 <p className="mt-1">Start the Print Agent, then check the connection. You can get the agent from Settings → Devices.</p>
+                <p className="mt-1">USB / Wired and Bluetooth work directly in this browser — no download needed. Wi-Fi printing needs the Print Agent.</p>
                 <div className="mt-2 flex gap-2">
                   <button onClick={checkAgent} disabled={checkingAgent} className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-zinc-300 hover:bg-zinc-800 disabled:opacity-50">{checkingAgent ? 'Checking…' : 'Check Agent'}</button>
                 </div>
               </div>
             )}
-            {!agentConnected && agentAvailable === true && (
+            {!agentConnected && isWindows && agentAvailable === true && (
               <p className="ml-[88px] text-[11px] text-green-400">Print Agent is running. Choose USB / Wired or Wi-Fi.</p>
+            )}
+            {!anyConnected && !isWindows && (
+              <p className="ml-[88px] text-[11px] text-zinc-500">For network/Wi-Fi printers, add the printer in your system's printer settings, then use the "{t('print.print_receipt')}" button below.</p>
             )}
           </div>
         </div>

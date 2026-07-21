@@ -9,8 +9,13 @@ import { subscriptionsService } from '@/services/subscriptions/subscriptions.ser
 import type { Plan, PaymentProof } from '@/shared/types'
 import { ProofActionType } from '@/shared/types'
 import axios from 'axios'
-import { tokenStorage } from '@/app/lib/axios'
+import { tokenStorage, BASE_URL } from '@/app/lib/axios'
 import { useLocaleStore } from '@/i18n/localeStore'
+
+// The API can live on a different origin than this app (e.g. a Vercel-hosted
+// frontend + separate API domain), so a bare "/uploads/..." path from the
+// backend resolves against the wrong host unless prefixed with the API's origin.
+const API_ORIGIN = new URL(BASE_URL, window.location.origin).origin
 
 //  Helpers
 
@@ -56,7 +61,8 @@ async function openProofFile(url: string) {
   try {
     // Use raw axios (no /api/v1 base URL) but inject the Bearer token manually
     const token = tokenStorage.getAccess()
-    const res = await axios.get<Blob>(url, {
+    const absoluteUrl = /^https?:\/\//.test(url) ? url : `${API_ORIGIN}${url}`
+    const res = await axios.get<Blob>(absoluteUrl, {
       responseType: 'blob',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
