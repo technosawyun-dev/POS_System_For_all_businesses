@@ -121,6 +121,26 @@ export default function DevicesSettingsPage() {
                 </div>
               </div>
             )}
+
+            {selected === 'ubuntu' && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 pt-4">
+                <div>
+                  <p className="text-sm font-medium text-zinc-200">SawYun Ubuntu / Linux App</p>
+                  <p className="mt-0.5 text-xs text-zinc-500">Install the Linux desktop version of SawYun POS.</p>
+                </div>
+                <DownloadLink href={links?.ubuntu} label="Download Linux App" />
+              </div>
+            )}
+
+            {selected === 'mac' && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 pt-4">
+                <div>
+                  <p className="text-sm font-medium text-zinc-200">SawYun Mac App</p>
+                  <p className="mt-0.5 text-xs text-zinc-500">Install the Mac desktop version of SawYun POS.</p>
+                </div>
+                <DownloadLink href={links?.mac} label="Download Mac App" />
+              </div>
+            )}
           </section>
         )}
       </div>

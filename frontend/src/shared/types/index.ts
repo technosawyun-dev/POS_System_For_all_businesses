@@ -598,6 +598,8 @@ export interface AppDownloadLinks {
   android: string
   ios: string
   windows: string
+  ubuntu: string
+  mac: string
   print_agent: string
   youtube: string
   phone: string

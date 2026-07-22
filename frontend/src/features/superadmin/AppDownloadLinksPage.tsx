@@ -8,7 +8,7 @@ import { IconSmartphone, IconMonitor, IconYoutube, IconPhoneCall, IconTelegram, 
 import type { AppDownloadLinks } from '@/shared/types'
 
 const EMPTY: AppDownloadLinks = {
-  android: '', ios: '', windows: '', print_agent: '',
+  android: '', ios: '', windows: '', ubuntu: '', mac: '', print_agent: '',
   youtube: '', phone: '', telegram: '', viber: '', email: '', facebook: '', tiktok: '',
 }
 
@@ -28,6 +28,8 @@ const FIELDS: Field[] = [
     group: 'download',
   },
   { key: 'windows', icon: IconMonitor, label: 'Windows App', placeholder: 'https://.../SawYunPos-Setup.exe', group: 'download' },
+  { key: 'ubuntu', icon: IconMonitor, label: 'Ubuntu / Linux App', placeholder: 'https://.../sawyunpos.deb', group: 'download' },
+  { key: 'mac', icon: IconMonitor, label: 'Mac App', placeholder: 'https://.../SawYunPos.dmg', group: 'download' },
 
   { key: 'print_agent', icon: IconMonitor, label: 'Windows Print Agent', placeholder: 'https://.../sawyun-print-agent.exe', group: 'download' },
   { key: 'youtube', icon: IconYoutube, label: 'YouTube Channel', placeholder: 'https://youtube.com/@yourchannel', group: 'channel' },
