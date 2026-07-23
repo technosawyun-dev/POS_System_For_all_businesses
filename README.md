@@ -3,7 +3,7 @@
 ## Environment setup
 
 `backend/.env` is the single source of truth for all environment config, including
-Docker Compose's own variables (`DATABASE_NAME`/`USER`/`PASSWORD`, `NGINX_PORT`).
+Docker Compose's own variables (`DATABASE_NAME`/`USER`/`PASSWORD`).
 The root `.env` that Compose auto-loads is a symlink to it.
 
 ```bash

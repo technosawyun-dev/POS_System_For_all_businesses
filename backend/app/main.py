@@ -10,6 +10,7 @@ import orjson
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, ORJSONResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +26,7 @@ from app.db.session import engine, get_db
 from app.events import handlers as _event_handlers  # noqa: F401 — registers handlers
 from app.notifications import handlers as _notification_handlers  # noqa: F401 — registers notification handlers
 from app.reseller_finance.events import handlers as _reseller_finance_handlers # noqa: F401 — handlers
+from app.middleware.body_size_limit import BodySizeLimitMiddleware
 from app.middleware.idempotency import IdempotencyMiddleware
 from app.middleware.logging import RequestLoggingMiddleware
 from app.middleware.rate_limit import PerUserRateLimitMiddleware
@@ -63,8 +65,9 @@ def create_application() -> FastAPI:
     )
 
     # Middleware — last added = outermost (executes first on request)
-    # Execution order: CORS → RequestID → Logging → PerUserRateLimit → Idempotency → route
+    # Execution order: GZip → CORS → RequestID → Logging → PerUserRateLimit → BodySizeLimit → Idempotency → route
     app.add_middleware(IdempotencyMiddleware)
+    app.add_middleware(BodySizeLimitMiddleware)
     app.add_middleware(PerUserRateLimitMiddleware)
     app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(RequestIDMiddleware)
@@ -75,6 +78,9 @@ def create_application() -> FastAPI:
         allow_methods=settings.CORS_ALLOW_METHODS,
         allow_headers=settings.CORS_ALLOW_HEADERS,
     )
+    # Compresses the final response — was previously done by Nginx, now that
+    # Cloudflare Tunnel forwards straight to the API with no reverse proxy.
+    app.add_middleware(GZipMiddleware, minimum_size=500)
 
     # Exception handlers
     @app.exception_handler(AppBaseException)

@@ -52,7 +52,7 @@ services:
           memory: 1300m
 
   # FastAPI Application
-  api:
+  posapi:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -149,35 +149,6 @@ services:
         limits:
           memory: 128m
 
-  # Nginx
-  # Not published to the public internet — Cloudflare Tunnel (see the
-  # cloudflared service below) is the only path in from outside. Bound to
-  # 127.0.0.1 only, for local debugging on the VPS itself.
-  nginx:
-    image: nginx:1.25-alpine
-    container_name: pos_nginx
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:${NGINX_PORT:-80}:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - nginx_logs:/var/log/nginx
-    depends_on:
-      api:
-        condition: service_healthy
-    networks:
-      - pos_network
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 128m
-
   # Postgres backup — local-only for now (hourly dumps, kept 7 days / 4 weeks /
   # 6 months). No offsite (R2) upload yet: the account's existing R2 token is
   # scoped to specific pre-created buckets and can't create a new one, so
@@ -209,11 +180,13 @@ services:
           memory: 128m
 
   # Cloudflare Tunnel — the only route in from the public internet. Cloudflare
-  # terminates TLS at its edge and forwards to nginx over the tunnel, so nginx
-  # itself never needs to see or handle certificates.
+  # terminates TLS at its edge and forwards straight to the posapi container;
+  # there is no reverse proxy in between (same pattern as the other apps on
+  # this VPS). Rate limiting, security headers, and gzip are handled by the
+  # API itself (see app/main.py and app/middleware/) rather than Nginx.
   # Setup: Cloudflare dashboard -> Zero Trust -> Networks -> Tunnels ->
   # Create a tunnel -> Docker -> copy the token into CLOUDFLARE_TUNNEL_TOKEN,
-  # then add a Public Hostname route pointing at http://nginx:80.
+  # then set the Public Hostname route to http://posapi:8000.
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: pos_cloudflared
@@ -222,7 +195,7 @@ services:
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
-      nginx:
+      posapi:
         condition: service_healthy
     networks:
       - pos_network
@@ -234,7 +207,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  nginx_logs:
 
 networks:
   pos_network:
