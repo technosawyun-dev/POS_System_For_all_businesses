@@ -17,11 +17,16 @@ echo "==> Syncing to latest main"
 git fetch origin main
 git reset --hard origin/main
 
+echo "==> Removing stale containers from the pre-Nginx-removal service names"
+# `--remove-orphans` alone does not reliably free this up: it left the old
+# "api"/"nginx" containers running even when passed (verified against this
+# VPS's Compose v5.2.0), because the new "posapi" service reuses the exact
+# same container_name ("pos_api") the old "api" service held — a same-name
+# collision Compose's orphan pass doesn't resolve before trying to create
+# the replacement. Removing them by name directly sidesteps that.
+docker rm -f pos_api pos_nginx 2>/dev/null || true
+
 echo "==> Rebuilding and restarting changed containers"
-# --remove-orphans: without it, a renamed/removed service (e.g. the old "api"
-# and "nginx" services replaced by "posapi") leaves its old container running
-# and untracked, which then blocks the new service from claiming the same
-# explicit container_name — deploy fails with "Conflict... already in use".
 docker compose up -d --build --remove-orphans
 
 echo "==> Waiting for posapi to be healthy"
