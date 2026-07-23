@@ -179,6 +179,38 @@ services:
         limits:
           memory: 128m
 
+  # Offsite backup — rclone syncs ./backups to the Shared VPS over SFTP
+  # (hhn.infinity.appboxes.co), hourly. Same pattern as the R2 uploaders on
+  # the other apps on this VPS, just pointed at an SFTP remote instead of R2
+  # since the Shared VPS isn't S3-compatible storage. The SSH key is
+  # deliberately outside the repo (./backup-ssh-key/, generated directly on
+  # the VPS) and restricted server-side to SFTP-only, no shell access.
+  backup-offsite:
+    image: rclone/rclone:latest
+    container_name: pos_backup_offsite
+    restart: unless-stopped
+    volumes:
+      - ./backups:/backups:ro
+      - ./scripts/rclone-sync-sharedvps.sh:/rclone-sync.sh:ro
+      - ./backup-ssh-key/id_sharedvps:/keys/id_sharedvps:ro
+      - ./logs:/logs
+    depends_on:
+      - db-backup
+    environment:
+      - RCLONE_CONFIG_SHAREDVPS_TYPE=sftp
+      - RCLONE_CONFIG_SHAREDVPS_HOST=hhn.infinity.appboxes.co
+      - RCLONE_CONFIG_SHAREDVPS_PORT=10026
+      - RCLONE_CONFIG_SHAREDVPS_USER=appbox
+      - RCLONE_CONFIG_SHAREDVPS_KEY_FILE=/keys/id_sharedvps
+      - RCLONE_CONFIG_SHAREDVPS_SHELL_TYPE=none
+    entrypoint: ["/bin/sh", "/rclone-sync.sh"]
+    networks:
+      - pos_network
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+
   # Cloudflare Tunnel — the only route in from the public internet. Cloudflare
   # terminates TLS at its edge and forwards straight to the posapi container;
   # there is no reverse proxy in between (same pattern as the other apps on
