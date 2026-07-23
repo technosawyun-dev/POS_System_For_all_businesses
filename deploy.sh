@@ -18,7 +18,11 @@ git fetch origin main
 git reset --hard origin/main
 
 echo "==> Rebuilding and restarting changed containers"
-docker compose up -d --build
+# --remove-orphans: without it, a renamed/removed service (e.g. the old "api"
+# and "nginx" services replaced by "posapi") leaves its old container running
+# and untracked, which then blocks the new service from claiming the same
+# explicit container_name — deploy fails with "Conflict... already in use".
+docker compose up -d --build --remove-orphans
 
 echo "==> Waiting for posapi to be healthy"
 for i in $(seq 1 30); do
