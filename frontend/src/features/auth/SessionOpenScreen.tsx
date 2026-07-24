@@ -12,7 +12,7 @@ import { IconCash, IconAlert } from '@/components/icons'
 import type { CashierSession } from '@/shared/types'
 import { useLocaleStore } from '@/i18n/localeStore'
 
-const QUICK_FLOATS = [50, 100, 200, 300, 500]
+const QUICK_FLOATS = [50000, 100000, 150000, 200000, 300000]
 
 export default function SessionOpenScreen() {
   const navigate = useNavigate()
